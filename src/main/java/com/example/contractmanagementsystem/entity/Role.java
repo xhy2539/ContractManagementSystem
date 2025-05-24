@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode; // 确保导入
 import java.util.HashSet;
 import java.util.Set;
 
@@ -12,24 +13,25 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true) // <--- 确保此行存在且正确
 @Entity
-@Table(name = "roles") // 对应数据字典中的 "角色(role)信息"
+@Table(name = "roles")
 public class Role {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include // <--- 确保此行存在且正确
     private Integer id;
 
-    @Column(nullable = false, unique = true, length = 40) // 参照数据字典中的 name 字段
-    private String name; // 例如 ROLE_ADMIN, ROLE_USER, ROLE_CONTRACT_OPERATOR
+    @Column(nullable = false, unique = true, length = 40)
+    private String name;
 
-    @Column(length = 100) // 参照数据字典中的 description 字段
+    @Column(length = 100)
     private String description;
 
-    // 启用并完善多对多关系
-    @ManyToMany(fetch = FetchType.LAZY) // LAZY: 角色加载时不立即加载其功能，需要时再加载
-    @JoinTable(name = "role_functionalities", // 定义连接表名称，可以自定义
-            joinColumns = @JoinColumn(name = "role_id"), // 连接表中对应 Role 实体的外键列
-            inverseJoinColumns = @JoinColumn(name = "functionality_id")) // 连接表中对应 Functionality 实体的外键列
-    private Set<Functionality> functionalities = new HashSet<>(); // 一个角色可以拥有多个功能 [cite: 42, 60]
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "role_functionalities",
+            joinColumns = @JoinColumn(name = "role_id"),
+            inverseJoinColumns = @JoinColumn(name = "functionality_id"))
+    private Set<Functionality> functionalities = new HashSet<>();
 }
