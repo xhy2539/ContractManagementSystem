@@ -86,6 +86,13 @@ public interface SystemManagementService {
     Role findRoleByName(String roleName);
 
     /**
+     * 根据角色ID查找角色
+     * @param roleId 角色ID
+     * @return 角色实体
+     */
+    Role findRoleById(Integer roleId); // 新增的方法
+
+    /**
      * 更新角色信息 (包括关联的功能)
      * @param roleId 角色ID
      * @param roleDetailsToUpdate 包含更新信息的角色实体

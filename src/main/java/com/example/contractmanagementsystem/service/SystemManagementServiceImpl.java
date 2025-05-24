@@ -135,12 +135,21 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             } else if (signUserIds != null && !signUserIds.isEmpty()) {
                 contract.setStatus(ContractStatus.PENDING_SIGNING);
             } else {
-                contract.setStatus(ContractStatus.PENDING_ASSIGNMENT);
+                // This case should ideally not happen if personnelAssigned is true
+                // but if it does, it implies assignment might be for a type not changing overall status yet
+                // or the status logic needs refinement based on which groups are assigned.
+                // For now, let's assume if personnelAssigned is true, at least one group had IDs.
+                // If no specific primary phase is started by assignment, PENDING_ASSIGNMENT could be a fallback.
+                if (contract.getStatus() == ContractStatus.DRAFT) { // Only update from DRAFT if not already in a pending state
+                    contract.setStatus(ContractStatus.PENDING_ASSIGNMENT); // Or a more specific initial pending state
+                }
             }
             contractRepository.save(contract);
             auditLogService.logAction(getCurrentUsername(), "ASSIGN_CONTRACT_PERSONNEL", "为合同 ID: " + contract.getId() + " (" + contract.getContractName() + ") 分配处理人员");
             return true;
         } else {
+            // If no personnel were actually assigned (e.g., all lists were empty or null)
+            // Optionally, log this or handle as an invalid operation if assignment implies at least one person.
             return false;
         }
     }
@@ -158,7 +167,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setEnabled(true);
+        user.setEnabled(true); // 默认启用用户
 
         Set<Role> roles = new HashSet<>();
         if (roleNames != null && !roleNames.isEmpty()) {
@@ -167,6 +176,11 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                         .orElseThrow(() -> new ResourceNotFoundException("角色 '" + roleName + "' 未找到"));
                 roles.add(role);
             }
+        } else {
+            // 如果需求是新用户必须有角色，可以在此抛出异常或分配一个默认角色
+            // 如果新用户可以没有角色，则此else块可以省略
+            // 根据需求文档 “新用户：没有任何权限，等待合同管理员分配权限”
+            // 这里我们不自动分配角色，除非明确指定。
         }
         user.setRoles(roles);
         User savedUser = userRepository.save(user);
@@ -193,6 +207,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         User existingUser = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("用户未找到，ID: " + userId));
 
+        // 更新邮箱（如果提供且与现有不同，并检查是否已被其他用户使用）
         if (userDetailsToUpdate.getEmail() != null && !userDetailsToUpdate.getEmail().isEmpty() &&
                 !userDetailsToUpdate.getEmail().equals(existingUser.getEmail())) {
             if (userRepository.existsByEmail(userDetailsToUpdate.getEmail())) {
@@ -200,8 +215,13 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             }
             existingUser.setEmail(userDetailsToUpdate.getEmail());
         }
+        // 更新启用状态
+        // userDetailsToUpdate.isEnabled() 在DTO中通常是 isEnabled() 或 getEnabled()
+        // User实体中的是 isEnabled()
         existingUser.setEnabled(userDetailsToUpdate.isEnabled());
 
+
+        // 注意：此方法不更新密码或角色。密码和角色更新应通过专门的方法进行。
         User updatedUser = userRepository.save(existingUser);
         auditLogService.logAction(getCurrentUsername(), "UPDATE_USER_INFO", "更新用户信息: " + updatedUser.getUsername());
         return updatedUser;
@@ -220,13 +240,22 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
 
         // 检查用户是否是任何合同的起草人
+        // 需求文档中没有明确指出起草人不能删除，但这是一个常见的业务约束。
+        // 如果允许删除，可能需要将相关合同的起草人置空或重新分配。
+        // 这里我们遵循一个更严格的规则，如果用户是起草人，则不允许删除。
         long draftedContractsCount = contractRepository.countByDrafter(user);
         if (draftedContractsCount > 0) {
             throw new BusinessLogicException("无法删除用户 " + user.getUsername() + "，该用户是 " + draftedContractsCount + " 个合同的起草人。请先处理这些合同。");
         }
 
-        user.getRoles().clear(); // JPA会处理关联表
-        userRepository.delete(user);
+        // 在删除用户之前，需要解除其与角色的关联 (多对多关系)
+        // JPA 通常会自动处理中间表 user_roles 中的记录，当 User 是拥有方或者关系配置为 CascadeType.REMOVE (不推荐用于多对多)
+        // 最安全的方式是显式清除关联，或者确保 User 实体中 @ManyToMany 注解正确配置，并且没有阻止删除的级联设置。
+        // 对于 @ManyToMany, 通常不需要显式清除，JPA会处理。
+        // user.getRoles().clear(); // 如果User是关系拥有方，这会清空关联。
+        // userRepository.save(user); // 保存变更
+
+        userRepository.delete(user); // 这将删除用户，并由于 User.roles 的配置，会删除 user_roles 表中的关联记录。
         auditLogService.logAction(getCurrentUsername(), "DELETE_USER", "删除用户: " + user.getUsername() + " (ID: " + userId + ")");
     }
 
@@ -267,21 +296,32 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Role findRoleById(Integer roleId) { // 新增方法的实现
+        return roleRepository.findById(roleId)
+                .orElseThrow(() -> new ResourceNotFoundException("角色未找到，ID: " + roleId));
+    }
+
+
+    @Override
     @Transactional
     public Role updateRole(Integer roleId, Role roleDetailsToUpdate, Set<String> functionalityNames) {
         Role existingRole = roleRepository.findById(roleId)
                 .orElseThrow(() -> new ResourceNotFoundException("角色未找到，ID: " + roleId));
 
+        // 更新角色名（如果提供且与现有不同，并检查是否已被其他角色使用）
         if (roleDetailsToUpdate.getName() != null && !existingRole.getName().equals(roleDetailsToUpdate.getName())) {
-            if(roleRepository.findByName(roleDetailsToUpdate.getName()).isPresent()){
+            if(roleRepository.findByName(roleDetailsToUpdate.getName()).filter(r -> !r.getId().equals(roleId)).isPresent()){
                 throw new DuplicateResourceException("角色名称 '" + roleDetailsToUpdate.getName() + "' 已被其他角色使用");
             }
             existingRole.setName(roleDetailsToUpdate.getName());
         }
+        // 更新描述
         if(roleDetailsToUpdate.getDescription() != null) {
             existingRole.setDescription(roleDetailsToUpdate.getDescription());
         }
 
+        // 更新关联的功能
         Set<Functionality> functionalities = new HashSet<>();
         if (functionalityNames != null) {
             for (String funcName : functionalityNames) {
@@ -290,7 +330,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                 functionalities.add(func);
             }
         }
-        existingRole.setFunctionalities(functionalities);
+        existingRole.setFunctionalities(functionalities); // 直接替换现有的功能集合
 
         Role updatedRole = roleRepository.save(existingRole);
         auditLogService.logAction(getCurrentUsername(), "UPDATE_ROLE", "更新角色: " + updatedRole.getName());
@@ -303,7 +343,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new ResourceNotFoundException("角色未找到，ID: " + roleId));
 
-        // 使用 UserRepository 中添加的 countByRolesContains 方法检查角色是否仍被用户使用
+        // 检查角色是否仍被用户使用
         long userCountWithRole = userRepository.countByRolesContains(role);
         if (userCountWithRole > 0) {
             throw new BusinessLogicException("无法删除角色 '" + role.getName() + "'，仍有 " + userCountWithRole + " 个用户拥有此角色。请先解除这些用户的该角色。");
@@ -311,7 +351,9 @@ public class SystemManagementServiceImpl implements SystemManagementService {
 
         // 如果没有用户拥有此角色，可以直接删除。
         // JPA 会自动处理关联表 role_functionalities 中的记录，因为 Role 是拥有方。
-        // role.getFunctionalities().clear(); // 不需要显式清除，除非有特殊理由或级联问题
+        // 对于 @ManyToMany, Role 是拥有方 (因为它有 @JoinTable)。
+        // Role.functionalities 的移除由 JPA 在删除 Role 时处理。
+        // role.getFunctionalities().clear(); // 不需要显式清除
 
         roleRepository.delete(role);
         auditLogService.logAction(getCurrentUsername(), "DELETE_ROLE", "删除角色: " + role.getName() + " (ID: " + roleId + ")");
@@ -355,24 +397,27 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public Functionality updateFunctionality(Long id, Functionality functionalityDetailsToUpdate) {
         Functionality existingFunc = getFunctionalityById(id);
 
+        // 更新功能名称（如果提供且与现有不同，并检查是否已被其他功能使用）
         if (functionalityDetailsToUpdate.getName() != null &&
                 !existingFunc.getName().equals(functionalityDetailsToUpdate.getName())) {
             Optional<Functionality> byName = functionalityRepository.findByName(functionalityDetailsToUpdate.getName());
-            if (byName.isPresent() && !byName.get().getId().equals(id)) {
+            if (byName.isPresent() && !byName.get().getId().equals(id)) { // 确保不是自身
                 throw new DuplicateResourceException("功能名称 '" + functionalityDetailsToUpdate.getName() + "' 已被其他功能使用");
             }
             existingFunc.setName(functionalityDetailsToUpdate.getName());
         }
 
+        // 更新功能编号（如果提供且与现有不同，并检查是否已被其他功能使用）
         if (functionalityDetailsToUpdate.getNum() != null &&
-                ! (existingFunc.getNum() != null && existingFunc.getNum().equals(functionalityDetailsToUpdate.getNum())) ) {
+                !(existingFunc.getNum() != null && existingFunc.getNum().equals(functionalityDetailsToUpdate.getNum())) ) { // 确保编号有变化
             Optional<Functionality> byNum = functionalityRepository.findByNum(functionalityDetailsToUpdate.getNum());
-            if (byNum.isPresent() && !byNum.get().getId().equals(id)) {
+            if (byNum.isPresent() && !byNum.get().getId().equals(id)) { // 确保不是自身
                 throw new DuplicateResourceException("功能编号 '" + functionalityDetailsToUpdate.getNum() + "' 已被其他功能使用");
             }
             existingFunc.setNum(functionalityDetailsToUpdate.getNum());
         }
 
+        // 更新描述和URL
         if(functionalityDetailsToUpdate.getDescription() != null) {
             existingFunc.setDescription(functionalityDetailsToUpdate.getDescription());
         }
@@ -395,9 +440,10 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (!rolesWithFunc.isEmpty()) {
             // 业务决定：是抛出异常，还是自动解除关联
             // 这里选择自动解除关联并记录
+            // 注意：Functionality实体必须正确实现equals和hashCode方法，以便Set的remove操作能正常工作
             for(Role role : rolesWithFunc){
-                role.getFunctionalities().remove(func); // 依赖 Functionality 的 equals/hashCode
-                roleRepository.save(role);
+                role.getFunctionalities().remove(func);
+                roleRepository.save(role); // 保存角色的变更
             }
             auditLogService.logAction(getCurrentUsername(), "DELETE_FUNCTIONALITY_CASCADE_ROLE_UPDATE",
                     "功能 '" + func.getName() + "' (ID: " + id + ") 已从 " + rolesWithFunc.size() + " 个角色中移除。");
@@ -423,7 +469,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                 newRoles.add(role);
             }
         }
-        user.setRoles(newRoles);
+        user.setRoles(newRoles); // 直接替换用户现有的角色集合
         User updatedUser = userRepository.save(user);
         auditLogService.logAction(getCurrentUsername(), "ASSIGN_ROLES_TO_USER", "为用户 '" + updatedUser.getUsername() + "' 分配角色: " + roleNames);
         return updatedUser;

@@ -1,5 +1,7 @@
+
 package com.example.contractmanagementsystem.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -55,5 +57,13 @@ public class LoginController {
             return "redirect:/dashboard";
         }
         return "redirect:/login";
+    }
+
+    @GetMapping("/admin/audit-logs")
+    @PreAuthorize("hasRole('ROLE_ADMIN')") // 确保只有管理员能访问
+    public String auditLogsPage(Model model) {
+        // 可以向模型添加一些初始数据，如果需要的话
+        // model.addAttribute("someAttribute", "someValue");
+        return "admin/audit-logs"; // Thymeleaf模板的路径 (例如：templates/admin/audit-logs.html)
     }
 }

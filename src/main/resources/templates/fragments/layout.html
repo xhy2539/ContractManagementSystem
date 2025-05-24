@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title layout:title-pattern="CONTENT_TITLE - LAYOUT_TITLE">合同管理系统</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
+    <style>
+        body {
+            padding-top: 4.5rem; /* Navbar height adjustment */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .navbar {
+            box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
+        }
+        main.container {
+            flex: 1; /* 让主内容区填充可用空间 */
+            margin-top: 1.5rem; /* 从导航栏下来的间距 */
+            margin-bottom: 1.5rem; /* 给页脚留出空间 */
+        }
+        .footer {
+            /* fixed-bottom 通常用于内容不足一屏时，如果内容多，则可能不需要 */
+            /* 如果内容总是超过一屏，可以移除 fixed-bottom */
+            /* position: relative; */ /* 或者移除 fixed-bottom */
+            /* bottom: 0; */
+            /* width: 100%; */
+            background-color: #f8f9fa; /* 与Bootstrap默认light背景色一致 */
+        }
+        /* 您可以在 style.css 中添加更多全局样式 */
+    </style>
+    <th:block layout:fragment="css-links"></th:block>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" th:href="@{/dashboard}">合同管理系统</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                <li class="nav-item">
+                    <a class="nav-link" th:classappend="${#httpServletRequest.getRequestURI().startsWith('/dashboard') ? 'active' : ''}" aria-current="page" th:href="@{/dashboard}"><i class="bi bi-house-door-fill"></i> 仪表盘</a>
+                </li>
+                <li class="nav-item" sec:authorize="hasRole('ROLE_ADMIN')">
+                    <a class="nav-link" th:classappend="${#httpServletRequest.getRequestURI().startsWith('/admin/audit-logs') ? 'active' : ''}" th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i> 审计日志</a>
+                </li>
+            </ul>
+            <div class="d-flex align-items-center text-white" sec:authorize="isAuthenticated()">
+                <span class="me-2"><i class="bi bi-person-circle"></i> <span sec:authentication="name">User</span></span>
+                <form th:action="@{/perform_logout}" method="post" class="d-inline">
+                    <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-box-arrow-right"></i> 注销</button>
+                </form>
+            </div>
+            <ul class="navbar-nav" sec:authorize="!isAuthenticated()">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/login}">登录</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main role="main" class="container">
+    <div layout:fragment="content">
+        <p>这是布局的默认内容，如果页面没有定义 content fragment，则会显示这里。</p>
+    </div>
+</main>
+
+<footer class="footer mt-auto py-3 bg-light"> <div class="container text-center">
+    <span class="text-muted">&copy; <span th:text="${#dates.year(#dates.createNow())}">2025</span> 合同管理系统. 版权所有.</span>
+</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+<th:block layout:fragment="scripts">
+</th:block>
+
+</body>
+</html>

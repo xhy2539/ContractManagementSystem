@@ -1,27 +1,128 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <title>仪表盘</title>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"> <head>
+    <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>合同管理系统 - 仪表盘</title>
     <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .navbar {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar .brand {
+            font-size: 1.5em;
+        }
+        .navbar .user-info {
+            font-size: 0.9em;
+        }
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 15px;
+        }
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .module-section ul {
+            list-style: none;
+            padding: 0;
+        }
+        .module-section li {
+            margin-bottom: 10px;
+        }
+        .module-section li a {
+            text-decoration: none;
+            color: #007bff;
+            font-size: 1.1em;
+        }
+        .module-section li a:hover {
+            text-decoration: underline;
+        }
+        .logout-form button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .logout-form button:hover {
+            background-color: #c82333;
+        }
+    </style>
 </head>
 <body>
+
+<div class="navbar">
+    <div class="brand">合同管理系统</div>
+    <div class="user-info">
+        欢迎, <span sec:authentication="name">用户</span>!
+        <a th:href="@{/perform_logout}" onclick="document.getElementById('logout-form-inline').submit(); return false;">注销</a>
+        <form id="logout-form-inline" th:action="@{/perform_logout}" method="post" style="display: none;">
+        </form>
+    </div>
+</div>
+
 <div class="container">
-    <h1>欢迎, <span th:text="${username ?: '用户'}">用户</span>!</h1>
-    <p>这里是您的仪表盘。</p>
+    <h1>仪表盘</h1>
+    <p>欢迎使用合同管理系统。请选择您要操作的模块。</p>
 
-    <h2>系统管理</h2>
-    <ul>
-        <li><a th:href="@{/admin/users}">用户管理</a></li>
-        <li><a th:href="@{/admin/roles}">角色管理</a></li>
-        <li><a th:href="@{/admin/functionalities}">功能管理</a></li>
-        <li><a th:href="@{/admin/contract-assignments}">合同分配</a></li>
-        <li><a th:href="@{/admin/audit-logs}">审计日志</a></li>
-    </ul>
+    <div sec:authorize="hasRole('ROLE_ADMIN')" class="module-section">
+        <h2>系统管理</h2>
+        <ul>
+            <li><a th:href="@{/admin/users}">用户管理</a> </li>
+            <li><a th:href="@{/admin/roles}">角色管理</a> </li>
+            <li><a th:href="@{/admin/functionalities}">功能管理</a> </li>
+            <li><a th:href="@{/admin/contract-assignments}">合同分配</a> </li>
+            <li><a th:href="@{/admin/audit-logs}">审计日志管理</a></li> </ul>
+    </div>
 
+    <div sec:authorize="isAuthenticated()" class="module-section"> <h2>合同管理</h2>
+        <ul>
+            <li><a th:href="@{/contracts/draft}">起草合同</a></li>
+            <li><a th:href="@{/contracts/pending-countersign}">待会签合同</a></li>
+            <li><a th:href="@{/contracts/pending-approval}">待审批合同</a></li>
+            <li><a th:href="@{/contracts/view-all}">查看我的合同</a></li>
+        </ul>
+    </div>
 
-    <form th:action="@{/perform_logout}" method="post">
-        <button type="submit">注销</button>
+    <div sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_DATA_MANAGER')" class="module-section"> <h2>基础数据管理</h2>
+        <ul>
+            <li><a th:href="@{/customers}">客户信息管理</a></li>
+        </ul>
+    </div>
+
+    <div sec:authorize="isAuthenticated()" class="module-section">
+        <h2>查询统计</h2>
+        <ul>
+            <li><a th:href="@{/reports/contract-status}">合同状态统计</a></li>
+        </ul>
+    </div>
+
+    <hr>
+    <form th:action="@{/perform_logout}" method="post" class="logout-form">
+        <button type="submit">安全注销</button>
     </form>
 </div>
+
 </body>
 </html>
