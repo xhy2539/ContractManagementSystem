@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>仪表盘</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
+</head>
+<body>
+<div class="container">
+    <h1>欢迎, <span th:text="${username ?: '用户'}">用户</span>!</h1>
+    <p>这里是您的仪表盘。</p>
+
+    <h2>系统管理</h2>
+    <ul>
+        <li><a th:href="@{/admin/users}">用户管理</a></li>
+        <li><a th:href="@{/admin/roles}">角色管理</a></li>
+        <li><a th:href="@{/admin/functionalities}">功能管理</a></li>
+        <li><a th:href="@{/admin/contract-assignments}">合同分配</a></li>
+        <li><a th:href="@{/admin/audit-logs}">审计日志</a></li>
+    </ul>
+
+
+    <form th:action="@{/perform_logout}" method="post">
+        <button type="submit">注销</button>
+    </form>
+</div>
+</body>
+</html>

@@ -1,49 +1,63 @@
-package com.example.contractmanagementsystem.config; // 或者 com.example.contractmanagementsystem.security;
+package com.example.contractmanagementsystem.config;
 
+import com.example.contractmanagementsystem.service.UserDetailsServiceImpl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+// 如果你的Spring Boot版本低于2.7，可能需要导入 WebSecurityConfigurerAdapter
+// import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@EnableWebSecurity // 启用Spring Security的Web安全支持
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true, securedEnabled = true, jsr250Enabled = true)
 public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); // 使用 BCrypt 进行密码加密
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public AuthenticationManager authenticationManager(HttpSecurity http, UserDetailsServiceImpl userDetailsService, PasswordEncoder passwordEncoder) throws Exception {
+        AuthenticationManagerBuilder authenticationManagerBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
+        authenticationManagerBuilder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder);
+        return authenticationManagerBuilder.build();
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
         http
+                // 修改这里：暂时完全禁用 CSRF
+                .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
-                        // 这里定义你的URL授权规则
-                        // 例如：允许匿名访问注册和登录页面
-                        .requestMatchers("/register", "/login", "/css/**", "/js/**").permitAll()
-                        // 其他所有请求都需要认证
+                        // 确保根路径 "/" 和登录相关路径被允许
+                        .requestMatchers("/", "/register", "/login", "/perform_login", "/css/**", "/js/**", "/error/**").permitAll()
+                        .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/api/system/**").authenticated()
                         .anyRequest().authenticated()
                 )
+                .authenticationManager(authenticationManager)
                 .formLogin(formLogin -> formLogin
-                        // 自定义登录页面URL (如果需要)
                         .loginPage("/login")
-                        // 登录成功后的默认跳转URL
-                        .defaultSuccessUrl("/dashboard", true) // 跳转到仪表盘或主页
+                        .loginProcessingUrl("/perform_login")
+                        .defaultSuccessUrl("/dashboard", true)
+                        .failureUrl("/login?error=true")
                         .permitAll()
                 )
                 .logout(logout -> logout
-                        // 自定义登出URL
-                        .logoutUrl("/logout")
-                        // 登出成功后跳转的URL
+                        .logoutUrl("/perform_logout")
                         .logoutSuccessUrl("/login?logout")
+                        .deleteCookies("JSESSIONID")
+                        .invalidateHttpSession(true)
                         .permitAll()
-                )
-        // 如果你的应用是无状态的 (例如纯API)，可以禁用CSRF
-        // .csrf(csrf -> csrf.disable()) // 对于传统的Web应用，建议启用CSRF保护
-        ;
+                );
         return http.build();
     }
 }

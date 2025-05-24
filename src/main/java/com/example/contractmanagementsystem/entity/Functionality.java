@@ -21,7 +21,7 @@ public class Functionality {
     @EqualsAndHashCode.Include // <--- 确保此行存在且正确 (id 参与 equals/hashCode)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 10)
+    @Column(nullable = false, unique = true, length = 20)
     private String num;
 
     @Column(nullable = false, unique = true, length = 50)
