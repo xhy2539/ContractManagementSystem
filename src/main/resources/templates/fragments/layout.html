@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title layout:title-pattern="CONTENT_TITLE - LAYOUT_TITLE">合同管理系统</title>
+    <title layout:title-pattern="CONTENT_TITLE + ' - ' + LAYOUT_TITLE">合同管理系统</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
@@ -17,24 +17,25 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            background-color: #f8f9fa; /* 为整个页面设置淡灰色背景 */
         }
         .navbar {
             box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
         }
-        main.container {
+        main.container { /* 应用于布局中<main>标签的全局样式 */
             flex: 1; /* 让主内容区填充可用空间 */
             margin-top: 1.5rem; /* 从导航栏下来的间距 */
-            margin-bottom: 1.5rem; /* 给页脚留出空间 */
+            margin-bottom: 70px; /* 给页脚留出足够空间, 避免页脚遮挡内容 */
+            background-color: #ffffff; /* 为主要内容区域设置白色背景 */
+            padding: 2rem; /* 内容区域的内边距 */
+            border-radius: 0.5rem; /* 内容区域的圆角 */
+            box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05); /* 内容区域的轻微阴影 */
         }
         .footer {
-            /* fixed-bottom 通常用于内容不足一屏时，如果内容多，则可能不需要 */
-            /* 如果内容总是超过一屏，可以移除 fixed-bottom */
-            /* position: relative; */ /* 或者移除 fixed-bottom */
-            /* bottom: 0; */
-            /* width: 100%; */
-            background-color: #f8f9fa; /* 与Bootstrap默认light背景色一致 */
+            background-color: #e9ecef; /* 页脚使用稍深一点的灰色 */
+            padding-top: 1rem;
+            padding-bottom: 1rem;
         }
-        /* 您可以在 style.css 中添加更多全局样式 */
     </style>
     <th:block layout:fragment="css-links"></th:block>
 </head>
@@ -49,10 +50,14 @@
         <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav me-auto mb-2 mb-md-0">
                 <li class="nav-item">
-                    <a class="nav-link" th:classappend="${#httpServletRequest.getRequestURI().startsWith('/dashboard') ? 'active' : ''}" aria-current="page" th:href="@{/dashboard}"><i class="bi bi-house-door-fill"></i> 仪表盘</a>
+                    <a class="nav-link"
+                       th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/dashboard')) ? 'active' : ''}"
+                       aria-current="page" th:href="@{/dashboard}"><i class="bi bi-house-door-fill"></i> 仪表盘</a>
                 </li>
                 <li class="nav-item" sec:authorize="hasRole('ROLE_ADMIN')">
-                    <a class="nav-link" th:classappend="${#httpServletRequest.getRequestURI().startsWith('/admin/audit-logs') ? 'active' : ''}" th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i> 审计日志</a>
+                    <a class="nav-link"
+                       th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/audit-logs')) ? 'active' : ''}"
+                       th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i> 审计日志</a>
                 </li>
             </ul>
             <div class="d-flex align-items-center text-white" sec:authorize="isAuthenticated()">
@@ -63,7 +68,7 @@
             </div>
             <ul class="navbar-nav" sec:authorize="!isAuthenticated()">
                 <li class="nav-item">
-                    <a class="nav-link" th:href="@{/login}">登录</a>
+                    <a class="nav-link" th:href="@{/login}"><i class="bi bi-box-arrow-in-right"></i> 登录</a>
                 </li>
             </ul>
         </div>
@@ -72,16 +77,19 @@
 
 <main role="main" class="container">
     <div layout:fragment="content">
-        <p>这是布局的默认内容，如果页面没有定义 content fragment，则会显示这里。</p>
+        <h2>欢迎来到合同管理系统</h2>
+        <p>请从导航栏选择一个功能模块开始操作。</p>
     </div>
 </main>
 
-<footer class="footer mt-auto py-3 bg-light"> <div class="container text-center">
-    <span class="text-muted">&copy; <span th:text="${#dates.year(#dates.createNow())}">2025</span> 合同管理系统. 版权所有.</span>
-</div>
+<footer class="footer mt-auto py-3">
+    <div class="container text-center">
+        <span class="text-muted">&copy; <span th:text="${#dates.year(#dates.createNow())}">2025</span> 合同管理系统. 版权所有.</span>
+    </div>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+
 <th:block layout:fragment="scripts">
 </th:block>
 
