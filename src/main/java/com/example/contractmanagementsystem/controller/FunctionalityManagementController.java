@@ -6,16 +6,16 @@ import com.example.contractmanagementsystem.entity.Functionality;
 import com.example.contractmanagementsystem.service.SystemManagementService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page; // 新增导入
-import org.springframework.data.domain.Pageable; // 新增导入
-import org.springframework.data.domain.Sort; // 新增导入
-import org.springframework.data.web.PageableDefault; // 新增导入
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List; // 保留List导入，如果其他地方需要
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/system/functionalities")
@@ -51,7 +51,8 @@ public class FunctionalityManagementController {
      */
     @GetMapping
     public ResponseEntity<Page<Functionality>> getAllFunctionalities(
-            @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable,
+            // 修改这里的 sort 参数
+            @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable,
             @RequestParam(required = false) String numSearch,
             @RequestParam(required = false) String nameSearch,
             @RequestParam(required = false) String descriptionSearch) {
@@ -76,8 +77,6 @@ public class FunctionalityManagementController {
     @PutMapping("/{id}")
     public ResponseEntity<Functionality> updateFunctionality(@PathVariable Long id, @Valid @RequestBody FunctionalityUpdateRequest funcUpdateRequest) {
         Functionality functionalityDetailsToUpdate = new Functionality();
-        // 注意：DTO中的字段名需要与Functionality实体对应，或者在Service层进行转换
-        // 假设DTO中的num, name, url, description与实体一致
         functionalityDetailsToUpdate.setNum(funcUpdateRequest.getNum());
         functionalityDetailsToUpdate.setName(funcUpdateRequest.getName());
         functionalityDetailsToUpdate.setUrl(funcUpdateRequest.getUrl());

@@ -16,9 +16,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const paginationControlsContainerId = 'paginationControlsFunctionality';
     const globalAlertContainerId = 'globalAlertContainer';
-    const functionalitiesTableSpinnerId = 'functionalitiesTableSpinner'; // 确保HTML中有此ID
+    const functionalitiesTableSpinnerId = 'functionalitiesTableSpinner';
 
-    // Search elements (可选, 如果HTML中添加了搜索表单)
+    // Search elements
     const funcNumSearchInput = document.getElementById('funcNumSearch');
     const funcNameSearchInput = document.getElementById('funcNameSearch');
     const funcDescriptionSearchInput = document.getElementById('funcDescriptionSearch');
@@ -47,7 +47,6 @@ document.addEventListener('DOMContentLoaded', function () {
             functionalitiesTableBody.addEventListener('click', handleTableActions);
         }
 
-        // 可选的搜索/筛选事件监听器
         if (searchFunctionalityBtn) {
             searchFunctionalityBtn.addEventListener('click', () => fetchFunctionalities(0));
         }
@@ -73,7 +72,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const nameSearchVal = funcNameSearchInput ? funcNameSearchInput.value.trim() : '';
         const descriptionSearchVal = funcDescriptionSearchInput ? funcDescriptionSearchInput.value.trim() : '';
 
-        let queryParams = `page=${page}&size=${size}&sort=name,asc`; // 默认按功能名称升序
+        // 修改这里的默认排序参数
+        let queryParams = `page=${page}&size=${size}&sort=id,asc`; // 默认按ID升序
 
         if (numSearchVal) {
             queryParams += `&numSearch=${encodeURIComponent(numSearchVal)}`;
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const descCell = row.insertCell();
                 const descriptionText = func.description || 'N/A';
                 descCell.textContent = descriptionText;
-                if (descriptionText.length > 40) { // 简单截断示例
+                if (descriptionText.length > 40) {
                     descCell.title = descriptionText;
                     descCell.textContent = descriptionText.substring(0, 37) + '...';
                 }
@@ -130,7 +130,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
             });
         } else {
-            // 无数据消息已在 fetchFunctionalities 中处理
+            if (functionalitiesTableBody.innerHTML === '') {
+                functionalitiesTableBody.innerHTML = `<tr><td colspan="6" class="text-center">无功能数据。</td></tr>`;
+            }
         }
     }
 
@@ -163,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let apiUrl = API_FUNCTIONALITIES_URL;
         let method = 'POST';
 
-        if (currentFuncId) { // 编辑模式
+        if (currentFuncId) {
             apiUrl = `${API_FUNCTIONALITIES_URL}/${currentFuncId}`;
             method = 'PUT';
         }
@@ -188,7 +190,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (targetButton.classList.contains('edit-func-btn')) {
             try {
-                // 后端已有 GET /api/system/functionalities/{id}
                 const func = await authenticatedFetch(`${API_FUNCTIONALITIES_URL}/${funcId}`, {}, globalAlertContainerId);
                 if (func) {
                     resetForm(functionalityForm);
@@ -212,7 +213,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 try {
                     await authenticatedFetch(`${API_FUNCTIONALITIES_URL}/${funcId}`, { method: 'DELETE' }, globalAlertContainerId);
                     showAlert(`功能 "${funcName}" 删除成功！`, 'success', globalAlertContainerId);
-                    // 检查删除后当前页是否还有数据
                     const currentRows = functionalitiesTableBody.rows.length;
                     if (currentRows === 1 && currentPageFunctionality > 0) {
                         fetchFunctionalities(currentPageFunctionality - 1);

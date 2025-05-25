@@ -1,113 +1,126 @@
-### Contract Management System API Tests
-
-# ----------------------------------------------------------------------
-# 环境和全局变量设置
-# ----------------------------------------------------------------------
-# 您的应用运行的基础URL
+### ==============================================================================
+### 配置变量
+### ==============================================================================
 @baseUrl = http://localhost:8080
+@jsessionid_cookie_value = 在此处粘贴您最新的有效JSESSIONID
 
-# 管理员凭据 (请根据您的实际配置修改)
-@admin_username = admin
-@admin_password = adminpassword
+# !!! 请根据您数据库的实际情况，更新以下角色ID !!!
+@role_admin_id = 1      # 假设 ROLE_ADMIN 的 ID 是 1
+@role_user_id = 2       # 假设 ROLE_USER 的 ID 是 2 (作为新用户角色)
 
-# 这个变量将由登录请求的响应处理器脚本设置，或者您可以手动设置一个从浏览器获取的有效JSESSIONID
-@JSESSIONID_VALUE = YOUR_MANUALLY_COPIED_JSESSIONID_IF_NEEDED
+# 角色描述（可选，如果不想修改可以留空或从请求体中移除 description 字段）
+@role_admin_description = 系统管理员角色，拥有所有权限
+@role_user_description = 新用户/基础用户角色，权限受限
 
-# ----------------------------------------------------------------------
-# 步骤 1: 用户登录 (获取会话 Cookie)
-# ----------------------------------------------------------------------
-# IntelliJ IDEA的HTTP Client会自动处理和存储在此请求之后收到的Cookie，
-# 并在后续的请求中自动发送它们（只要它们在同一个 .http 文件中，
-# 或者在启用了Cookie共享的环境中）。
+### ==============================================================================
+### 1. 更新 ROLE_ADMIN 的权限 (合同管理员)
+### 为 ROLE_ADMIN 分配所有管理和业务功能
+### ==============================================================================
+PUT {{baseUrl}}/api/system/roles/{{role_admin_id}}
+Content-Type: application/json
+Cookie: JSESSIONID={{jsessionid_cookie_value}}
+
+{
+  "name": "ROLE_ADMIN", // 确保角色名称与数据库中一致
+  "description": "{{role_admin_description}}",
+  "functionalityNames": [
+    "查看用户列表",
+    "新增用户",
+    "修改用户信息",
+    "删除用户",
+    "为用户分配角色",
+    "查看角色列表",
+    "新增角色",
+    "修改角色信息",
+    "删除角色",
+    "查看功能列表",
+    "新增功能",
+    "修改功能信息",
+    "删除功能",
+    "查阅审计日志",
+    "导出审计日志",
+    "提交签订信息", // 对应 "允许用户录入合同签订信息"
+    "合同信息查询", // 对应 "允许用户查询合同基本信息"
+    "查看客户列表",
+    "新增客户", // 对应 "允许新增客户信息"
+    "修改客户信息",
+    "删除客户",
+    "查询客户",
+    "查看个人资料", // 对应 "允许用户查看自己的个人资料"
+    "修改个人密码", // 对应 "允许用户修改自己的登录密码"
+    "查看待分配合同",
+    "分配合同处理人员",
+    "起草合同", // 对应 "允许用户起草新的合同"
+    "查看本人起草合同", // 对应 "允许用户查看自己起草的合同"
+    "查看待会签合同", // 对应 "允许用户查看等待自己会签的合同"
+    "提交会签意见", // 对应 "允许用户提交会签意见"
+    "查看待定稿合同", // 对应 "允许用户查看等待自己定稿的合同"
+    "提交定稿合同", // 对应 "允许用户修改并提交定稿合同"
+    "查看待审批合同", // 对应 "允许用户查看等待自己审批的合同"
+    "提交审批意见", // 对应 "允许用户提交审批意见"
+    "查看待签订合同", // 对应 "允许用户查看等待自己签订的合同"
+    "查看所有合同流程", // 对应 "允许管理员查看所有合同的流程状态"
+    "查看我的合同流程", // 对应 "允许用户查看自己相关的合同流程状态" (管理员也可能有此权限)
+    "查看所有合同(管理)", // 对应 "允许管理员查看所有合同数据"
+    "删除合同(管理)"  // 对应 "允许管理员删除合同（需谨慎）"
+  ]
+}
+
+### ==============================================================================
+### 2. 更新 ROLE_USER 的权限 (新用户)
+### 为 ROLE_USER (新用户) 分配极少的权限，或者不分配任何具体业务功能
+### ==============================================================================
+PUT {{baseUrl}}/api/system/roles/{{role_user_id}}
+Content-Type: application/json
+Cookie: JSESSIONID={{jsessionid_cookie_value}}
+
+{
+  "name": "ROLE_USER", // 确保角色名称与数据库中一致
+  "description": "{{role_user_description}}",
+  "functionalityNames": [
+    // 新用户通常没有任何具体业务功能，符合“等待管理员分配权限”
+    // 如果希望新用户至少能查看个人资料和修改密码，可以添加：
+    // "查看个人资料",
+    // "修改个人密码"
+    // 当前设置为空数组，表示不分配任何列表中的功能
+  ]
+}
+
+### ==============================================================================
+### 3. (可选) 创建并配置 ROLE_CONTRACT_OPERATOR (合同操作员)
+### 如果您决定为“合同操作员”创建一个新的独立角色
+### ==============================================================================
+# 首先，您需要通过UI或另一个HTTP POST请求来创建这个角色，例如 ROLE_CONTRACT_OPERATOR
+# 假设创建后其ID为 @role_contract_operator_id
+
+# @role_contract_operator_id = 请填入创建后的ID
+# @role_contract_operator_name = ROLE_CONTRACT_OPERATOR
+# @role_contract_operator_description = 合同操作员，负责日常合同处理
+
+# PUT {{baseUrl}}/api/system/roles/{{role_contract_operator_id}}
+# Content-Type: application/json
+# Cookie: JSESSIONID={{jsessionid_cookie_value}}
 #
-# 登录成功后，服务器通常会通过 Set-Cookie 响应头设置 JSESSIONID。
-# 登录处理URL是 /perform_login，成功后会重定向到 /dashboard。
-POST {{baseUrl}}/perform_login
-Content-Type: application/x-www-form-urlencoded
-
-username={{admin_username}}&password={{admin_password}}
-
-> {%
-    // 响应处理器脚本：尝试从登录的 Set-Cookie 头中捕获 JSESSIONID
-    // 这主要用于调试或如果您想在后续请求中显式使用该值。
-    // IDEA的HTTP Client 通常会自动处理会话cookie。
-    client.log("--- Login Request Completed ---");
-    const setCookieHeader = response.headers.valueOf("Set-Cookie");
-    if (setCookieHeader) {
-        const match = setCookieHeader.match(/JSESSIONID=([^;]+)/);
-        if (match && match[1]) {
-            client.global.set("SESSION_ID_FROM_LOGIN", match[1]);
-            client.log("JSESSIONID captured from login response: " + match[1]);
-            client.log("This JSESSIONID should now be automatically used for subsequent requests by the HTTP Client.");
-        } else {
-            client.log("JSESSIONID not found in Set-Cookie header after login attempt.");
-            client.log("Set-Cookie header was: " + setCookieHeader);
-        }
-    } else {
-        client.log("No Set-Cookie header found in the response after login attempt.");
-        client.log("Login response status: " + response.status);
-        client.log("Login response headers: " + JSON.stringify(response.headers, null, 2));
-    }
-%}
-
-### Separator for requests - Ensures cookies from login are used below
-# (您可以将上面的登录请求单独运行一次，然后运行下面的请求)
-
-# ----------------------------------------------------------------------
-# 步骤 2: 测试受保护的API端点
-# 这些请求应该会自动使用由上面登录请求建立的会话。
-# ----------------------------------------------------------------------
-
-###
-# 1. 获取角色列表 API (/api/system/roles)
-# 预期：HTTP 200 OK，返回分页的角色数据JSON。
-# （数据库中应至少有 ROLE_ADMIN 和 ROLE_USER）
-GET {{baseUrl}}/api/system/roles
-Accept: application/json
-# 如果IDEA的自动Cookie管理不起作用，或者您想显式使用上面捕获的ID：
-# Cookie: JSESSIONID={{SESSION_ID_FROM_LOGIN}}
-
-> {%
-    client.log("--- Get Roles List Response ---");
-    client.log("Status: " + response.status);
-    client.log("Headers: " + JSON.stringify(response.headers, null, 2));
-    client.log("Body: " + response.body);
-%}
-
-###
-# 2. 获取角色列表 API - 带特定分页参数
-# 预期：HTTP 200 OK，返回分页的角色数据JSON。
-GET {{baseUrl}}/api/system/roles?page=0&size=5&sort=name,desc
-Accept: application/json
-
-> {%
-    client.log("--- Get Roles List (Paged) Response ---");
-    client.log("Status: " + response.status);
-    client.log("Body: " + response.body);
-%}
-
-###
-# 3. 获取用户列表 API (/api/system/users) - 默认分页
-# 预期：HTTP 200 OK，返回分页的用户数据JSON。
-# （数据库中应至少有 "admin" 用户）
-GET {{baseUrl}}/api/system/users?page=0&size=10&sort=username,asc
-Accept: application/json
-
-> {%
-    client.log("--- Get Users List Response ---");
-    client.log("Status: " + response.status);
-    client.log("Body: " + response.body);
-%}
-
-###
-# （可选）4. 获取用户列表 API - 带搜索参数
-# 仅当您在 UserManagementController 中为 usernameSearch/emailSearch 参数添加了实际的搜索逻辑时测试。
-# 假设搜索用户名为 "admin"
-# GET {{baseUrl}}/api/system/users?usernameSearch=admin&page=0&size=10&sort=username,asc
-# Accept: application/json
-#
-# > {%
-# client.log("--- Get Users List (Search) Response ---");
-# client.log("Status: " + response.status);
-# client.log("Body: " + response.body);
-# %}
+# {
+#   "name": "{{role_contract_operator_name}}",
+#   "description": "{{role_contract_operator_description}}",
+#   "functionalityNames": [
+#     "起草合同",
+#     "查看本人起草合同",
+#     "查看待会签合同",
+#     "提交会签意见",
+#     "查看待定稿合同",
+#     "提交定稿合同",
+#     "查看待审批合同",
+#     "提交审批意见",
+#     "查看待签订合同",
+#     "提交签订信息",
+#     "合同信息查询",
+#     "查看我的合同流程",
+#     "查看个人资料",
+#     "修改个人密码"
+#     // 如果需要客户信息权限：
+#     // "查看客户列表",
+#     // "查询客户"
+#   ]
+# }

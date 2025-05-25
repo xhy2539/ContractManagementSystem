@@ -7,9 +7,17 @@
 <head>
   <meta charset="UTF-8">
   <title>功能管理</title>
+  <th:block layout:fragment="css-links">
+  </th:block>
   <style layout:fragment="inline-css">
     .action-buttons button {
       margin-right: 5px;
+    }
+    .filter-card .card-header { /* 与角色管理页面筛选器样式一致 */
+      padding: 0.5rem 1rem;
+    }
+    .filter-card .card-body {
+      padding: 1rem;
     }
   </style>
 </head>
@@ -22,6 +30,42 @@
       <button type="button" id="addFunctionalityBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#functionalityFormModal">
         <i class="bi bi-plus-circle"></i> 添加功能
       </button>
+    </div>
+
+    <div id="globalAlertContainer"></div> <div class="card filter-card shadow-sm mb-3">
+    <div class="card-header">
+      <i class="bi bi-funnel-fill"></i> 筛选条件
+    </div>
+    <div class="card-body">
+      <form id="functionalityFilterForm" class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label for="funcNumSearch" class="form-label form-label-sm">功能编号</label>
+          <input type="text" class="form-control form-control-sm" id="funcNumSearch" placeholder="按编号搜索...">
+        </div>
+        <div class="col-md-3">
+          <label for="funcNameSearch" class="form-label form-label-sm">功能名称</label>
+          <input type="text" class="form-control form-control-sm" id="funcNameSearch" placeholder="按名称搜索...">
+        </div>
+        <div class="col-md-3">
+          <label for="funcDescriptionSearch" class="form-label form-label-sm">功能描述</label>
+          <input type="text" class="form-control form-control-sm" id="funcDescriptionSearch" placeholder="按描述搜索...">
+        </div>
+        <div class="col-md-3 d-flex justify-content-start align-items-end">
+          <button type="button" id="searchFunctionalityBtn" class="btn btn-sm btn-primary me-2">
+            <i class="bi bi-search"></i> 查询
+          </button>
+          <button type="reset" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-counterclockwise"></i> 重置
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+    <div id="functionalitiesTableSpinner" class="text-center my-3" style="display:none;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">加载中...</span>
+      </div>
     </div>
 
     <div class="table-responsive">
@@ -85,6 +129,7 @@
 </section>
 
 <th:block layout:fragment="scripts">
+  <script th:src="@{/js/utils.js}"></script>
   <script th:src="@{/js/functionality-management.js}"></script>
 </th:block>
 
