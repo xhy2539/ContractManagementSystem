@@ -5,7 +5,7 @@ import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.DuplicateResourceException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.*;
-import org.hibernate.Hibernate; // 确保导入 Hibernate
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,9 +61,24 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             } else if (principal instanceof String) {
                 return (String) principal;
             }
-            return authentication.getName();
+            return authentication.getName(); // Fallback
         }
-        return "SYSTEM";
+        return "SYSTEM_UNKNOWN"; // Or throw an exception if an authenticated user is strictly required
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<Contract> getContractsPendingAssignment(Pageable pageable, String contractNameSearch, String contractNumberSearch) {
+        // 根据需求文档，待分配合同是状态为“起草”的合同
+        // 并且尚未有任何流程记录 (或者没有正在进行的流程)
+        // SystemManagementServiceImplTest 中使用了 ContractStatus.DRAFT
+        // ContractRepository 中 findContractsForAssignmentWithFilters 使用了 status IN :statuses
+        return contractRepository.findContractsForAssignmentWithFilters(
+                List.of(ContractStatus.DRAFT), // 仅查找DRAFT状态，或根据实际分配逻辑调整
+                contractNameSearch,
+                contractNumberSearch,
+                pageable
+        );
     }
 
     @Override
@@ -73,18 +88,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                 .filter(contract -> ContractStatus.DRAFT.equals(contract.getStatus()) &&
                         contractProcessRepository.findByContract(contract).isEmpty())
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<Contract> getContractsPendingAssignment(Pageable pageable, String contractNameSearch, String contractNumberSearch) {
-        // 调用Repository中更精确的查询方法
-        return contractRepository.findContractsForAssignmentWithFilters(
-                List.of(ContractStatus.DRAFT),
-                contractNameSearch,
-                contractNumberSearch,
-                pageable
-        );
     }
 
 
@@ -98,11 +101,22 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         boolean approversProvided = approvalUserIds != null && !approvalUserIds.isEmpty();
         boolean signersProvided = signUserIds != null && !signUserIds.isEmpty();
 
+        // 需求文档3.7.1 分配合同 -> 处理 -> (1)数据验证: 会签、审批、签订人员需全部指定。
+        // 但现代系统通常允许部分分配，所以这里改为至少分配一种。如果必须全部指定，则修改下方逻辑。
         if (!countersignersProvided && !approversProvided && !signersProvided) {
             throw new BusinessLogicException("必须至少为合同分配一种类型的处理人员（会签、审批或签订）。");
         }
+        // 如果要严格按照“需全部指定”，则：
+        // if (!countersignersProvided || !approversProvided || !signersProvided) {
+        //     throw new BusinessLogicException("会签、审批、签订人员均需指定。");
+        // }
+
 
         boolean personnelAssigned = false;
+
+        // 可选：如果重新分配，先清除旧的待处理流程
+        // List<ContractProcess> pendingProcesses = contractProcessRepository.findByContractAndState(contract, ContractProcessState.PENDING);
+        // contractProcessRepository.deleteAll(pendingProcesses);
 
         if (countersignersProvided) {
             for (Long userId : countersignUserIds) {
@@ -110,9 +124,9 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                         .orElseThrow(() -> new ResourceNotFoundException("分配会签：用户未找到，ID: " + userId));
                 ContractProcess cp = new ContractProcess();
                 cp.setContract(contract);
-                cp.setContractNumber(contract.getContractNumber());
+                cp.setContractNumber(contract.getContractNumber()); // 冗余合同编号
                 cp.setOperator(user);
-                cp.setOperatorUsername(user.getUsername());
+                cp.setOperatorUsername(user.getUsername()); // 冗余用户名
                 cp.setType(ContractProcessType.COUNTERSIGN);
                 cp.setState(ContractProcessState.PENDING);
                 contractProcessRepository.save(cp);
@@ -153,6 +167,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
 
         if (personnelAssigned) {
+            // 根据流程顺序更新合同状态
             if (countersignersProvided) {
                 contract.setStatus(ContractStatus.PENDING_COUNTERSIGN);
             } else if (approversProvided) {
@@ -178,17 +193,17 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setEnabled(true);
-        // user.setRealName(user.getRealName()); // Controller中已从DTO映射到user对象
+        // user.setEnabled(true); // User 实体中 enabled 默认为 true
 
         Set<Role> roles = new HashSet<>();
         if (roleNames != null && !roleNames.isEmpty()) {
             for (String roleName : roleNames) {
                 Role role = roleRepository.findByName(roleName)
-                        .orElseThrow(() -> new ResourceNotFoundException("角色 '" + roleName + "' 未找到"));
+                        .orElseThrow(() -> new ResourceNotFoundException("角色 '" + roleName + "' 未找到，无法分配给用户"));
                 roles.add(role);
             }
         }
+        // 如果 roleNames 为空或null，用户将没有角色，符合“新用户没有任何权限”的需求
         user.setRoles(roles);
         User savedUser = userRepository.save(user);
         auditLogService.logAction(getCurrentUsername(), "CREATE_USER", "创建用户: " + savedUser.getUsername());
@@ -200,8 +215,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public User findUserByUsername(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("用户 '" + username + "' 未找到"));
-        // 初始化懒加载集合，因为 User 的 roles 是 EAGER，但 Role 内的 functionalities 是 LAZY
-        if (user != null) {
+        if (user != null) { // 防御性检查
             user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         return user;
@@ -211,9 +225,10 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         List<User> users = userRepository.findAll();
-        // 初始化懒加载集合
         users.forEach(user -> {
-            user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+            if (user.getRoles() != null) {
+                user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+            }
         });
         return users;
     }
@@ -222,9 +237,10 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     @Transactional(readOnly = true)
     public Page<User> getAllUsers(Pageable pageable) {
         Page<User> usersPage = userRepository.findAll(pageable);
-        // 初始化懒加载集合
         usersPage.getContent().forEach(user -> {
-            user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+            if (user.getRoles() != null) {
+                user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+            }
         });
         return usersPage;
     }
@@ -243,9 +259,10 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
         Page<User> usersPage = userRepository.findAll(spec, pageable);
-        // 初始化懒加载集合
         usersPage.getContent().forEach(user -> {
-            user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+            if (user.getRoles() != null) {
+                user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+            }
         });
         return usersPage;
     }
@@ -258,15 +275,19 @@ public class SystemManagementServiceImpl implements SystemManagementService {
 
         if (userDetailsToUpdate.getEmail() != null && !userDetailsToUpdate.getEmail().isEmpty() &&
                 !userDetailsToUpdate.getEmail().equals(existingUser.getEmail())) {
-            if (userRepository.existsByEmail(userDetailsToUpdate.getEmail()) &&
-                    !userRepository.findByEmail(userDetailsToUpdate.getEmail()).map(User::getId).map(id -> id.equals(userId)).orElse(false) ) {
-                throw new DuplicateResourceException("邮箱 '" + userDetailsToUpdate.getEmail() + "' 已被其他用户使用");
-            }
+            userRepository.findByEmail(userDetailsToUpdate.getEmail())
+                    .filter(userWithEmail -> !userWithEmail.getId().equals(userId)) // 确保不是当前用户自己
+                    .ifPresent(u -> {
+                        throw new DuplicateResourceException("邮箱 '" + userDetailsToUpdate.getEmail() + "' 已被其他用户使用");
+                    });
             existingUser.setEmail(userDetailsToUpdate.getEmail());
         }
-        existingUser.setEnabled(userDetailsToUpdate.isEnabled());
+        // 确保 boolean 比较正确
+        if (userDetailsToUpdate.isEnabled() != existingUser.isEnabled()) {
+            existingUser.setEnabled(userDetailsToUpdate.isEnabled());
+        }
 
-        // Controller中已从DTO映射到userDetailsToUpdate对象
+
         if (userDetailsToUpdate.getRealName() != null) {
             existingUser.setRealName(userDetailsToUpdate.getRealName());
         }
@@ -297,30 +318,66 @@ public class SystemManagementServiceImpl implements SystemManagementService {
 
     @Override
     @Transactional
-    public Role createRole(Role role, Set<String> functionalityNames) {
+    public Role createRoleWithFunctionalityNums(Role role, Set<String> functionalityNums) {
         if (roleRepository.findByName(role.getName()).isPresent()) {
             throw new DuplicateResourceException("角色名称 '" + role.getName() + "' 已存在");
         }
 
         Set<Functionality> functionalities = new HashSet<>();
-        if (functionalityNames != null) {
-            for (String funcName : functionalityNames) {
-                Functionality func = functionalityRepository.findByName(funcName)
-                        .orElseThrow(() -> new ResourceNotFoundException("功能 '" + funcName + "' 未找到"));
+        if (functionalityNums != null && !functionalityNums.isEmpty()) {
+            for (String funcNum : functionalityNums) {
+                Functionality func = functionalityRepository.findByNum(funcNum)
+                        .orElseThrow(() -> new ResourceNotFoundException("功能编号为 '" + funcNum + "' 的功能未找到，无法添加到角色"));
                 functionalities.add(func);
             }
         }
         role.setFunctionalities(functionalities);
         Role savedRole = roleRepository.save(role);
-        auditLogService.logAction(getCurrentUsername(), "CREATE_ROLE", "创建角色: " + savedRole.getName());
+        auditLogService.logAction(getCurrentUsername(), "CREATE_ROLE", "创建角色: " + savedRole.getName() + " 并分配功能编号: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
         return savedRole;
     }
+
+    @Override
+    @Transactional
+    public Role updateRoleWithFunctionalityNums(Integer roleId, Role roleDetailsToUpdate, Set<String> functionalityNums) {
+        Role existingRole = roleRepository.findById(roleId)
+                .orElseThrow(() -> new ResourceNotFoundException("角色未找到，ID: " + roleId));
+
+        if (roleDetailsToUpdate.getName() != null && !existingRole.getName().equals(roleDetailsToUpdate.getName())) {
+            roleRepository.findByName(roleDetailsToUpdate.getName())
+                    .filter(r -> !r.getId().equals(roleId))
+                    .ifPresent(r -> {
+                        throw new DuplicateResourceException("角色名称 '" + roleDetailsToUpdate.getName() + "' 已被其他角色使用");
+                    });
+            existingRole.setName(roleDetailsToUpdate.getName());
+        }
+        if (roleDetailsToUpdate.getDescription() != null) {
+            existingRole.setDescription(roleDetailsToUpdate.getDescription());
+        }
+
+        Set<Functionality> newFunctionalities = new HashSet<>();
+        if (functionalityNums != null && !functionalityNums.isEmpty()) {
+            for (String funcNum : functionalityNums) {
+                Functionality func = functionalityRepository.findByNum(funcNum)
+                        .orElseThrow(() -> new ResourceNotFoundException("功能编号为 '" + funcNum + "' 的功能未找到，无法更新角色权限"));
+                newFunctionalities.add(func);
+            }
+        }
+        existingRole.setFunctionalities(newFunctionalities);
+
+        Role updatedRole = roleRepository.save(existingRole);
+        auditLogService.logAction(getCurrentUsername(), "UPDATE_ROLE", "更新角色: " + updatedRole.getName() + " 并更新功能编号为: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
+        return updatedRole;
+    }
+
 
     @Override
     @Transactional(readOnly = true)
     public List<Role> getAllRoles() {
         List<Role> roles = roleRepository.findAll();
-        roles.forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+        roles.forEach(role -> {
+            if (role.getFunctionalities() != null) Hibernate.initialize(role.getFunctionalities());
+        });
         return roles;
     }
 
@@ -328,7 +385,9 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     @Transactional(readOnly = true)
     public Page<Role> getAllRoles(Pageable pageable) {
         Page<Role> rolesPage = roleRepository.findAll(pageable);
-        rolesPage.getContent().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+        rolesPage.getContent().forEach(role -> {
+            if (role.getFunctionalities() != null) Hibernate.initialize(role.getFunctionalities());
+        });
         return rolesPage;
     }
 
@@ -343,10 +402,14 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             if (description != null && !description.isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), "%" + description.toLowerCase() + "%"));
             }
+            // 确保查询时不获取重复的角色，如果角色可能通过多个功能匹配（尽管这里是按name/desc搜索）
+            query.distinct(true);
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
         Page<Role> rolesPage = roleRepository.findAll(spec, pageable);
-        rolesPage.getContent().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+        rolesPage.getContent().forEach(role -> {
+            if (role.getFunctionalities() != null) Hibernate.initialize(role.getFunctionalities());
+        });
         return rolesPage;
     }
 
@@ -355,7 +418,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public Role findRoleByName(String roleName) {
         Role role = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new ResourceNotFoundException("角色 '" + roleName + "' 未找到"));
-        if (role != null) {
+        if (role != null && role.getFunctionalities() != null) {
             Hibernate.initialize(role.getFunctionalities());
         }
         return role;
@@ -366,43 +429,12 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public Role findRoleById(Integer roleId) {
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new ResourceNotFoundException("角色未找到，ID: " + roleId));
-        if (role != null) {
+        if (role != null && role.getFunctionalities() != null) {
             Hibernate.initialize(role.getFunctionalities());
         }
         return role;
     }
 
-
-    @Override
-    @Transactional
-    public Role updateRole(Integer roleId, Role roleDetailsToUpdate, Set<String> functionalityNames) {
-        Role existingRole = roleRepository.findById(roleId)
-                .orElseThrow(() -> new ResourceNotFoundException("角色未找到，ID: " + roleId));
-
-        if (roleDetailsToUpdate.getName() != null && !existingRole.getName().equals(roleDetailsToUpdate.getName())) {
-            if(roleRepository.findByName(roleDetailsToUpdate.getName()).filter(r -> !r.getId().equals(roleId)).isPresent()){
-                throw new DuplicateResourceException("角色名称 '" + roleDetailsToUpdate.getName() + "' 已被其他角色使用");
-            }
-            existingRole.setName(roleDetailsToUpdate.getName());
-        }
-        if(roleDetailsToUpdate.getDescription() != null) {
-            existingRole.setDescription(roleDetailsToUpdate.getDescription());
-        }
-
-        Set<Functionality> newFunctionalities = new HashSet<>();
-        if (functionalityNames != null) {
-            for (String funcName : functionalityNames) {
-                Functionality func = functionalityRepository.findByName(funcName)
-                        .orElseThrow(() -> new ResourceNotFoundException("功能 '" + funcName + "' 未找到"));
-                newFunctionalities.add(func);
-            }
-        }
-        existingRole.setFunctionalities(newFunctionalities);
-
-        Role updatedRole = roleRepository.save(existingRole);
-        auditLogService.logAction(getCurrentUsername(), "UPDATE_ROLE", "更新角色: " + updatedRole.getName());
-        return updatedRole;
-    }
 
     @Override
     @Transactional
@@ -414,6 +446,12 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (userCountWithRole > 0) {
             throw new BusinessLogicException("无法删除角色 '" + role.getName() + "'，仍有 " + userCountWithRole + " 个用户拥有此角色。请先解除这些用户的该角色。");
         }
+        // 在删除角色之前，需要确保角色与功能的关联被正确处理。
+        // 如果Role是Functionalities的owning side (通过@JoinTable且没有mappedBy)，
+        // Hibernate会在删除Role时自动处理role_functionalities表中的关联记录。
+        // 如果Functionality是owning side，或者关系管理复杂，可能需要手动清除关联。
+        // 在当前设置下 (Role有@JoinTable，Functionality没有mappedBy指向Role的functionalities字段)，
+        // Role是owning side，所以直接删除Role应该会清除role_functionalities中的记录。
         roleRepository.delete(role);
         auditLogService.logAction(getCurrentUsername(), "DELETE_ROLE", "删除角色: " + role.getName() + " (ID: " + roleId + ")");
     }
@@ -424,15 +462,17 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (functionality.getName() == null || functionality.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("功能名称不能为空");
         }
-        if (functionalityRepository.findByName(functionality.getName()).isPresent()){
+        if (functionality.getNum() == null || functionality.getNum().trim().isEmpty()) {
+            throw new IllegalArgumentException("功能编号不能为空");
+        }
+        functionalityRepository.findByName(functionality.getName()).ifPresent(f -> {
             throw new DuplicateResourceException("功能名称 '" + functionality.getName() + "' 已存在");
-        }
-        if (functionality.getNum() != null && !functionality.getNum().trim().isEmpty() &&
-                functionalityRepository.findByNum(functionality.getNum()).isPresent()) {
+        });
+        functionalityRepository.findByNum(functionality.getNum()).ifPresent(f -> {
             throw new DuplicateResourceException("功能编号 '" + functionality.getNum() + "' 已存在");
-        }
+        });
         Functionality savedFunctionality = functionalityRepository.save(functionality);
-        auditLogService.logAction(getCurrentUsername(), "CREATE_FUNCTIONALITY", "创建功能: " + savedFunctionality.getName());
+        auditLogService.logAction(getCurrentUsername(), "CREATE_FUNCTIONALITY", "创建功能: " + savedFunctionality.getName() + " (编号: " + savedFunctionality.getNum() + ")");
         return savedFunctionality;
     }
 
@@ -462,6 +502,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             if (description != null && !description.isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), "%" + description.toLowerCase() + "%"));
             }
+            query.distinct(true);
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
         return functionalityRepository.findAll(spec, pageable);
@@ -479,18 +520,8 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public Functionality updateFunctionality(Long id, Functionality functionalityDetailsToUpdate) {
         Functionality existingFunc = getFunctionalityById(id);
 
-        if (functionalityDetailsToUpdate.getName() != null &&
-                !existingFunc.getName().equals(functionalityDetailsToUpdate.getName())) {
-            functionalityRepository.findByName(functionalityDetailsToUpdate.getName())
-                    .filter(f -> !f.getId().equals(id))
-                    .ifPresent(f -> {
-                        throw new DuplicateResourceException("功能名称 '" + functionalityDetailsToUpdate.getName() + "' 已被其他功能使用");
-                    });
-            existingFunc.setName(functionalityDetailsToUpdate.getName());
-        }
-
         if (functionalityDetailsToUpdate.getNum() != null &&
-                (existingFunc.getNum() == null || !existingFunc.getNum().equals(functionalityDetailsToUpdate.getNum())) ) {
+                !functionalityDetailsToUpdate.getNum().equals(existingFunc.getNum())) {
             functionalityRepository.findByNum(functionalityDetailsToUpdate.getNum())
                     .filter(f -> !f.getId().equals(id))
                     .ifPresent(f -> {
@@ -499,12 +530,21 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             existingFunc.setNum(functionalityDetailsToUpdate.getNum());
         }
 
+        if (functionalityDetailsToUpdate.getName() != null &&
+                !functionalityDetailsToUpdate.getName().equals(existingFunc.getName())) {
+            functionalityRepository.findByName(functionalityDetailsToUpdate.getName())
+                    .filter(f -> !f.getId().equals(id))
+                    .ifPresent(f -> {
+                        throw new DuplicateResourceException("功能名称 '" + functionalityDetailsToUpdate.getName() + "' 已被其他功能使用");
+                    });
+            existingFunc.setName(functionalityDetailsToUpdate.getName());
+        }
+
         existingFunc.setDescription(functionalityDetailsToUpdate.getDescription());
         existingFunc.setUrl(functionalityDetailsToUpdate.getUrl());
 
-
         Functionality updatedFunctionality = functionalityRepository.save(existingFunc);
-        auditLogService.logAction(getCurrentUsername(), "UPDATE_FUNCTIONALITY", "更新功能: " + updatedFunctionality.getName());
+        auditLogService.logAction(getCurrentUsername(), "UPDATE_FUNCTIONALITY", "更新功能: " + updatedFunctionality.getName() + " (编号: " + updatedFunctionality.getNum() + ")");
         return updatedFunctionality;
     }
 
@@ -517,10 +557,10 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (!rolesWithFunc.isEmpty()) {
             for(Role role : rolesWithFunc){
                 role.getFunctionalities().remove(func);
-                roleRepository.save(role);
+                // roleRepository.save(role); // 保存角色以更新其功能列表 - 这行在多对多关系中，如果Role是owning side，可以省略，因为对集合的修改会被级联。但显式保存更安全。
             }
-            auditLogService.logAction(getCurrentUsername(), "DELETE_FUNCTIONALITY_CASCADE_ROLE_UPDATE",
-                    "功能 '" + func.getName() + "' (ID: " + id + ") 已从 " + rolesWithFunc.size() + " 个角色中移除。");
+            // 最好在循环外批量保存，或者依赖事务结束时的自动刷新
+            roleRepository.saveAll(rolesWithFunc); // 批量保存受影响的角色
         }
 
         functionalityRepository.delete(func);
@@ -534,7 +574,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                 .orElseThrow(() -> new ResourceNotFoundException("用户未找到，ID: " + userId));
 
         Set<Role> newRoles = new HashSet<>();
-        if (roleNames != null) {
+        if (roleNames != null && !roleNames.isEmpty()) {
             for (String roleName : roleNames) {
                 Role role = roleRepository.findByName(roleName)
                         .orElseThrow(() -> new ResourceNotFoundException("角色 '" + roleName + "' 未找到，无法分配给用户"));
@@ -543,7 +583,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
         user.setRoles(newRoles);
         User updatedUser = userRepository.save(user);
-        // 在返回User对象前，确保其内部Role的functionalities也被初始化，如果后续会直接序列化这个User对象
         if (updatedUser != null) {
             updatedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }

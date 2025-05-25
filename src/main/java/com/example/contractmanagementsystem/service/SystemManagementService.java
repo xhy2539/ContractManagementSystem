@@ -102,12 +102,21 @@ public interface SystemManagementService {
 
     // --- 角色管理 (3.7.2.2) ---
     /**
-     * 新增角色。
+     * 新增角色，并根据功能编号列表分配功能。
      * @param role 角色实体。
-     * @param functionalityNames 该角色拥有的功能名称列表。
+     * @param functionalityNums 该角色拥有的功能编号列表。
      * @return 创建后的角色实体。
      */
-    Role createRole(Role role, Set<String> functionalityNames);
+    Role createRoleWithFunctionalityNums(Role role, Set<String> functionalityNums);
+
+    /**
+     * 更新角色信息，并根据功能编号列表更新关联的功能。
+     * @param roleId 角色ID。
+     * @param roleDetailsToUpdate 包含更新信息的角色实体。
+     * @param functionalityNums 更新后的功能编号列表。
+     * @return 更新后的角色实体。
+     */
+    Role updateRoleWithFunctionalityNums(Integer roleId, Role roleDetailsToUpdate, Set<String> functionalityNums);
 
     /**
      * (原有方法，可以保留或标记为废弃)
@@ -147,15 +156,6 @@ public interface SystemManagementService {
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果角色未找到。
      */
     Role findRoleById(Integer roleId);
-
-    /**
-     * 更新角色信息 (包括关联的功能)。
-     * @param roleId 角色ID。
-     * @param roleDetailsToUpdate 包含更新信息的角色实体。
-     * @param functionalityNames 更新后的功能名称列表。
-     * @return 更新后的角色实体。
-     */
-    Role updateRole(Integer roleId, Role roleDetailsToUpdate, Set<String> functionalityNames);
 
     /**
      * 删除角色。

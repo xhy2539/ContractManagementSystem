@@ -15,14 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-// import java.util.List; // 如果 List 未被使用，可以移除
-
 @RestController
 @RequestMapping("/api/system/functionalities")
-// 类级别的 @PreAuthorize("hasRole('ROLE_ADMIN')") 保证了只有管理员角色能访问这个控制器下的所有API。
-// 我们将在方法级别添加更细致的 hasAuthority() 检查，这仍然是在 ROLE_ADMIN 的基础上进行的。
-// 如果将来有其他角色也需要某些功能管理权限，可以调整这里的逻辑，例如移除类级别的注解，
-// 或者在方法级别使用 or 逻辑，如 @PreAuthorize("hasRole('ROLE_ADMIN') or hasAuthority('某个功能')")
 @PreAuthorize("hasRole('ROLE_ADMIN')")
 public class FunctionalityManagementController {
 
@@ -34,8 +28,7 @@ public class FunctionalityManagementController {
     }
 
     @PostMapping
-    // 要求用户拥有 "新增功能" 这个功能权限
-    @PreAuthorize("hasAuthority('新增功能')")
+    @PreAuthorize("hasAuthority('FUNC_CREATE')") // 使用功能编号
     public ResponseEntity<Functionality> createFunctionality(@Valid @RequestBody FunctionalityCreationRequest funcRequest) {
         Functionality newFunctionality = new Functionality();
         newFunctionality.setNum(funcRequest.getNum());
@@ -48,8 +41,7 @@ public class FunctionalityManagementController {
     }
 
     @GetMapping
-    // 要求用户拥有 "查看功能列表" 这个功能权限
-    @PreAuthorize("hasAuthority('查看功能列表')")
+    @PreAuthorize("hasAuthority('FUNC_VIEW_LIST')") // 使用功能编号
     public ResponseEntity<Page<Functionality>> getAllFunctionalities(
             @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable,
             @RequestParam(required = false) String numSearch,
@@ -68,19 +60,19 @@ public class FunctionalityManagementController {
     }
 
     @GetMapping("/{id}")
-    // 查看单个功能详情。通常，如果用户有权查看列表或修改条目，他们也应该能查看单个条目的详情。
-    // 这里假设拥有 "查看功能列表" 或 "修改功能信息" 权限的用户可以查看详情。
-    @PreAuthorize("hasAuthority('查看功能列表') or hasAuthority('修改功能信息')")
+    @PreAuthorize("hasAuthority('FUNC_VIEW_LIST') or hasAuthority('FUNC_EDIT')") // 使用功能编号
     public ResponseEntity<Functionality> getFunctionalityById(@PathVariable Long id) {
         Functionality functionality = systemManagementService.getFunctionalityById(id);
         return ResponseEntity.ok(functionality);
     }
 
     @PutMapping("/{id}")
-    // 要求用户拥有 "修改功能信息" 这个功能权限
-    @PreAuthorize("hasAuthority('修改功能信息')")
+    @PreAuthorize("hasAuthority('FUNC_EDIT')") // 使用功能编号
     public ResponseEntity<Functionality> updateFunctionality(@PathVariable Long id, @Valid @RequestBody FunctionalityUpdateRequest funcUpdateRequest) {
         Functionality functionalityDetailsToUpdate = new Functionality();
+        // 注意：通常更新时不应该允许修改唯一标识 num，除非业务确实需要。
+        // 如果 num 是创建后固定的，则不应在 UpdateRequest 中包含它，或在服务层忽略它。
+        // 此处假设 num 也是可更新的，但要小心其唯一性约束。
         functionalityDetailsToUpdate.setNum(funcUpdateRequest.getNum());
         functionalityDetailsToUpdate.setName(funcUpdateRequest.getName());
         functionalityDetailsToUpdate.setUrl(funcUpdateRequest.getUrl());
@@ -91,8 +83,7 @@ public class FunctionalityManagementController {
     }
 
     @DeleteMapping("/{id}")
-    // 要求用户拥有 "删除功能" 这个功能权限
-    @PreAuthorize("hasAuthority('删除功能')")
+    @PreAuthorize("hasAuthority('FUNC_DELETE')") // 使用功能编号
     public ResponseEntity<Void> deleteFunctionality(@PathVariable Long id) {
         systemManagementService.deleteFunctionality(id);
         return ResponseEntity.noContent().build();
