@@ -1,36 +1,50 @@
-### ==============================================================================
-### 配置变量
-### ==============================================================================
+### 设置基础URL变量（可选，适用于IntelliJ HTTP客户端）
 @baseUrl = http://localhost:8080
-@jsessionid_cookie_value = 在此处粘贴您最新的有效JSESSIONID
 
-# !!! 请根据您数据库的实际情况，更新以下角色ID !!!
-@role_admin_id = 1      # 假设 ROLE_ADMIN 的 ID 是 1
-@role_user_id = 2       # 假设 ROLE_USER 的 ID 是 2 (作为新用户角色)
+### 1. 以管理员身份登录
+# IntelliJ HTTP Client 会自动保存并为后续请求使用来自此响应的 cookie (JSESSIONID)
+POST {{baseUrl}}/perform_login
+Content-Type: application/x-www-form-urlencoded
 
-# 角色描述（可选，如果不想修改可以留空或从请求体中移除 description 字段）
-@role_admin_description = 系统管理员角色，拥有所有权限
-@role_user_description = 新用户/基础用户角色，权限受限
+username=admin&password=adminpassword
 
-### ==============================================================================
-### 1. 更新 ROLE_ADMIN 的权限 (合同管理员)
-### 为 ROLE_ADMIN 分配所有管理和业务功能
-### ==============================================================================
-PUT {{baseUrl}}/api/system/roles/{{role_admin_id}}
+### 2. 创建新的“合同操作员”角色 (ROLE_CONTRACT_OPERATOR) 并分配权限
+# 不需要显式设置 Cookie: {{sessionIdCookie}}，如果客户端正确处理会话
+POST {{baseUrl}}/api/system/roles
 Content-Type: application/json
-Cookie: JSESSIONID={{jsessionid_cookie_value}}
+# Cookie: {{sessionIdCookie}} # <--- 尝试移除或注释掉这一行
 
 {
-  "name": "ROLE_ADMIN", // 确保角色名称与数据库中一致
-  "description": "{{role_admin_description}}",
+  "name": "ROLE_CONTRACT_OPERATOR",
+  "description": "合同操作员角色，负责合同的具体操作流程",
   "functionalityNames": [
-    "查看用户列表",
-    "新增用户",
-    "修改用户信息",
-    "删除用户",
-    "为用户分配角色",
-    "查看角色列表",
-    "新增角色",
+    "起草合同",
+    "查看本人起草合同",
+    "查看待会签合同",
+    "提交会签意见",
+    "查看待定稿合同",
+    "提交定稿合同",
+    "查看待审批合同",
+    "提交审批意见",
+    "查看待签订合同",
+    "提交签订信息",
+    "合同信息查询",
+    "查看我的合同流程",
+    "查看个人资料",
+    "修改个人密码"
+  ]
+}
+
+### 3. 更新 ROLE_ADMIN (ID: 1) 的功能
+# 不需要显式设置 Cookie: {{sessionIdCookie}}
+PUT {{baseUrl}}/api/system/roles/1
+Content-Type: application/json
+# Cookie: {{sessionIdCookie}} # <--- 尝试移除或注释掉这一行
+
+{
+  "name": "ROLE_ADMIN",
+  "description": "管理员角色",
+  "functionalityNames": [
     "修改角色信息",
     "删除角色",
     "查看功能列表",
@@ -39,88 +53,57 @@ Cookie: JSESSIONID={{jsessionid_cookie_value}}
     "删除功能",
     "查阅审计日志",
     "导出审计日志",
-    "提交签订信息", // 对应 "允许用户录入合同签订信息"
-    "合同信息查询", // 对应 "允许用户查询合同基本信息"
+    "查看待分配合同",
+    "分配合同处理人员",
+    "起草合同",
+    "提交会签意见",
+    "提交定稿合同",
+    "提交审批意见",
+    "提交签订信息",
+    "查看所有合同(管理)",
+    "删除合同(管理)",
+    "合同信息查询",
+    "查看所有合同流程",
     "查看客户列表",
-    "新增客户", // 对应 "允许新增客户信息"
+    "新增客户",
     "修改客户信息",
     "删除客户",
     "查询客户",
-    "查看个人资料", // 对应 "允许用户查看自己的个人资料"
-    "修改个人密码", // 对应 "允许用户修改自己的登录密码"
-    "查看待分配合同",
-    "分配合同处理人员",
-    "起草合同", // 对应 "允许用户起草新的合同"
-    "查看本人起草合同", // 对应 "允许用户查看自己起草的合同"
-    "查看待会签合同", // 对应 "允许用户查看等待自己会签的合同"
-    "提交会签意见", // 对应 "允许用户提交会签意见"
-    "查看待定稿合同", // 对应 "允许用户查看等待自己定稿的合同"
-    "提交定稿合同", // 对应 "允许用户修改并提交定稿合同"
-    "查看待审批合同", // 对应 "允许用户查看等待自己审批的合同"
-    "提交审批意见", // 对应 "允许用户提交审批意见"
-    "查看待签订合同", // 对应 "允许用户查看等待自己签订的合同"
-    "查看所有合同流程", // 对应 "允许管理员查看所有合同的流程状态"
-    "查看我的合同流程", // 对应 "允许用户查看自己相关的合同流程状态" (管理员也可能有此权限)
-    "查看所有合同(管理)", // 对应 "允许管理员查看所有合同数据"
-    "删除合同(管理)"  // 对应 "允许管理员删除合同（需谨慎）"
+    "查看个人资料",
+    "修改个人密码",
+    "查看本人起草合同",
+    "查看待会签合同",
+    "查看待定稿合同",
+    "查看待审批合同",
+    "查看待签订合同"
   ]
 }
 
-### ==============================================================================
-### 2. 更新 ROLE_USER 的权限 (新用户)
-### 为 ROLE_USER (新用户) 分配极少的权限，或者不分配任何具体业务功能
-### ==============================================================================
-PUT {{baseUrl}}/api/system/roles/{{role_user_id}}
+### 4. 更新 ROLE_USER (ID: 2) 的功能
+# 不需要显式设置 Cookie: {{sessionIdCookie}}
+PUT {{baseUrl}}/api/system/roles/2
 Content-Type: application/json
-Cookie: JSESSIONID={{jsessionid_cookie_value}}
+# Cookie: {{sessionIdCookie}} # <--- 尝试移除或注释掉这一行
 
 {
-  "name": "ROLE_USER", // 确保角色名称与数据库中一致
-  "description": "{{role_user_description}}",
+  "name": "ROLE_USER",
+  "description": "普通用户角色",
   "functionalityNames": [
-    // 新用户通常没有任何具体业务功能，符合“等待管理员分配权限”
-    // 如果希望新用户至少能查看个人资料和修改密码，可以添加：
-    // "查看个人资料",
-    // "修改个人密码"
-    // 当前设置为空数组，表示不分配任何列表中的功能
+    "起草合同",
+    "查看本人起草合同",
+    "查看待会签合同",
+    "提交会签意见",
+    "查看待定稿合同",
+    "提交定稿合同",
+    "查看待审批合同",
+    "提交审批意见",
+    "查看待签订合同",
+    "提交签订信息",
+    "合同信息查询",
+    "查看我的合同流程",
+    "查看个人资料",
+    "修改个人密码"
   ]
 }
 
-### ==============================================================================
-### 3. (可选) 创建并配置 ROLE_CONTRACT_OPERATOR (合同操作员)
-### 如果您决定为“合同操作员”创建一个新的独立角色
-### ==============================================================================
-# 首先，您需要通过UI或另一个HTTP POST请求来创建这个角色，例如 ROLE_CONTRACT_OPERATOR
-# 假设创建后其ID为 @role_contract_operator_id
-
-# @role_contract_operator_id = 请填入创建后的ID
-# @role_contract_operator_name = ROLE_CONTRACT_OPERATOR
-# @role_contract_operator_description = 合同操作员，负责日常合同处理
-
-# PUT {{baseUrl}}/api/system/roles/{{role_contract_operator_id}}
-# Content-Type: application/json
-# Cookie: JSESSIONID={{jsessionid_cookie_value}}
-#
-# {
-#   "name": "{{role_contract_operator_name}}",
-#   "description": "{{role_contract_operator_description}}",
-#   "functionalityNames": [
-#     "起草合同",
-#     "查看本人起草合同",
-#     "查看待会签合同",
-#     "提交会签意见",
-#     "查看待定稿合同",
-#     "提交定稿合同",
-#     "查看待审批合同",
-#     "提交审批意见",
-#     "查看待签订合同",
-#     "提交签订信息",
-#     "合同信息查询",
-#     "查看我的合同流程",
-#     "查看个人资料",
-#     "修改个人密码"
-#     // 如果需要客户信息权限：
-#     // "查看客户列表",
-#     // "查询客户"
-#   ]
-# }
+###

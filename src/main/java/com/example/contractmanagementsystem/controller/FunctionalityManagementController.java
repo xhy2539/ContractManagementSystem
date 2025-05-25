@@ -15,10 +15,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+// import java.util.List; // 如果 List 未被使用，可以移除
 
 @RestController
 @RequestMapping("/api/system/functionalities")
+// 类级别的 @PreAuthorize("hasRole('ROLE_ADMIN')") 保证了只有管理员角色能访问这个控制器下的所有API。
+// 我们将在方法级别添加更细致的 hasAuthority() 检查，这仍然是在 ROLE_ADMIN 的基础上进行的。
+// 如果将来有其他角色也需要某些功能管理权限，可以调整这里的逻辑，例如移除类级别的注解，
+// 或者在方法级别使用 or 逻辑，如 @PreAuthorize("hasRole('ROLE_ADMIN') or hasAuthority('某个功能')")
 @PreAuthorize("hasRole('ROLE_ADMIN')")
 public class FunctionalityManagementController {
 
@@ -30,6 +34,8 @@ public class FunctionalityManagementController {
     }
 
     @PostMapping
+    // 要求用户拥有 "新增功能" 这个功能权限
+    @PreAuthorize("hasAuthority('新增功能')")
     public ResponseEntity<Functionality> createFunctionality(@Valid @RequestBody FunctionalityCreationRequest funcRequest) {
         Functionality newFunctionality = new Functionality();
         newFunctionality.setNum(funcRequest.getNum());
@@ -41,17 +47,10 @@ public class FunctionalityManagementController {
         return new ResponseEntity<>(createdFunctionality, HttpStatus.CREATED);
     }
 
-    /**
-     * 获取所有功能列表（支持分页和搜索）
-     * @param pageable 分页和排序参数
-     * @param numSearch 可选的功能编号搜索关键词
-     * @param nameSearch 可选的功能名称搜索关键词
-     * @param descriptionSearch 可选的功能描述搜索关键词
-     * @return 功能分页数据
-     */
     @GetMapping
+    // 要求用户拥有 "查看功能列表" 这个功能权限
+    @PreAuthorize("hasAuthority('查看功能列表')")
     public ResponseEntity<Page<Functionality>> getAllFunctionalities(
-            // 修改这里的 sort 参数
             @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable,
             @RequestParam(required = false) String numSearch,
             @RequestParam(required = false) String nameSearch,
@@ -69,12 +68,17 @@ public class FunctionalityManagementController {
     }
 
     @GetMapping("/{id}")
+    // 查看单个功能详情。通常，如果用户有权查看列表或修改条目，他们也应该能查看单个条目的详情。
+    // 这里假设拥有 "查看功能列表" 或 "修改功能信息" 权限的用户可以查看详情。
+    @PreAuthorize("hasAuthority('查看功能列表') or hasAuthority('修改功能信息')")
     public ResponseEntity<Functionality> getFunctionalityById(@PathVariable Long id) {
         Functionality functionality = systemManagementService.getFunctionalityById(id);
         return ResponseEntity.ok(functionality);
     }
 
     @PutMapping("/{id}")
+    // 要求用户拥有 "修改功能信息" 这个功能权限
+    @PreAuthorize("hasAuthority('修改功能信息')")
     public ResponseEntity<Functionality> updateFunctionality(@PathVariable Long id, @Valid @RequestBody FunctionalityUpdateRequest funcUpdateRequest) {
         Functionality functionalityDetailsToUpdate = new Functionality();
         functionalityDetailsToUpdate.setNum(funcUpdateRequest.getNum());
@@ -87,6 +91,8 @@ public class FunctionalityManagementController {
     }
 
     @DeleteMapping("/{id}")
+    // 要求用户拥有 "删除功能" 这个功能权限
+    @PreAuthorize("hasAuthority('删除功能')")
     public ResponseEntity<Void> deleteFunctionality(@PathVariable Long id) {
         systemManagementService.deleteFunctionality(id);
         return ResponseEntity.noContent().build();

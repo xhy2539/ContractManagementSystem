@@ -5,19 +5,19 @@ import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.service.SystemManagementService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page; // 新增导入
-import org.springframework.data.domain.Pageable; // 新增导入
-import org.springframework.data.domain.Sort; // 新增导入
-import org.springframework.data.web.PageableDefault; // 新增导入
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-// List的导入不再需要，除非其他地方用到
-// import java.util.List;
+// import java.util.List; // List的导入不再需要，除非其他地方用到
 
 @RestController
 @RequestMapping("/api/admin/contract-assignments")
+// 类级别 @PreAuthorize 确保只有 ROLE_ADMIN 可以访问这些API
 @PreAuthorize("hasRole('ROLE_ADMIN')")
 public class ContractAssignmentController {
 
@@ -37,11 +37,12 @@ public class ContractAssignmentController {
      * @return 合同的分页数据
      */
     @GetMapping("/pending")
+    // 要求用户拥有 "查看待分配合同" 这个功能权限
+    @PreAuthorize("hasAuthority('查看待分配合同')")
     public ResponseEntity<Page<Contract>> getContractsPendingAssignment(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String contractNameSearch,
             @RequestParam(required = false) String contractNumberSearch) {
-        // 调用已更新的支持分页和搜索的Service方法
         Page<Contract> contractsPage = systemManagementService.getContractsPendingAssignment(pageable, contractNameSearch, contractNumberSearch);
         return ResponseEntity.ok(contractsPage);
     }
@@ -53,6 +54,8 @@ public class ContractAssignmentController {
      * @return HTTP 200 OK 如果成功
      */
     @PostMapping("/{contractId}/assign")
+    // 要求用户拥有 "分配合同处理人员" 这个功能权限
+    @PreAuthorize("hasAuthority('分配合同处理人员')")
     public ResponseEntity<Void> assignPersonnelToContract(
             @PathVariable Long contractId,
             @Valid @RequestBody ContractAssignmentRequest request) {
@@ -62,8 +65,6 @@ public class ContractAssignmentController {
                 request.getApprovalUserIds(),
                 request.getSignUserIds()
         );
-        // 考虑 assignContractPersonnel 返回 boolean 值，可以根据结果返回不同状态码
-        // 例如，如果分配失败（没有人员被实际分配），可以返回 HttpStatus.BAD_REQUEST 或其他
         return ResponseEntity.ok().build();
     }
 }
