@@ -35,6 +35,9 @@ public class User {
     @Column(unique = true, length = 100)
     private String email;
 
+    @Column(length = 50) // 新增 realName 字段
+    private String realName; // 用户真实姓名
+
     private boolean enabled = true;
 
     @ManyToMany(fetch = FetchType.EAGER)
@@ -58,4 +61,8 @@ public class User {
         this.enabled = true;
         this.roles = new HashSet<>(); // 确保构造函数也初始化了集合
     }
+
+    // 如果 UserCreationRequest 和 UserUpdateRequest 需要包含 realName，
+    // 那么相应的 DTO 和 Controller/Service 层创建/更新逻辑也需要调整。
+    // 例如，在 createUser 时，可以从 UserCreationRequest 获取 realName 并设置。
 }

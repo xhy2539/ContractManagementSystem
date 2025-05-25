@@ -12,12 +12,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const rolesCheckboxesCreateContainer = document.getElementById('rolesCheckboxesCreate');
     const rolesCheckboxesAssignContainer = document.getElementById('rolesCheckboxesAssign');
+
     const passwordGroup = document.getElementById('passwordGroup');
     const passwordInput = document.getElementById('password');
     const passwordRequiredSpan = document.getElementById('passwordRequired');
+    const passwordHelpText = document.getElementById('passwordHelp');
+
+    const confirmPasswordGroup = document.getElementById('confirmPasswordGroup');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const confirmPasswordRequiredSpan = document.getElementById('confirmPasswordRequired');
+
     const usernameInput = document.getElementById('username');
     const userIdInput = document.getElementById('userId');
     const emailInput = document.getElementById('email');
+    const realNameInput = document.getElementById('realName'); // 新增：获取realName输入框
     const enabledCheckbox = document.getElementById('enabled');
     const userFormModalLabel = document.getElementById('userFormModalLabel');
     const rolesGroupForCreate = document.getElementById('rolesGroupForCreate');
@@ -26,10 +34,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const assignRolesUsernameSpan = document.getElementById('assignRolesUsername');
 
     const paginationControlsContainerId = 'paginationControlsUser';
-    const globalAlertContainerId = 'globalAlertContainer'; // Defined in utils.js or HTML
-    const usersTableSpinnerId = 'usersTableSpinner'; // Add a spinner div in HTML if not present
+    const globalAlertContainerId = 'globalAlertContainer';
+    const usersTableSpinnerId = 'usersTableSpinner';
 
-    // Search elements (optional, add to HTML if needed)
     const usernameSearchInput = document.getElementById('usernameSearch');
     const emailSearchInput = document.getElementById('emailSearch');
     const searchUserBtn = document.getElementById('searchUserBtn');
@@ -39,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- State & Configuration ---
     let allRoles = [];
     let currentPageUser = 0;
-    const DEFAULT_PAGE_SIZE_USER = 10; // Should match backend @PageableDefault or be configurable
+    const DEFAULT_PAGE_SIZE_USER = 10;
 
     // --- API Endpoints ---
     const API_USERS_URL = '/api/system/users';
@@ -48,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Initialization ---
     async function initializePage() {
         await loadAllRoles();
-        await fetchUsers(); // Initial fetch on page load
+        await fetchUsers();
 
         if (addUserBtn) {
             addUserBtn.addEventListener('click', handleOpenCreateUserModal);
@@ -62,16 +69,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (usersTableBody) {
             usersTableBody.addEventListener('click', handleTableActions);
         }
-        // Optional Search/Filter listeners
         if (searchUserBtn) {
             searchUserBtn.addEventListener('click', () => fetchUsers(0));
         }
         if (userFilterForm) {
             userFilterForm.addEventListener('reset', () => {
-                // Timeout to allow form reset before fetching
                 setTimeout(() => fetchUsers(0), 0);
             });
-            // Optional: submit on enter in search fields
             [usernameSearchInput, emailSearchInput].forEach(input => {
                 if (input) input.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') {
@@ -86,11 +90,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Data Fetching and Rendering ---
     async function loadAllRoles() {
         try {
-            allRoles = await authenticatedFetch(API_ROLES_URL, {}, globalAlertContainerId);
-            if (!allRoles) allRoles = []; // Ensure it's an array
+            const rolesData = await authenticatedFetch(API_ROLES_URL, {}, globalAlertContainerId);
+            allRoles = Array.isArray(rolesData) ? rolesData : (rolesData && rolesData.content ? rolesData.content : []);
+            if (!allRoles) allRoles = [];
         } catch (error) {
-            // Error already handled by authenticatedFetch, allRoles will be empty
             console.error("Failed to load roles list.");
+            allRoles = [];
         }
     }
 
@@ -134,19 +139,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 row.insertCell().textContent = user.id;
                 row.insertCell().textContent = user.username;
                 row.insertCell().textContent = user.email || 'N/A';
+                // 如果要在表格中显示真实姓名:
+                // row.insertCell().textContent = user.realName || 'N/A';
                 row.insertCell().innerHTML = `<span class="badge bg-${user.enabled ? 'success' : 'secondary'}">${user.enabled ? '是' : '否'}</span>`;
                 row.insertCell().textContent = user.roles && user.roles.length > 0 ? user.roles.map(role => role.name).join(', ') : '无';
 
                 const actionsCell = row.insertCell();
                 actionsCell.classList.add('action-buttons', 'text-nowrap');
                 actionsCell.innerHTML = `
-                    <button class="btn btn-sm btn-info edit-user-btn" data-user-id="${user.id}" title="编辑用户"><i class="bi bi-pencil-square"></i></button>
+                    <button class="btn btn-sm btn-info edit-user-btn" data-user-id="${user.id}" data-username="${user.username}" title="编辑用户"><i class="bi bi-pencil-square"></i></button>
                     <button class="btn btn-sm btn-warning assign-roles-btn" data-user-id="${user.id}" data-username="${user.username}" title="分配角色"><i class="bi bi-person-check-fill"></i></button>
                     <button class="btn btn-sm btn-danger delete-user-btn" data-user-id="${user.id}" data-username="${user.username}" title="删除用户"><i class="bi bi-trash"></i></button>
                 `;
             });
-        } else {
-            // Message handled by fetchUsers if pageData.content is empty
         }
     }
 
@@ -170,17 +175,26 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // --- Event Handlers ---
     function handleOpenCreateUserModal() {
         resetForm(userForm);
         userIdInput.value = '';
         userFormModalLabel.textContent = '添加新用户';
 
         usernameInput.readOnly = false;
+        if (realNameInput) realNameInput.value = ''; // 清空真实姓名字段
+
         passwordInput.required = true;
         passwordInput.placeholder = '至少6位字符';
-        passwordGroup.style.display = 'block';
+        if (passwordHelpText) passwordHelpText.textContent = '密码设置请勿过于简单,至少6位;建议使用数字、字母混合排列,区分大小写。';
+        if (passwordGroup) passwordGroup.style.display = 'block';
         if (passwordRequiredSpan) passwordRequiredSpan.style.display = 'inline';
+
+        if (confirmPasswordGroup) confirmPasswordGroup.style.display = 'block';
+        if (confirmPasswordInput) {
+            confirmPasswordInput.value = '';
+            confirmPasswordInput.required = true;
+        }
+        if (confirmPasswordRequiredSpan) confirmPasswordRequiredSpan.style.display = 'inline';
 
         if (rolesGroupForCreate) rolesGroupForCreate.style.display = 'block';
         renderRoleCheckboxes(rolesCheckboxesCreateContainer, allRoles);
@@ -190,7 +204,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function handleUserFormSubmit(event) {
         event.preventDefault();
-        if (!validateForm(userForm)) { // 使用 utils.js 中的 validateForm
+
+        const currentUserId = userIdInput.value;
+        const passwordVal = passwordInput.value;
+        const confirmPasswordVal = confirmPasswordInput ? confirmPasswordInput.value : null;
+
+        if (!currentUserId) {
+            passwordInput.required = true;
+            if (confirmPasswordInput) confirmPasswordInput.required = true;
+            if (passwordVal !== confirmPasswordVal) {
+                showAlert('两次输入的密码不一致！', 'warning', globalAlertContainerId);
+                passwordInput.classList.add('is-invalid');
+                if(confirmPasswordInput) confirmPasswordInput.classList.add('is-invalid');
+                return;
+            } else {
+                passwordInput.classList.remove('is-invalid');
+                if(confirmPasswordInput) confirmPasswordInput.classList.remove('is-invalid');
+            }
+        } else {
+            passwordInput.required = false;
+            if (confirmPasswordInput) confirmPasswordInput.required = false;
+            if (passwordVal && passwordVal.trim() !== '' && confirmPasswordVal && confirmPasswordVal.trim() !== '') {
+                if (passwordVal !== confirmPasswordVal) {
+                    showAlert('两次输入的密码不一致！', 'warning', globalAlertContainerId);
+                    passwordInput.classList.add('is-invalid');
+                    if(confirmPasswordInput) confirmPasswordInput.classList.add('is-invalid');
+                    return;
+                } else {
+                    passwordInput.classList.remove('is-invalid');
+                    if(confirmPasswordInput) confirmPasswordInput.classList.remove('is-invalid');
+                }
+            }
+        }
+
+        if (!validateForm(userForm)) {
             showAlert('请检查表单中的必填项。', 'warning', globalAlertContainerId);
             return;
         }
@@ -198,41 +245,48 @@ document.addEventListener('DOMContentLoaded', function () {
         const saveButton = userForm.querySelector('button[type="submit"]');
         toggleLoading(true, saveButton);
 
-        const currentUserId = userIdInput.value;
         const username = usernameInput.value;
         const email = emailInput.value;
-        const password = passwordInput.value;
+        const realName = realNameInput ? realNameInput.value : ''; // 获取真实姓名
         const enabled = enabledCheckbox.checked;
 
         let requestBody;
         let url = API_USERS_URL;
         let method = 'POST';
 
-        if (currentUserId) { // Edit mode
+        if (currentUserId) {
             method = 'PUT';
             url = `${API_USERS_URL}/${currentUserId}`;
-            requestBody = { email, enabled }; // UserUpdateRequest DTO
-            // Password and roles are not updated here for simplicity; use separate actions.
-            // If password change is desired here, add logic and DTO field.
-            // if (password && password.trim() !== '') { requestBody.newPassword = password; }
-        } else { // Create mode
+            requestBody = { email, realName, enabled }; // 在更新请求中包含 realName
+        } else {
             const selectedRoleNames = Array.from(rolesCheckboxesCreateContainer.querySelectorAll('input[name="roleNames"]:checked'))
                 .map(cb => cb.value);
-            if (!password) { // Should be caught by validateForm if required is set dynamically
+            if (!passwordVal) {
                 showAlert('创建用户时密码不能为空！', 'warning', globalAlertContainerId);
                 toggleLoading(false, saveButton);
                 return;
             }
-            requestBody = { username, password, email, enabled, roleNames: selectedRoleNames };
+            requestBody = {
+                username,
+                password: passwordVal,
+                confirmPassword: confirmPasswordVal,
+                email,
+                realName, // 在创建请求中包含 realName
+                enabled,
+                roleNames: selectedRoleNames
+            };
         }
 
         try {
             await authenticatedFetch(url, { method, body: requestBody }, globalAlertContainerId);
             showAlert(currentUserId ? '用户信息更新成功！' : '用户创建成功！', 'success', globalAlertContainerId);
-            fetchUsers(currentUserId ? currentPageUser : 0); // Refresh (current page for edit, first for create)
+            fetchUsers(currentUserId ? currentPageUser : 0);
             userFormModal.hide();
         } catch (error) {
-            // authenticatedFetch already showed an alert
+            if (error.message && error.message.includes("两次输入的密码不一致")) {
+                passwordInput.classList.add('is-invalid');
+                if(confirmPasswordInput) confirmPasswordInput.classList.add('is-invalid');
+            }
         } finally {
             toggleLoading(false, saveButton);
         }
@@ -243,23 +297,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!targetButton) return;
 
         const userId = targetButton.dataset.userId;
+        const usernameFromRow = targetButton.dataset.username;
 
         if (targetButton.classList.contains('edit-user-btn')) {
-            // Fetch the specific user for editing (assuming a GET /api/system/users/{id} or using username)
-            // For now, we'll assume the user object needs to be fetched if not already available.
-            // Let's simulate fetching user by username if ID is primary key for other ops.
-            // This part might need adjustment based on your API capabilities for fetching a single user.
             try {
-                const userToEdit = await authenticatedFetch(`${API_USERS_URL}/${userIdInput.value}`, {}, globalAlertContainerId); // Placeholder - adjust if API uses username
-                // Or find from a locally cached list if full list is small and fetched
-                // For a robust solution, a GET /api/system/users/{id} endpoint is better.
-                // For now, let's assume we need to fetch the user. We'll use username if that's what `getUserByUsername` expects.
-                // The current controller GET /{username}
-                // We need the username from the table row.
-                const usernameFromRow = targetButton.closest('tr').cells[1].textContent; // Assuming username is in the second cell
                 const user = await authenticatedFetch(`${API_USERS_URL}/${usernameFromRow}`, {}, globalAlertContainerId);
-
-
                 if (user) {
                     resetForm(userForm);
                     userFormModalLabel.textContent = '编辑用户';
@@ -267,48 +309,52 @@ document.addEventListener('DOMContentLoaded', function () {
                     usernameInput.value = user.username;
                     usernameInput.readOnly = true;
                     emailInput.value = user.email || '';
+                    if (realNameInput) realNameInput.value = user.realName || ''; // 填充真实姓名字段
                     enabledCheckbox.checked = user.enabled;
 
                     passwordInput.required = false;
                     passwordInput.value = '';
                     passwordInput.placeholder = '留空则不修改密码';
-                    passwordGroup.style.display = 'block'; // Or 'none' if password change is a separate feature
-                    if(passwordRequiredSpan) passwordRequiredSpan.style.display = 'none';
-
-                    if (rolesGroupForCreate) rolesGroupForCreate.style.display = 'none'; // Roles via "Assign Roles"
+                    if (passwordHelpText) passwordHelpText.textContent = '仅在需要修改密码时填写。留空则不修改原密码。';
+                    if (passwordRequiredSpan) passwordRequiredSpan.style.display = 'none';
+                    if (confirmPasswordGroup) confirmPasswordGroup.style.display = 'none';
+                    if (confirmPasswordInput) {
+                        confirmPasswordInput.value = '';
+                        confirmPasswordInput.required = false;
+                    }
+                    if (confirmPasswordRequiredSpan) confirmPasswordRequiredSpan.style.display = 'none';
+                    if (rolesGroupForCreate) rolesGroupForCreate.style.display = 'none';
 
                     userFormModal.show();
                 } else {
                     showAlert('无法加载用户信息进行编辑。', 'warning', globalAlertContainerId);
                 }
             } catch (error) {
-                // Error handled by authenticatedFetch
+                // Error handled
             }
-
         } else if (targetButton.classList.contains('assign-roles-btn')) {
-            const usernameToAssign = targetButton.dataset.username;
             assignRolesUserIdInput.value = userId;
-            assignRolesUsernameSpan.textContent = usernameToAssign;
-
+            assignRolesUsernameSpan.textContent = usernameFromRow;
             try {
-                // Fetch the user again to get current roles accurately
-                const user = await authenticatedFetch(`${API_USERS_URL}/${usernameToAssign}`, {}, globalAlertContainerId);
+                const user = await authenticatedFetch(`${API_USERS_URL}/${usernameFromRow}`, {}, globalAlertContainerId);
                 const currentUserRoleNames = user && user.roles ? user.roles.map(r => r.name) : [];
-
                 renderRoleCheckboxes(rolesCheckboxesAssignContainer, allRoles, currentUserRoleNames);
                 assignRolesModal.show();
             } catch (error) {
                 // Error handled
             }
-
         } else if (targetButton.classList.contains('delete-user-btn')) {
-            const usernameToDelete = targetButton.dataset.username;
-            if (confirm(`确定要删除用户 "${usernameToDelete}" (ID: ${userId}) 吗？此操作无法撤销。`)) {
+            if (confirm(`确定要删除用户 "${usernameFromRow}" (ID: ${userId}) 吗？此操作无法撤销。`)) {
                 toggleLoading(true, targetButton);
                 try {
                     await authenticatedFetch(`${API_USERS_URL}/${userId}`, { method: 'DELETE' }, globalAlertContainerId);
-                    showAlert(`用户 "${usernameToDelete}" 删除成功！`, 'success', globalAlertContainerId);
-                    fetchUsers(currentPageUser); // Refresh current page
+                    showAlert(`用户 "${usernameFromRow}" 删除成功！`, 'success', globalAlertContainerId);
+                    const currentRows = usersTableBody.rows.length;
+                    if (currentRows === 1 && currentPageUser > 0) {
+                        fetchUsers(currentPageUser - 1);
+                    } else {
+                        fetchUsers(currentPageUser);
+                    }
                 } catch (error) {
                     // Error handled
                 } finally {
@@ -322,18 +368,16 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         const assignButton = assignRolesForm.querySelector('button[type="submit"]');
         toggleLoading(true, assignButton);
-
         const userIdToAssign = assignRolesUserIdInput.value;
         const selectedRoleNames = Array.from(rolesCheckboxesAssignContainer.querySelectorAll('input[type="checkbox"]:checked'))
             .map(cb => cb.value);
-
         try {
             await authenticatedFetch(`${API_USERS_URL}/${userIdToAssign}/assign-roles`, {
                 method: 'POST',
                 body: { roleNames: selectedRoleNames }
             }, globalAlertContainerId);
             showAlert('用户角色分配成功！', 'success', globalAlertContainerId);
-            fetchUsers(currentPageUser); // Refresh to show updated roles in table
+            fetchUsers(currentPageUser);
             assignRolesModal.hide();
         } catch (error) {
             // Error handled
@@ -342,6 +386,5 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // --- Initial Page Load ---
     initializePage();
 });

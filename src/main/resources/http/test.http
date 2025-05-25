@@ -1,174 +1,113 @@
-### 合同管理系统 - 审计日志API测试
+### Contract Management System API Tests
 
-### ======================================================================
-### 步骤 1: 管理员登录
-### ======================================================================
-# 使用您提供的管理员账户 (username=admin, password=adminpassword) 进行登录。
-# 您的Spring Security配置中，登录处理URL是 "/perform_login"，方法是POST。
-# HTTP客户端（如IntelliJ IDEA的HTTP Client）在登录成功后通常会自动保存和使用Session Cookie。
+# ----------------------------------------------------------------------
+# 环境和全局变量设置
+# ----------------------------------------------------------------------
+# 您的应用运行的基础URL
+@baseUrl = http://localhost:8080
 
-POST http://localhost:8080/perform_login
+# 管理员凭据 (请根据您的实际配置修改)
+@admin_username = admin
+@admin_password = adminpassword
+
+# 这个变量将由登录请求的响应处理器脚本设置，或者您可以手动设置一个从浏览器获取的有效JSESSIONID
+@JSESSIONID_VALUE = YOUR_MANUALLY_COPIED_JSESSIONID_IF_NEEDED
+
+# ----------------------------------------------------------------------
+# 步骤 1: 用户登录 (获取会话 Cookie)
+# ----------------------------------------------------------------------
+# IntelliJ IDEA的HTTP Client会自动处理和存储在此请求之后收到的Cookie，
+# 并在后续的请求中自动发送它们（只要它们在同一个 .http 文件中，
+# 或者在启用了Cookie共享的环境中）。
+#
+# 登录成功后，服务器通常会通过 Set-Cookie 响应头设置 JSESSIONID。
+# 登录处理URL是 /perform_login，成功后会重定向到 /dashboard。
+POST {{baseUrl}}/perform_login
 Content-Type: application/x-www-form-urlencoded
 
-username=admin&password=adminpassword
+username={{admin_username}}&password={{admin_password}}
 
-### >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-### 登录请求结束。确保此请求成功（通常是302重定向到/dashboard，然后客户端自动跟随重定向得到200）。
-### 后续的请求将使用此登录会话的Cookie。
-### >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+> {%
+    // 响应处理器脚本：尝试从登录的 Set-Cookie 头中捕获 JSESSIONID
+    // 这主要用于调试或如果您想在后续请求中显式使用该值。
+    // IDEA的HTTP Client 通常会自动处理会话cookie。
+    client.log("--- Login Request Completed ---");
+    const setCookieHeader = response.headers.valueOf("Set-Cookie");
+    if (setCookieHeader) {
+        const match = setCookieHeader.match(/JSESSIONID=([^;]+)/);
+        if (match && match[1]) {
+            client.global.set("SESSION_ID_FROM_LOGIN", match[1]);
+            client.log("JSESSIONID captured from login response: " + match[1]);
+            client.log("This JSESSIONID should now be automatically used for subsequent requests by the HTTP Client.");
+        } else {
+            client.log("JSESSIONID not found in Set-Cookie header after login attempt.");
+            client.log("Set-Cookie header was: " + setCookieHeader);
+        }
+    } else {
+        client.log("No Set-Cookie header found in the response after login attempt.");
+        client.log("Login response status: " + response.status);
+        client.log("Login response headers: " + JSON.stringify(response.headers, null, 2));
+    }
+%}
 
+### Separator for requests - Ensures cookies from login are used below
+# (您可以将上面的登录请求单独运行一次，然后运行下面的请求)
 
-### II. 测试 GET /api/system/audit-logs (获取所有日志 - 带分页和排序)
+# ----------------------------------------------------------------------
+# 步骤 2: 测试受保护的API端点
+# 这些请求应该会自动使用由上面登录请求建立的会话。
+# ----------------------------------------------------------------------
 
-# 1. 默认行为
-GET http://localhost:8080/api/system/audit-logs
+###
+# 1. 获取角色列表 API (/api/system/roles)
+# 预期：HTTP 200 OK，返回分页的角色数据JSON。
+# （数据库中应至少有 ROLE_ADMIN 和 ROLE_USER）
+GET {{baseUrl}}/api/system/roles
+Accept: application/json
+# 如果IDEA的自动Cookie管理不起作用，或者您想显式使用上面捕获的ID：
+# Cookie: JSESSIONID={{SESSION_ID_FROM_LOGIN}}
+
+> {%
+    client.log("--- Get Roles List Response ---");
+    client.log("Status: " + response.status);
+    client.log("Headers: " + JSON.stringify(response.headers, null, 2));
+    client.log("Body: " + response.body);
+%}
+
+###
+# 2. 获取角色列表 API - 带特定分页参数
+# 预期：HTTP 200 OK，返回分页的角色数据JSON。
+GET {{baseUrl}}/api/system/roles?page=0&size=5&sort=name,desc
 Accept: application/json
 
-###
+> {%
+    client.log("--- Get Roles List (Paged) Response ---");
+    client.log("Status: " + response.status);
+    client.log("Body: " + response.body);
+%}
 
-# 2. 请求特定页和每页数量 (例如：第2页，每页5条)
-GET http://localhost:8080/api/system/audit-logs?page=1&size=5
+###
+# 3. 获取用户列表 API (/api/system/users) - 默认分页
+# 预期：HTTP 200 OK，返回分页的用户数据JSON。
+# （数据库中应至少有 "admin" 用户）
+GET {{baseUrl}}/api/system/users?page=0&size=10&sort=username,asc
 Accept: application/json
 
-###
-
-# 3. 明确按时间戳降序排序
-GET http://localhost:8080/api/system/audit-logs?sort=timestamp,desc
-Accept: application/json
-
-###
-
-# 4. 按用户名字母顺序升序排序
-GET http://localhost:8080/api/system/audit-logs?sort=username,asc
-Accept: application/json
+> {%
+    client.log("--- Get Users List Response ---");
+    client.log("Status: " + response.status);
+    client.log("Body: " + response.body);
+%}
 
 ###
-
-# 5. 多条件排序 (先按操作类型降序，再按时间戳升序)
-GET http://localhost:8080/api/system/audit-logs?sort=action,desc&sort=timestamp,asc
-Accept: application/json
-
-###
-
-# 6. 请求超出实际数据范围的页码 (应返回空的日志列表 "content": [])
-GET http://localhost:8080/api/system/audit-logs?page=100
-Accept: application/json
-
-###
-
-### III. 测试 GET /api/system/audit-logs?username={用户名} (根据用户名查询日志)
-
-# 7. 查询已存在用户的日志 (默认分页，此端点默认按时间戳降序)
-# 使用您提供的测试用户名 'admin'
-GET http://localhost:8080/api/system/audit-logs?username=admin
-Accept: application/json
-
-###
-
-# 8. 查询已存在用户的日志并自定义分页
-GET http://localhost:8080/api/system/audit-logs?username=admin&page=0&size=3
-Accept: application/json
-
-###
-
-# 9. 查询不存在或没有日志记录的用户的日志 (应返回空的日志列表 "content": [])
-GET http://localhost:8080/api/system/audit-logs?username=user_that_does_not_exist_or_has_no_logs
-Accept: application/json
-
-###
-
-# 10. 查询已存在用户的日志，并尝试按其他字段排序 (例如，按日志详情 'details' 升序)
-GET http://localhost:8080/api/system/audit-logs?username=admin&sort=details,asc
-Accept: application/json
-
-###
-
-### IV. 测试 GET /api/system/audit-logs?action={操作类型} (根据操作类型查询日志)
-
-# 11. 查询特定操作类型的日志 (默认分页，此端点默认按时间戳降序)
-# !!! 将 'CREATE_USER' 替换为您日志中实际存在的操作类型字符串 !!!
-GET http://localhost:8080/api/system/audit-logs?action=CREATE_USER
-Accept: application/json
-
-###
-
-# 12. 查询特定操作类型的日志并自定义分页
-# !!! 将 'UPDATE_ROLE' 替换为您日志中实际存在的其他操作类型字符串 !!!
-GET http://localhost:8080/api/system/audit-logs?action=UPDATE_ROLE&page=0&size=2
-Accept: application/json
-
-###
-
-# 13. 查询不存在或没有日志记录的操作类型的日志 (应返回空的日志列表 "content": [])
-GET http://localhost:8080/api/system/audit-logs?action=ACTION_THAT_DOES_NOT_EXIST
-Accept: application/json
-
-###
-
-### V. 测试 GET /api/system/audit-logs?startDate={起始时间}&endDate={结束时间} (根据时间范围查询日志)
-
-# 14. 查询有效时间范围内且存在日志记录的日志
-# !!! 将下面的日期时间替换为覆盖您现有日志条目的实际ISO 8601日期时间字符串 !!!
-# 例如，如果您知道有 2025-05-25 的日志
-GET http://localhost:8080/api/system/audit-logs?startDate=2025-05-25T00:00:00&endDate=2025-05-25T23:59:59
-Accept: application/json
-
-###
-
-# 15. 查询没有日志记录的时间范围内的日志 (应返回空的日志列表 "[]")
-GET http://localhost:8080/api/system/audit-logs?startDate=2020-01-01T00:00:00&endDate=2020-01-01T23:59:59
-Accept: application/json
-
-###
-
-# 16. 查询起始时间晚于结束时间的日志 (通常应返回空列表 "[]")
-GET http://localhost:8080/api/system/audit-logs?startDate=2025-05-25T00:00:00&endDate=2025-05-24T00:00:00
-Accept: application/json
-
-###
-
-# 17. 查询一个非常精确且包含已知日志条目的时间范围
-# !!! 调整下面的时间以匹配您日志中的某条具体记录的时间戳 !!!
-# 例如，如果某条日志的时间戳是 "2025-05-25T18:36:37.123456"
-GET http://localhost:8080/api/system/audit-logs?startDate=2025-05-25T18:36:37&endDate=2025-05-25T18:36:38
-Accept: application/json
-
-###
-
-### VI. 测试 GET /api/system/audit-logs/export (导出审计日志到CSV)
-### 由于已包含登录步骤，这些导出请求现在应该能正常工作。
-### HTTP Client可能会将响应保存为文件，或在输出中显示CSV内容。
-### 最可靠的验证文件下载的方式仍然是在成功登录后的浏览器中直接打开这些导出URL。
-
-# 18. 导出所有日志 (请谨慎，如果日志量非常大)
-GET http://localhost:8080/api/system/audit-logs/export
-Accept: text/csv
-# 预期：触发文件下载，文件名为 audit_logs_[timestamp].csv
-
-###
-
-# 19. 导出特定用户的日志 (使用 'admin' 用户)
-GET http://localhost:8080/api/system/audit-logs/export?username=admin
-Accept: text/csv
-
-###
-
-# 20. 导出特定操作类型的日志
-# !!! 将 'CREATE_USER' 替换为您日志中实际存在的一个操作类型 !!!
-GET http://localhost:8080/api/system/audit-logs/export?action=CREATE_USER
-Accept: text/csv
-
-###
-
-# 21. 导出特定时间范围的日志
-# !!! 将下面的日期时间替换为覆盖您现有日志条目的实际ISO 8601日期时间字符串 !!!
-GET http://localhost:8080/api/system/audit-logs/export?startDate=2025-05-25T00:00:00&endDate=2025-05-25T23:59:59
-Accept: text/csv
-
-###
-
-# 22. 导出时组合使用筛选条件 (例如，特定用户在特定时间范围内的日志)
-GET http://localhost:8080/api/system/audit-logs/export?username=admin&startDate=2025-05-25T00:00:00&endDate=2025-05-25T23:59:59
-Accept: text/csv
-
-###
+# （可选）4. 获取用户列表 API - 带搜索参数
+# 仅当您在 UserManagementController 中为 usernameSearch/emailSearch 参数添加了实际的搜索逻辑时测试。
+# 假设搜索用户名为 "admin"
+# GET {{baseUrl}}/api/system/users?usernameSearch=admin&page=0&size=10&sort=username,asc
+# Accept: application/json
+#
+# > {%
+# client.log("--- Get Users List (Search) Response ---");
+# client.log("Status: " + response.status);
+# client.log("Body: " + response.body);
+# %}

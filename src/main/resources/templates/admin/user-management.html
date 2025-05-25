@@ -29,6 +29,13 @@
             </button>
         </div>
 
+        <div id="globalAlertContainer"></div>
+        <div id="usersTableSpinner" class="text-center my-3" style="display:none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+        </div>
+
         <div class="table-responsive">
             <table id="usersTable" class="table table-striped table-hover table-bordered caption-top">
                 <caption>用户列表</caption>
@@ -71,16 +78,24 @@
                             <label for="email" class="form-label">邮箱</label>
                             <input type="email" class="form-control" id="email" name="email">
                         </div>
+                        <div class="mb-3">
+                            <label for="realName" class="form-label">真实姓名</label>
+                            <input type="text" class="form-control" id="realName" name="realName" maxlength="50">
+                        </div>
                         <div class="mb-3" id="passwordGroup">
                             <label for="password" class="form-label">密码 <span id="passwordRequired" class="text-danger">*</span></label>
                             <input type="password" class="form-control" id="password" name="password">
                             <small id="passwordHelp" class="form-text text-muted">仅在创建用户或修改密码时需要填写。留空则不修改密码。</small>
                         </div>
+                        <div class="mb-3" id="confirmPasswordGroup" style="display: none;">
+                            <label for="confirmPassword" class="form-label">确认密码 <span id="confirmPasswordRequired" class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword">
+                        </div>
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="enabled" name="enabled" checked>
                             <label class="form-check-label" for="enabled">启用账户</label>
                         </div>
-                        <div class="mb-3" id="rolesGroupForCreate">
+                        <div class="mb-3" id="rolesGroupForCreate" style="display: none;">
                             <label class="form-label">分配角色:</label>
                             <div id="rolesCheckboxesCreate" class="d-flex flex-wrap role-checkbox-group">
                             </div>
@@ -121,6 +136,7 @@
 </section>
 
 <th:block layout:fragment="scripts">
+    <script th:src="@{/js/utils.js}"></script>
     <script th:src="@{/js/user-management.js}"></script>
 </th:block>
 

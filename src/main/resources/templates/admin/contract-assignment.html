@@ -64,10 +64,10 @@
     .filter-card .card-body {
       padding: 1rem; /* 调整筛选卡片主体内边距 */
     }
-    /* 为分配面板中的用户加载spinner定位 */
-    .user-list-box h6 .spinner-border-sm {
-      vertical-align: middle;
-    }
+    /* 为分配面板中的用户加载spinner定位 (如果需要特别处理单个spinner) */
+    /* .user-list-box h6 .spinner-border-sm { */
+    /* vertical-align: middle; */
+    /* } */
   </style>
 </head>
 <body>
@@ -78,6 +78,7 @@
       <h1><i class="bi bi-person-lines-fill"></i> 合同人员分配</h1>
     </div>
     <p class="text-muted">请从左侧列表中选择一个待分配的合同，然后在右侧为其指定会签、审批和签订人员。</p>
+    <div id="globalAlertContainer"></div>
 
     <div class="row g-4">
       <div class="col-lg-5">
@@ -86,7 +87,7 @@
             <h4 class="mb-0"><i class="bi bi-list-task"></i> 待分配合同列表</h4>
           </div>
           <div class="card-body">
-            <div class="filter-card mb-3"> {/* 将搜索表单也放入一个card中，或者直接显示 */}
+            <div class="filter-card mb-3">
               <form id="contractFilterForm" class="row g-2 align-items-end">
                 <div class="col-sm-6">
                   <label for="contractNameSearch" class="form-label form-label-sm">合同名称</label>
@@ -107,8 +108,10 @@
               </form>
             </div>
 
-            <div id="contractsTableSpinner" class="spinner-border text-primary my-3 d-block mx-auto" role="status" style="display:none;">
-              <span class="visually-hidden">加载中...</span>
+            <div id="contractsTableSpinner" class="text-center my-3" role="status" style="display:none;">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+              </div>
             </div>
             <div class="table-responsive">
               <table id="contractsTable" class="table table-striped table-hover table-bordered caption-top">
@@ -140,13 +143,19 @@
             <h4 class="mb-0">为合同 "<span id="selectedContractName" class="fw-bold"></span>" 分配人员</h4>
             <input type="hidden" id="selectedContractId">
           </div>
-          <div class="card-body p-4"> {/* 增加内边距 */}
+          <div class="card-body p-4">
+            <div id="userFetchSpinnerGlobal" class="text-center my-2" style="display:none;">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">正在加载用户数据...</span>
+              </div>
+            </div>
+
             <div class="assignment-section">
               <h5><i class="bi bi-people text-primary"></i> 会签人员</h5>
               <div class="user-selection-container mt-2">
                 <div class="user-list-box">
-                  <h6>可选用户 <span id="userFetchSpinnerCountersign" class="spinner-border spinner-border-sm text-muted ms-1" role="status" style="display:none;"></span></h6>
-                  <select multiple class="form-select" id="availableCountersignUsers" size="6"></select> {/* 减小size */}
+                  <h6>可选用户</h6>
+                  <select multiple class="form-select" id="availableCountersignUsers" size="6"></select>
                 </div>
                 <div class="user-selection-buttons">
                   <button type="button" class="btn btn-outline-primary btn-sm" id="addCountersignUserBtn" title="添加选中用户到会签列表">&gt;&gt;</button>
@@ -163,7 +172,7 @@
               <h5><i class="bi bi-person-check text-success"></i> 审批人员</h5>
               <div class="user-selection-container mt-2">
                 <div class="user-list-box">
-                  <h6>可选用户 <span id="userFetchSpinnerApproval" class="spinner-border spinner-border-sm text-muted ms-1" role="status" style="display:none;"></span></h6>
+                  <h6>可选用户</h6>
                   <select multiple class="form-select" id="availableApprovalUsers" size="6"></select>
                 </div>
                 <div class="user-selection-buttons">
@@ -181,7 +190,7 @@
               <h5><i class="bi bi-pen text-info"></i> 签订人员</h5>
               <div class="user-selection-container mt-2">
                 <div class="user-list-box">
-                  <h6>可选用户 <span id="userFetchSpinnerSigning" class="spinner-border spinner-border-sm text-muted ms-1" role="status" style="display:none;"></span></h6>
+                  <h6>可选用户</h6>
                   <select multiple class="form-select" id="availableSigningUsers" size="6"></select>
                 </div>
                 <div class="user-selection-buttons">
@@ -206,7 +215,7 @@
           </div>
         </div>
         <div id="noContractSelectedPanel" class="alert alert-info mt-0">
-          <i class="bi bi-info-circle-fill"></i>
+          <i class="bi bi-info-circle-fill"></i> 请从左侧合同列表中选择一个合同以进行人员分配。
         </div>
       </div>
     </div>

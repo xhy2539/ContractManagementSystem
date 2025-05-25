@@ -6,12 +6,16 @@ import com.example.contractmanagementsystem.entity.Role;
 import com.example.contractmanagementsystem.service.SystemManagementService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page; // 新增导入
+import org.springframework.data.domain.Pageable; // 新增导入
+import org.springframework.data.domain.Sort; // 新增导入
+import org.springframework.data.web.PageableDefault; // 新增导入
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+// import java.util.List; // List的导入可以移除，因为主要返回 Page<Role>
 
 @RestController
 @RequestMapping("/api/system/roles")
@@ -35,10 +39,25 @@ public class RoleManagementController {
         return new ResponseEntity<>(createdRole, HttpStatus.CREATED);
     }
 
+    /**
+     * 获取所有角色列表（支持分页和搜索）
+     * @param pageable 分页和排序参数 (例如 ?page=0&size=10&sort=name,asc)
+     * @param nameSearch 可选的角色名称搜索关键词
+     * @param descriptionSearch 可选的角色描述搜索关键词
+     * @return 角色分页数据
+     */
     @GetMapping
-    public ResponseEntity<List<Role>> getAllRoles() {
-        List<Role> roles = systemManagementService.getAllRoles();
-        return ResponseEntity.ok(roles);
+    public ResponseEntity<Page<Role>> getAllRoles(
+            @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable,
+            @RequestParam(required = false) String nameSearch,
+            @RequestParam(required = false) String descriptionSearch) {
+        Page<Role> rolesPage;
+        if ((nameSearch != null && !nameSearch.isEmpty()) || (descriptionSearch != null && !descriptionSearch.isEmpty())) {
+            rolesPage = systemManagementService.searchRoles(nameSearch, descriptionSearch, pageable);
+        } else {
+            rolesPage = systemManagementService.getAllRoles(pageable); // 调用支持分页的Service方法
+        }
+        return ResponseEntity.ok(rolesPage);
     }
 
     @GetMapping("/{roleId}")
