@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+  <meta charset="UTF-8">
+  <title>功能管理</title>
+  <style layout:fragment="inline-css">
+    .action-buttons button {
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+  <div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1><i class="bi bi-gear-wide-connected"></i> 功能管理</h1>
+      <button type="button" id="addFunctionalityBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#functionalityFormModal">
+        <i class="bi bi-plus-circle"></i> 添加功能
+      </button>
+    </div>
+
+    <div class="table-responsive">
+      <table id="functionalitiesTable" class="table table-striped table-hover table-bordered caption-top">
+        <caption>功能列表</caption>
+        <thead class="table-dark">
+        <tr>
+          <th scope="col" style="width: 5%;">ID</th>
+          <th scope="col" style="width: 15%;">功能编号</th>
+          <th scope="col" style="width: 20%;">功能名称</th>
+          <th scope="col" style="width: 25%;">URL</th>
+          <th scope="col">描述</th>
+          <th scope="col" style="width: 15%;">操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+    <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-center">
+      <ul class="pagination" id="paginationControlsFunctionality">
+      </ul>
+    </nav>
+  </div>
+
+  <div class="modal fade" id="functionalityFormModal" tabindex="-1" aria-labelledby="functionalityFormModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <form id="functionalityForm">
+          <div class="modal-header">
+            <h5 class="modal-title" id="functionalityFormModalLabel">功能信息</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="functionalityId" name="id">
+            <div class="mb-3">
+              <label for="functionalityNum" class="form-label">功能编号 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="functionalityNum" name="num" required>
+            </div>
+            <div class="mb-3">
+              <label for="functionalityName" class="form-label">功能名称 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="functionalityName" name="name" required>
+            </div>
+            <div class="mb-3">
+              <label for="functionalityUrl" class="form-label">URL</label>
+              <input type="text" class="form-control" id="functionalityUrl" name="url">
+            </div>
+            <div class="mb-3">
+              <label for="functionalityDescription" class="form-label">描述</label>
+              <textarea class="form-control" id="functionalityDescription" name="description" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<th:block layout:fragment="scripts">
+  <script th:src="@{/js/functionality-management.js}"></script>
+</th:block>
+
+</body>
+</html>

@@ -2,17 +2,20 @@ package com.example.contractmanagementsystem.repository;
 
 import com.example.contractmanagementsystem.entity.Functionality;
 import com.example.contractmanagementsystem.entity.Role;
+import org.springframework.data.domain.Page; // 新增导入
+import org.springframework.data.domain.Pageable; // 新增导入
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor; // 新增导入
 import org.springframework.stereotype.Repository;
-import java.util.List; // 引入 List
+import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RoleRepository extends JpaRepository<Role, Integer> {
+public interface RoleRepository extends JpaRepository<Role, Integer>, JpaSpecificationExecutor<Role> { // 继承 JpaSpecificationExecutor
 
     Optional<Role> findByName(String name);
+    List<Role> findAllByFunctionalitiesContains(Functionality functionality);
 
-    // 用于检查功能是否被任何角色使用 (虽然在删除功能时我们是迭代角色，但这里可以备用)
-    // long countByFunctionalitiesContains(Functionality functionality);
-    List<Role> findAllByFunctionalitiesContains(Functionality functionality); // 新增方法
+    // 可选: 为简单的名称搜索添加分页支持 (如果不用Specification)
+    Page<Role> findByNameContainingIgnoreCase(String name, Pageable pageable);
 }

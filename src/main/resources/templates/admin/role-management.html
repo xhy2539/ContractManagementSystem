@@ -1,0 +1,273 @@
+// static/js/role-management.js
+document.addEventListener('DOMContentLoaded', function () {
+// --- DOM Element References ---
+const rolesTableBody = document.querySelector('#rolesTable tbody');
+const roleFormModalEl = document.getElementById('roleFormModal');
+const roleFormModal = new bootstrap.Modal(roleFormModalEl);
+const roleForm = document.getElementById('roleForm');
+const addRoleBtn = document.getElementById('addRoleBtn');
+
+const functionalitiesCheckboxesContainer = document.getElementById('functionalitiesCheckboxes');
+const roleIdInput = document.getElementById('roleId');
+const roleNameInput = document.getElementById('roleName');
+const roleDescriptionInput = document.getElementById('roleDescription');
+const roleFormModalLabel = document.getElementById('roleFormModalLabel');
+
+const paginationControlsContainerId = 'paginationControlsRole';
+const globalAlertContainerId = 'globalAlertContainer';
+const rolesTableSpinnerId = 'rolesTableSpinner'; // 确保HTML中有此ID的spinner元素
+
+// Search elements (可选, 如果HTML中添加了搜索表单)
+const roleNameSearchInput = document.getElementById('roleNameSearch'); // 假设HTML中有 <input id="roleNameSearch">
+const roleDescriptionSearchInput = document.getElementById('roleDescriptionSearch'); // 假设HTML中有 <input id="roleDescriptionSearch">
+const searchRoleBtn = document.getElementById('searchRoleBtn'); // 假设HTML中有 <button id="searchRoleBtn">
+  const roleFilterForm = document.getElementById('roleFilterForm'); // 假设HTML中有 <form id="roleFilterForm">
+
+  // --- State & Configuration ---
+  let allFunctionalities = [];
+  let currentPageRole = 0;
+  const DEFAULT_PAGE_SIZE_ROLE = 10; // 与后端 @PageableDefault(size=10) 保持一致
+
+  // --- API Endpoints ---
+  const API_ROLES_URL = '/api/system/roles';
+  const API_FUNCTIONALITIES_URL = '/api/system/functionalities';
+
+  // --- Initialization ---
+  async function initializePage() {
+  await loadAllFunctionalities();
+  await fetchRoles(); // 页面加载时获取第一页角色数据
+
+  if (addRoleBtn) {
+  addRoleBtn.addEventListener('click', handleOpenCreateRoleModal);
+  }
+  if (roleForm) {
+  roleForm.addEventListener('submit', handleRoleFormSubmit);
+  }
+  if (rolesTableBody) {
+  rolesTableBody.addEventListener('click', handleTableActions);
+  }
+
+  // 可选的搜索/筛选事件监听器
+  if (searchRoleBtn) {
+  searchRoleBtn.addEventListener('click', () => fetchRoles(0)); // 点击搜索按钮时从第一页开始
+  }
+  if (roleFilterForm) {
+  roleFilterForm.addEventListener('reset', () => {
+  setTimeout(() => fetchRoles(0), 0); // 重置表单后也从第一页开始
+  });
+  // 可选: 在搜索字段回车时触发表单提交/搜索
+  [roleNameSearchInput, roleDescriptionSearchInput].forEach(input => {
+  if (input) input.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+  e.preventDefault();
+  fetchRoles(0);
+  }
+  });
+  });
+  }
+  }
+
+  // --- Data Fetching and Rendering ---
+  async function loadAllFunctionalities() {
+  toggleLoading(true, null, rolesTableSpinnerId); // 显示加载状态
+  try {
+  allFunctionalities = await authenticatedFetch(API_FUNCTIONALITIES_URL, {}, globalAlertContainerId);
+  if (!allFunctionalities) allFunctionalities = []; // 确保是数组
+  } catch (error) {
+  console.error("加载功能列表失败。");
+  // authenticatedFetch 已经显示了错误
+  } finally {
+  toggleLoading(false, null, rolesTableSpinnerId); // 隐藏加载状态
+  }
+  }
+
+  async function fetchRoles(page = 0, size = DEFAULT_PAGE_SIZE_ROLE) {
+  currentPageRole = page;
+  const nameSearchVal = roleNameSearchInput ? roleNameSearchInput.value.trim() : '';
+  const descriptionSearchVal = roleDescriptionSearchInput ? roleDescriptionSearchInput.value.trim() : '';
+
+  let queryParams = `page=${page}&size=${size}&sort=name,asc`; // 默认按角色名升序
+
+  if (nameSearchVal) {
+  queryParams += `&nameSearch=${encodeURIComponent(nameSearchVal)}`;
+  }
+  if (descriptionSearchVal) {
+  queryParams += `&descriptionSearch=${encodeURIComponent(descriptionSearchVal)}`;
+  }
+
+  toggleLoading(true, null, rolesTableSpinnerId);
+  try {
+  const pageData = await authenticatedFetch(`${API_ROLES_URL}?${queryParams}`, {}, globalAlertContainerId);
+  if (pageData && pageData.content) {
+  renderRolesTable(pageData.content);
+  // 使用 utils.js 中的 renderPaginationControls
+  renderPaginationControls(pageData, paginationControlsContainerId, fetchRoles, DEFAULT_PAGE_SIZE_ROLE);
+  } else {
+  rolesTableBody.innerHTML = `<tr><td colspan="5" class="text-center">无角色数据。</td></tr>`;
+  renderPaginationControls(null, paginationControlsContainerId, fetchRoles, DEFAULT_PAGE_SIZE_ROLE);
+  }
+  } catch (error) {
+  rolesTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">加载角色列表失败。</td></tr>`;
+  renderPaginationControls(null, paginationControlsContainerId, fetchRoles, DEFAULT_PAGE_SIZE_ROLE);
+  } finally {
+  toggleLoading(false, null, rolesTableSpinnerId);
+  }
+  }
+
+  function renderRolesTable(roles) {
+  rolesTableBody.innerHTML = ''; // 清空现有行
+  if (roles && roles.length > 0) {
+  roles.forEach(role => {
+  const row = rolesTableBody.insertRow();
+  row.insertCell().textContent = role.id;
+  row.insertCell().textContent = role.name;
+  row.insertCell().textContent = role.description || 'N/A';
+  // 显示功能名称，如果太多，可以考虑只显示前几个并用 "..." 或 tooltip
+  const functionalitiesText = role.functionalities && role.functionalities.length > 0
+  ? role.functionalities.map(f => f.name).join(', ')
+  : '无';
+  const funcCell = row.insertCell();
+  funcCell.textContent = functionalitiesText;
+  if (functionalitiesText.length > 50) { // 简单截断示例
+  funcCell.title = functionalitiesText; // 完整内容作为 tooltip
+  funcCell.textContent = functionalitiesText.substring(0, 47) + '...';
+  }
+
+
+  const actionsCell = row.insertCell();
+  actionsCell.classList.add('action-buttons', 'text-nowrap');
+  actionsCell.innerHTML = `
+  <button class="btn btn-sm btn-info edit-role-btn" data-role-id="${role.id}" title="编辑角色"><i class="bi bi-pencil-square"></i></button>
+  <button class="btn btn-sm btn-danger delete-role-btn" data-role-id="${role.id}" data-role-name="${role.name}" title="删除角色"><i class="bi bi-trash"></i></button>
+  `;
+  });
+  } else {
+  // 无数据消息已在 fetchRoles 中处理
+  }
+  }
+
+  function renderFunctionalityCheckboxes(container, functionalitiesToRender, selectedFunctionalityNames = []) {
+  container.innerHTML = '';
+  if (functionalitiesToRender && functionalitiesToRender.length > 0) {
+  functionalitiesToRender.forEach(func => {
+  const isChecked = selectedFunctionalityNames.includes(func.name);
+  const div = document.createElement('div');
+  // 使用 form-check 而不是 form-check-inline 来让每个复选框占一行，如果功能名较长会更好看
+  div.classList.add('form-check');
+  div.innerHTML = `
+  <input class="form-check-input" type="checkbox" value="${func.name}" id="func_checkbox_${func.id}_${container.id}" name="functionalityNames" ${isChecked ? 'checked' : ''}>
+  <label class="form-check-label" for="func_checkbox_${func.id}_${container.id}">
+    ${func.name} (${func.num || 'N/A'}) - ${func.description || '无描述'}
+  </label>
+  `;
+  container.appendChild(div);
+  });
+  } else {
+  container.innerHTML = '<p class="text-muted">无可用功能。</p>';
+  }
+  }
+
+  // --- Event Handlers ---
+  function handleOpenCreateRoleModal() {
+  resetForm(roleForm); // 使用 utils.js 中的 resetForm
+  roleIdInput.value = '';
+  roleFormModalLabel.textContent = '添加新角色';
+  renderFunctionalityCheckboxes(functionalitiesCheckboxesContainer, allFunctionalities);
+  roleFormModal.show();
+  }
+
+  async function handleRoleFormSubmit(event) {
+  event.preventDefault();
+  if (!validateForm(roleForm)) { // 使用 utils.js 中的 validateForm
+  showAlert('请检查表单中的必填项。', 'warning', globalAlertContainerId);
+  return;
+  }
+
+  const saveButton = roleForm.querySelector('button[type="submit"]');
+  toggleLoading(true, saveButton); // 使用 utils.js 中的 toggleLoading
+
+  const currentRoleId = roleIdInput.value;
+  const name = roleNameInput.value;
+  const description = roleDescriptionInput.value;
+  const selectedFunctionalityNames = Array.from(functionalitiesCheckboxesContainer.querySelectorAll('input[name="functionalityNames"]:checked'))
+  .map(cb => cb.value);
+
+  const roleData = {
+  name,
+  description,
+  functionalityNames: selectedFunctionalityNames
+  };
+
+  let url = API_ROLES_URL;
+  let method = 'POST';
+
+  if (currentRoleId) { // 编辑模式
+  url = `${API_ROLES_URL}/${currentRoleId}`;
+  method = 'PUT';
+  }
+
+  try {
+  await authenticatedFetch(url, { method, body: roleData }, globalAlertContainerId);
+  showAlert(currentRoleId ? '角色更新成功！' : '角色创建成功！', 'success', globalAlertContainerId);
+  fetchRoles(currentRoleId ? currentPageRole : 0); // 创建后跳到第一页，编辑后留在当前页
+  roleFormModal.hide();
+  } catch (error) {
+  // authenticatedFetch 已处理错误提示
+  } finally {
+  toggleLoading(false, saveButton);
+  }
+  }
+
+  async function handleTableActions(event) {
+  const targetButton = event.target.closest('button');
+  if (!targetButton) return;
+
+  const roleId = targetButton.dataset.roleId;
+
+  if (targetButton.classList.contains('edit-role-btn')) {
+  try {
+  // 后端已有 GET /api/system/roles/{roleId}
+  const role = await authenticatedFetch(`${API_ROLES_URL}/${roleId}`, {}, globalAlertContainerId);
+  if (role) {
+  resetForm(roleForm);
+  roleFormModalLabel.textContent = '编辑角色';
+  roleIdInput.value = role.id;
+  roleNameInput.value = role.name;
+  roleDescriptionInput.value = role.description || '';
+
+  const currentFunctionalityNames = role.functionalities ? role.functionalities.map(f => f.name) : [];
+  renderFunctionalityCheckboxes(functionalitiesCheckboxesContainer, allFunctionalities, currentFunctionalityNames);
+  roleFormModal.show();
+  } else {
+  showAlert('无法加载角色信息进行编辑。', 'warning', globalAlertContainerId);
+  }
+  } catch (error) {
+  // authenticatedFetch 已处理
+  }
+  } else if (targetButton.classList.contains('delete-role-btn')) {
+  const roleName = targetButton.dataset.roleName;
+  // 可以使用更美观的确认模态框，这里用标准 confirm
+  if (confirm(`确定要删除角色 "${roleName}" (ID: ${roleId})吗？`)) {
+  toggleLoading(true, targetButton);
+  try {
+  await authenticatedFetch(`${API_ROLES_URL}/${roleId}`, { method: 'DELETE' }, globalAlertContainerId);
+  showAlert(`角色 "${roleName}" 删除成功！`, 'success', globalAlertContainerId);
+  // 检查删除后当前页是否还有数据，如果没有且不是第一页，则尝试加载前一页
+  const currentRows = rolesTableBody.rows.length;
+  if (currentRows === 1 && currentPageRole > 0) {
+  fetchRoles(currentPageRole - 1);
+  } else {
+  fetchRoles(currentPageRole);
+  }
+  } catch (error) {
+  // authenticatedFetch 已处理
+  } finally {
+  toggleLoading(false, targetButton);
+  }
+  }
+  }
+  }
+
+  // --- Initial Page Load ---
+  initializePage();
+  });

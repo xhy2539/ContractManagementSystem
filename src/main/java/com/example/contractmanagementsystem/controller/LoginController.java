@@ -1,7 +1,6 @@
-
 package com.example.contractmanagementsystem.controller;
 
-import org.springframework.security.access.prepost.PreAuthorize;
+// import org.springframework.security.access.prepost.PreAuthorize; // 如果没有其他地方用到，可以移除
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,7 +23,10 @@ public class LoginController {
         }
 
         if (error != null) {
-            model.addAttribute("loginError", "无效的用户名或密码！");
+            // 注意：错误信息现在由 CustomAuthenticationFailureHandler 处理并直接传递到URL参数
+            // 这里可以保留，或者依赖Thymeleaf直接从 param.error 获取
+            // model.addAttribute("loginError", "无效的用户名或密码！");
+            model.addAttribute("loginError", error); // 将错误信息直接传递给模板
         }
 
         if (logout != null) {
@@ -33,24 +35,17 @@ public class LoginController {
         return "login"; // 返回名为 "login.html" 的视图模板
     }
 
-    // （可选）一个非常简单的仪表盘/主页的处理器
-    // Spring Security 成功登录后，如果 defaultSuccessUrl 指向这里，则会调用此方法
     @GetMapping("/dashboard")
     public String dashboardPage(Principal principal, Model model) {
         if (principal != null) {
             model.addAttribute("username", principal.getName());
+            // 这里可以添加更多加载到 dashboard 页面的数据, 例如用户角色等
+            // Collection<? extends GrantedAuthority> authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
+            // model.addAttribute("authorities", authorities);
         }
-        // 这里可以添加更多加载到 dashboard 页面的数据
         return "dashboard"; // 返回名为 "dashboard.html" 的视图模板
     }
 
-    // （可选）如果您有注册功能，并且注册成功后希望跳转到一个特定的成功页面
-    // @GetMapping("/register-success")
-    // public String registrationSuccessPage() {
-    //     return "registration-success"; // 返回名为 "registration-success.html" 的视图模板
-    // }
-
-    // （可选）根路径处理器，可以重定向到登录页或仪表盘
     @GetMapping("/")
     public String rootPath(Principal principal) {
         if (principal != null) {
@@ -59,11 +54,5 @@ public class LoginController {
         return "redirect:/login";
     }
 
-    @GetMapping("/admin/audit-logs")
-    @PreAuthorize("hasRole('ROLE_ADMIN')") // 确保只有管理员能访问
-    public String auditLogsPage(Model model) {
-        // 可以向模型添加一些初始数据，如果需要的话
-        // model.addAttribute("someAttribute", "someValue");
-        return "admin/audit-logs"; // Thymeleaf模板的路径 (例如：templates/admin/audit-logs.html)
-    }
+    // auditLogsPage 方法已从此控制器中移除，因为它现在由 AdminController 处理
 }

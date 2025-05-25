@@ -6,16 +6,20 @@ import com.example.contractmanagementsystem.entity.Functionality;
 import com.example.contractmanagementsystem.service.SystemManagementService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page; // 新增导入
+import org.springframework.data.domain.Pageable; // 新增导入
+import org.springframework.data.domain.Sort; // 新增导入
+import org.springframework.data.web.PageableDefault; // 新增导入
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.List; // 保留List导入，如果其他地方需要
 
 @RestController
 @RequestMapping("/api/system/functionalities")
-@PreAuthorize("hasRole('ROLE_ADMIN')") // 假设只有管理员可以管理功能
+@PreAuthorize("hasRole('ROLE_ADMIN')")
 public class FunctionalityManagementController {
 
     private final SystemManagementService systemManagementService;
@@ -25,7 +29,6 @@ public class FunctionalityManagementController {
         this.systemManagementService = systemManagementService;
     }
 
-    // POST /api/system/functionalities - 创建新功能
     @PostMapping
     public ResponseEntity<Functionality> createFunctionality(@Valid @RequestBody FunctionalityCreationRequest funcRequest) {
         Functionality newFunctionality = new Functionality();
@@ -38,24 +41,43 @@ public class FunctionalityManagementController {
         return new ResponseEntity<>(createdFunctionality, HttpStatus.CREATED);
     }
 
-    // GET /api/system/functionalities - 获取所有功能列表
+    /**
+     * 获取所有功能列表（支持分页和搜索）
+     * @param pageable 分页和排序参数
+     * @param numSearch 可选的功能编号搜索关键词
+     * @param nameSearch 可选的功能名称搜索关键词
+     * @param descriptionSearch 可选的功能描述搜索关键词
+     * @return 功能分页数据
+     */
     @GetMapping
-    public ResponseEntity<List<Functionality>> getAllFunctionalities() {
-        List<Functionality> functionalities = systemManagementService.getAllFunctionalities();
-        return ResponseEntity.ok(functionalities);
+    public ResponseEntity<Page<Functionality>> getAllFunctionalities(
+            @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable,
+            @RequestParam(required = false) String numSearch,
+            @RequestParam(required = false) String nameSearch,
+            @RequestParam(required = false) String descriptionSearch) {
+
+        Page<Functionality> functionalitiesPage;
+        if ((numSearch != null && !numSearch.isEmpty()) ||
+                (nameSearch != null && !nameSearch.isEmpty()) ||
+                (descriptionSearch != null && !descriptionSearch.isEmpty())) {
+            functionalitiesPage = systemManagementService.searchFunctionalities(numSearch, nameSearch, descriptionSearch, pageable);
+        } else {
+            functionalitiesPage = systemManagementService.getAllFunctionalities(pageable);
+        }
+        return ResponseEntity.ok(functionalitiesPage);
     }
 
-    // GET /api/system/functionalities/{id} - 根据ID获取功能
     @GetMapping("/{id}")
     public ResponseEntity<Functionality> getFunctionalityById(@PathVariable Long id) {
         Functionality functionality = systemManagementService.getFunctionalityById(id);
         return ResponseEntity.ok(functionality);
     }
 
-    // PUT /api/system/functionalities/{id} - 更新功能信息
     @PutMapping("/{id}")
     public ResponseEntity<Functionality> updateFunctionality(@PathVariable Long id, @Valid @RequestBody FunctionalityUpdateRequest funcUpdateRequest) {
         Functionality functionalityDetailsToUpdate = new Functionality();
+        // 注意：DTO中的字段名需要与Functionality实体对应，或者在Service层进行转换
+        // 假设DTO中的num, name, url, description与实体一致
         functionalityDetailsToUpdate.setNum(funcUpdateRequest.getNum());
         functionalityDetailsToUpdate.setName(funcUpdateRequest.getName());
         functionalityDetailsToUpdate.setUrl(funcUpdateRequest.getUrl());
@@ -65,10 +87,9 @@ public class FunctionalityManagementController {
         return ResponseEntity.ok(updatedFunctionality);
     }
 
-    // DELETE /api/system/functionalities/{id} - 删除功能
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFunctionality(@PathVariable Long id) {
         systemManagementService.deleteFunctionality(id);
-        return ResponseEntity.noContent().build(); // 204 No Content
+        return ResponseEntity.noContent().build();
     }
 }
