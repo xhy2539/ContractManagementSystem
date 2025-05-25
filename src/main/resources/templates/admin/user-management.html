@@ -14,7 +14,13 @@
             margin-right: 5px;
         }
         .role-checkbox-group .form-check {
-            margin-right: 15px;
+            margin-right: 15px; /* 复选框之间的间距 */
+        }
+        .filter-card .card-header {
+            padding: 0.5rem 1rem;
+        }
+        .filter-card .card-body {
+            padding: 1rem;
         }
     </style>
 </head>
@@ -30,6 +36,34 @@
         </div>
 
         <div id="globalAlertContainer"></div>
+
+        <div class="card filter-card shadow-sm mb-3">
+            <div class="card-header">
+                <i class="bi bi-funnel-fill"></i> 筛选条件
+            </div>
+            <div class="card-body">
+                <form id="userFilterForm" class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label for="usernameSearch" class="form-label form-label-sm">用户名</label>
+                        <input type="text" class="form-control form-control-sm" id="usernameSearch" placeholder="按用户名搜索...">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="emailSearch" class="form-label form-label-sm">邮箱</label>
+                        <input type="text" class="form-control form-control-sm" id="emailSearch" placeholder="按邮箱搜索...">
+                    </div>
+                    <div class="col-md-4 d-flex justify-content-start align-items-end">
+                        <button type="button" id="searchUserBtn" class="btn btn-sm btn-primary me-2">
+                            <i class="bi bi-search"></i> 查询
+                        </button>
+                        <button type="reset" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-counterclockwise"></i> 重置
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+
         <div id="usersTableSpinner" class="text-center my-3" style="display:none;">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">加载中...</span>
@@ -75,28 +109,23 @@
                             <input type="text" class="form-control" id="username" name="username" required>
                         </div>
                         <div class="mb-3">
-                            <label for="email" class="form-label">邮箱</label>
-                            <input type="email" class="form-control" id="email" name="email">
-                        </div>
+                            <label for="email" class="form-label">邮箱 <span class="text-danger">*</span></label> <input type="email" class="form-control" id="email" name="email" required> </div>
                         <div class="mb-3">
                             <label for="realName" class="form-label">真实姓名</label>
                             <input type="text" class="form-control" id="realName" name="realName" maxlength="50">
                         </div>
                         <div class="mb-3" id="passwordGroup">
                             <label for="password" class="form-label">密码 <span id="passwordRequired" class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="password" name="password">
-                            <small id="passwordHelp" class="form-text text-muted">仅在创建用户或修改密码时需要填写。留空则不修改密码。</small>
+                            <input type="password" class="form-control" id="password" name="password"> <small id="passwordHelp" class="form-text text-muted">仅在创建用户或修改密码时需要填写。留空则不修改密码。</small>
                         </div>
                         <div class="mb-3" id="confirmPasswordGroup" style="display: none;">
                             <label for="confirmPassword" class="form-label">确认密码 <span id="confirmPasswordRequired" class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword">
-                        </div>
+                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"> </div>
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="enabled" name="enabled" checked>
                             <label class="form-check-label" for="enabled">启用账户</label>
                         </div>
-                        <div class="mb-3" id="rolesGroupForCreate" style="display: none;">
-                            <label class="form-label">分配角色:</label>
+                        <div class="mb-3" id="rolesGroupForCreate" style="display: none;"> <label class="form-label">分配角色:</label>
                             <div id="rolesCheckboxesCreate" class="d-flex flex-wrap role-checkbox-group">
                             </div>
                         </div>

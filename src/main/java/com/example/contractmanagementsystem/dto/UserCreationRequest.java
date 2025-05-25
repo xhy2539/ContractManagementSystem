@@ -1,7 +1,7 @@
 package com.example.contractmanagementsystem.dto;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank; // 确保导入
 import jakarta.validation.constraints.Size;
 import java.util.Set;
 
@@ -18,11 +18,12 @@ public class UserCreationRequest {
     @NotBlank(message = "确认密码不能为空")
     private String confirmPassword;
 
+    @NotBlank(message = "邮箱不能为空") // <--- 添加此行注解
     @Email(message = "邮箱格式不正确")
     @Size(max = 100, message = "邮箱长度不能超过100")
     private String email;
 
-    @Size(max = 50, message = "真实姓名长度不能超过50") // 新增 realName 字段
+    @Size(max = 50, message = "真实姓名长度不能超过50")
     private String realName;
 
     private Set<String> roleNames;
@@ -40,8 +41,8 @@ public class UserCreationRequest {
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
-    public String getRealName() { return realName; } // Getter for realName
-    public void setRealName(String realName) { this.realName = realName; } // Setter for realName
+    public String getRealName() { return realName; }
+    public void setRealName(String realName) { this.realName = realName; }
 
     public Set<String> getRoleNames() { return roleNames; }
     public void setRoleNames(Set<String> roleNames) { this.roleNames = roleNames; }

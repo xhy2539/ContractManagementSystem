@@ -16,21 +16,17 @@ function showAlert(message, type = 'info', containerId = 'globalAlertContainer')
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
-        // 追加新的警报，而不是替换，这样可以显示多个警报
         alertContainer.appendChild(wrapper.firstChild);
-
-        // 5秒后自动移除此特定警报 (可选)
         setTimeout(() => {
-            const activeAlert = wrapper.firstChild; // 获取实际的alert div
+            const activeAlert = wrapper.firstChild;
             if (activeAlert && bootstrap.Alert.getInstance(activeAlert)) {
                 bootstrap.Alert.getInstance(activeAlert).close();
-            } else if (activeAlert && activeAlert.parentNode) { // 如果没有BS实例但元素存在
+            } else if (activeAlert && activeAlert.parentNode) {
                 activeAlert.parentNode.removeChild(activeAlert);
             }
-        }, 7000); // 延长到7秒
+        }, 7000);
         return;
     }
-    // Fallback to standard alert if no container or container not found
     alert(`${type.toUpperCase()}: ${message}`);
 }
 
@@ -39,58 +35,77 @@ function showAlert(message, type = 'info', containerId = 'globalAlertContainer')
  * @param {string} url - 请求的URL
  * @param {object} options - Fetch API的选项对象 (method, headers, body等)
  * @param {string} alertContainerId - 用于显示错误消息的容器ID (可选)
- * @returns {Promise<any>} - 解析后的JSON数据或null（对于204 No Content）
+ * @returns {Promise<any>} - 解析后的JSON数据或null（对于204 No Content或空响应体）
  * @throws {Error} - 如果网络或HTTP错误发生
  */
 async function authenticatedFetch(url, options = {}, alertContainerId = 'globalAlertContainer') {
+    console.log(`[authenticatedFetch] Requesting URL: ${url}`, "Options:", options);
     const defaultHeaders = {
-        // 'Content-Type': 'application/json', // 会根据 options.body 类型自动设置
-        // 'X-CSRF-TOKEN': csrfToken // 如果启用了CSRF，在这里添加
+        // 'X-CSRF-TOKEN': csrfToken // 如果启用了CSRF
     };
     options.headers = { ...defaultHeaders, ...options.headers };
 
-    // 如果body是对象且不是FormData，则自动JSON.stringify并设置Content-Type
     if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
         if (!options.headers['Content-Type'] || options.headers['Content-Type'].toLowerCase() !== 'application/json') {
             options.headers['Content-Type'] = 'application/json';
         }
         options.body = JSON.stringify(options.body);
+        console.log(`[authenticatedFetch] Request body (JSON stringified): ${options.body}`);
     }
-
 
     try {
         const response = await fetch(url, options);
+        console.log(`[authenticatedFetch] Response status: ${response.status} for URL: ${url}`);
 
-        if (!response.ok) {
+        if (!response.ok) { // response.ok is true if status is 200-299
             let errorMessage = `HTTP错误! 状态: ${response.status} ${response.statusText}`;
             try {
-                const errorData = await response.json();
+                const errorData = await response.json(); // Try to parse error response as JSON
+                console.log("[authenticatedFetch] Error data from response:", errorData);
                 errorMessage = errorData.message || (errorData.errors ? errorData.errors.join(', ') : (errorData.error || errorMessage));
             } catch (e) {
-                // 响应体不是JSON或解析失败，使用原始HTTP错误信息
+                console.warn("[authenticatedFetch] Could not parse error response as JSON. Using status text.", e);
+                // If error response is not JSON, use the generic HTTP error
             }
-            console.error('API 错误:', errorMessage, 'URL:', url, '选项:', options);
+            console.error('[authenticatedFetch] API 错误:', errorMessage, 'URL:', url, '选项:', options);
             showAlert(errorMessage, 'danger', alertContainerId);
-            throw new Error(errorMessage); // 抛出错误以便调用者可以捕获
+            throw new Error(errorMessage); // Critical: throw error to be caught by calling function
         }
 
-        if (response.status === 204) { // No Content
-            return null;
+        // Handle successful responses that might not have a body (e.g., 201 Created, 204 No Content)
+        if (response.status === 204) {
+            console.log("[authenticatedFetch] Received 204 No Content.");
+            return null; // No content to parse
         }
-        // 尝试解析JSON，如果响应体为空，则返回null
+
         const text = await response.text();
         if (!text) {
-            return null;
+            // This can happen for 201 Created if the backend doesn't return the created resource in the body
+            console.log(`[authenticatedFetch] Received successful response (${response.status}) with empty body.`);
+            return response.status === 201 ? { success: true, status: response.status } : null; // Indicate success for 201
         }
-        return JSON.parse(text);
+
+        try {
+            const jsonData = JSON.parse(text);
+            console.log("[authenticatedFetch] Parsed JSON response:", jsonData);
+            return jsonData;
+        } catch (e) {
+            console.error("[authenticatedFetch] Failed to parse response text as JSON, even though response was ok.", e, "Response text:", text);
+            // If parsing fails but status was ok, it might be an issue with backend returning non-JSON for a success case
+            // Or it could be a case like 201 Created that DID return a body, but it wasn't valid JSON.
+            // Depending on API contract, you might want to throw an error or return the text.
+            // For robustness, if it was a 200/201 and parsing failed, it's an issue.
+            showAlert('成功响应，但无法解析返回数据。', 'warning', alertContainerId);
+            throw new Error('成功响应，但无法解析返回数据。');
+        }
 
     } catch (error) {
-        // 如果是网络错误等 (fetch本身抛出的异常), 并且不是我们上面已处理的 HTTP 错误
-        if (!error.message.includes('HTTP错误!')) {
-            console.error('网络或其他 fetch 错误:', error, 'URL:', url, '选项:', options);
+        // This catches network errors or errors thrown from the !response.ok block or parsing issues
+        if (!error.message.includes('HTTP错误!') && !error.message.includes('无法解析返回数据')) { // Avoid double alerting for HTTP errors already handled
+            console.error('[authenticatedFetch] 网络或其他 fetch 错误:', error, 'URL:', url, '选项:', options);
             showAlert(error.message || '网络请求失败，请检查您的连接。', 'danger', alertContainerId);
         }
-        throw error; // 重新抛出，让调用者知道发生了错误
+        throw error; // Re-throw to ensure calling function's catch block is triggered
     }
 }
 
@@ -107,7 +122,6 @@ function toggleLoading(isLoading, buttonOrId = null, spinnerOrId = null) {
     if (button) {
         button.disabled = isLoading;
         if (isLoading) {
-            // 可选：保存原始文本并在结束后恢复
             if (!button.dataset.originalText) {
                 button.dataset.originalText = button.innerHTML;
             }
@@ -115,12 +129,12 @@ function toggleLoading(isLoading, buttonOrId = null, spinnerOrId = null) {
         } else {
             if (button.dataset.originalText) {
                 button.innerHTML = button.dataset.originalText;
-                // delete button.dataset.originalText; // 清理
+                // delete button.dataset.originalText; // Optional: clean up
             }
         }
     }
     if (spinner) {
-        spinner.style.display = isLoading ? 'inline-block' : 'none';
+        spinner.style.display = isLoading ? 'inline-block' : 'none'; // Or 'flex' etc. depending on spinner type
     }
 }
 
@@ -138,17 +152,15 @@ function renderPaginationControls(pageData, containerId, fetchFunction, defaultP
         console.warn(`Pagination container with id '${containerId}' not found.`);
         return;
     }
-    paginationContainer.innerHTML = ''; // 清空
+    paginationContainer.innerHTML = '';
 
-    if (!pageData || pageData.totalPages === undefined || pageData.totalPages === 0) { // 如果总页数为0也清空
+    if (!pageData || pageData.totalPages === undefined || pageData.totalPages === 0) {
         return;
     }
 
     const { totalPages, number: currentPageIndex, first: isFirstPage, last: isLastPage, size } = pageData;
     const pageSizeToUse = size || defaultPageSize;
 
-
-    // 上一页
     const prevLi = document.createElement('li');
     prevLi.className = `page-item ${isFirstPage ? 'disabled' : ''}`;
     const prevLink = document.createElement('a');
@@ -165,8 +177,7 @@ function renderPaginationControls(pageData, containerId, fetchFunction, defaultP
     prevLi.appendChild(prevLink);
     paginationContainer.appendChild(prevLi);
 
-    // 页码逻辑 (更智能的显示，例如：首页 ... prev current next ... 尾页)
-    const MAX_VISIBLE_PAGES = 5; // 最多显示的页码按钮数（不包括上一页/下一页/首页/尾页）
+    const MAX_VISIBLE_PAGES = 5;
     let startPage = Math.max(0, currentPageIndex - Math.floor(MAX_VISIBLE_PAGES / 2));
     let endPage = Math.min(totalPages - 1, startPage + MAX_VISIBLE_PAGES - 1);
 
@@ -174,7 +185,6 @@ function renderPaginationControls(pageData, containerId, fetchFunction, defaultP
         startPage = Math.max(0, endPage - MAX_VISIBLE_PAGES + 1);
     }
 
-    // 首页按钮
     if (startPage > 0) {
         const firstPageLi = document.createElement('li');
         firstPageLi.className = 'page-item';
@@ -188,7 +198,7 @@ function renderPaginationControls(pageData, containerId, fetchFunction, defaultP
         });
         firstPageLi.appendChild(firstPageLink);
         paginationContainer.appendChild(firstPageLi);
-        if (startPage > 1) { // 如果第一页和页码起点之间还有间隔
+        if (startPage > 1) {
             const ellipsisLi = document.createElement('li');
             ellipsisLi.className = 'page-item disabled';
             ellipsisLi.innerHTML = '<span class="page-link">...</span>';
@@ -212,9 +222,8 @@ function renderPaginationControls(pageData, containerId, fetchFunction, defaultP
         paginationContainer.appendChild(pageLi);
     }
 
-    // 尾页按钮
     if (endPage < totalPages - 1) {
-        if (endPage < totalPages - 2) { // 如果最后一页和页码终点之间还有间隔
+        if (endPage < totalPages - 2) {
             const ellipsisLi = document.createElement('li');
             ellipsisLi.className = 'page-item disabled';
             ellipsisLi.innerHTML = '<span class="page-link">...</span>';
@@ -234,8 +243,6 @@ function renderPaginationControls(pageData, containerId, fetchFunction, defaultP
         paginationContainer.appendChild(lastPageLi);
     }
 
-
-    // 下一页
     const nextLi = document.createElement('li');
     nextLi.className = `page-item ${isLastPage ? 'disabled' : ''}`;
     const nextLink = document.createElement('a');
@@ -261,11 +268,10 @@ function resetForm(formElement) {
     if (formElement && typeof formElement.reset === 'function') {
         formElement.reset();
     }
-    // 移除Bootstrap的验证类 (如果使用了)
     formElement.querySelectorAll('.is-invalid, .is-valid').forEach(el => {
         el.classList.remove('is-invalid', 'is-valid');
     });
-    formElement.classList.remove('was-validated');
+    formElement.classList.remove('was-validated'); // 移除Bootstrap的已验证状态
 }
 
 /**
@@ -275,26 +281,35 @@ function resetForm(formElement) {
  */
 function validateForm(formElement) {
     let isValid = true;
+    // 先移除所有现有的 is-invalid 和 is-valid，避免累积
+    formElement.querySelectorAll('.is-invalid, .is-valid').forEach(el => {
+        el.classList.remove('is-invalid', 'is-valid');
+    });
+    formElement.classList.remove('was-validated'); // 先移除，再添加，确保状态正确
+
     formElement.classList.add('was-validated'); // 触发Bootstrap内置的验证样式
 
-    // 检查所有必填字段
-    formElement.querySelectorAll('[required]').forEach(input => {
-        if (!input.value.trim()) {
+    formElement.querySelectorAll('input[required], textarea[required], select[required]').forEach(input => {
+        if (!input.value.trim()) { // 对所有输入类型检查trim后的值
             input.classList.add('is-invalid');
-            // 确保错误消息容器存在 (Bootstrap 通常会自动处理，但可以自定义)
             let feedback = input.nextElementSibling;
             if (!feedback || !feedback.classList.contains('invalid-feedback')) {
-                feedback = document.createElement('div');
-                feedback.classList.add('invalid-feedback');
-                input.parentNode.insertBefore(feedback, input.nextSibling);
+                // 如果没有标准的feedback元素，可以在这里动态创建或依赖Bootstrap的默认行为
             }
-            feedback.textContent = input.dataset.requiredMessage || '此字段不能为空。'; // 可以通过 data-required-message 自定义消息
+            // feedback.textContent = input.dataset.requiredMessage || '此字段不能为空。'; // 自定义消息
             isValid = false;
         } else {
-            input.classList.remove('is-invalid');
+            // 只有通过了 required 检查，才标记为 valid，其他类型的验证（如pattern, minlength）由浏览器或后续JS处理
             input.classList.add('is-valid');
         }
     });
-    // 可以添加更多自定义验证规则，例如密码匹配、邮箱格式等
+    // 检查其他HTML5约束，如 type="email", pattern, minlength, maxlength
+    // formElement.checkValidity() 可以检查所有HTML5约束，但它不会自动添加 is-invalid 类
+    if (!formElement.checkValidity()) {
+        isValid = false;
+        // 需要手动遍历并为不符合条件的字段添加 is-invalid，或者依赖 was-validated 类的效果
+        // 对于更复杂的场景，通常使用专门的表单验证库
+    }
+
     return isValid;
 }

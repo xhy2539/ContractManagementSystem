@@ -5,7 +5,7 @@ import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.DuplicateResourceException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.*;
-import org.hibernate.Hibernate;
+import org.hibernate.Hibernate; // <--- 确保导入 Hibernate
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -69,12 +69,8 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     @Override
     @Transactional(readOnly = true)
     public Page<Contract> getContractsPendingAssignment(Pageable pageable, String contractNameSearch, String contractNumberSearch) {
-        // 根据需求文档，待分配合同是状态为“起草”的合同
-        // 并且尚未有任何流程记录 (或者没有正在进行的流程)
-        // SystemManagementServiceImplTest 中使用了 ContractStatus.DRAFT
-        // ContractRepository 中 findContractsForAssignmentWithFilters 使用了 status IN :statuses
         return contractRepository.findContractsForAssignmentWithFilters(
-                List.of(ContractStatus.DRAFT), // 仅查找DRAFT状态，或根据实际分配逻辑调整
+                List.of(ContractStatus.DRAFT),
                 contractNameSearch,
                 contractNumberSearch,
                 pageable
@@ -101,22 +97,11 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         boolean approversProvided = approvalUserIds != null && !approvalUserIds.isEmpty();
         boolean signersProvided = signUserIds != null && !signUserIds.isEmpty();
 
-        // 需求文档3.7.1 分配合同 -> 处理 -> (1)数据验证: 会签、审批、签订人员需全部指定。
-        // 但现代系统通常允许部分分配，所以这里改为至少分配一种。如果必须全部指定，则修改下方逻辑。
         if (!countersignersProvided && !approversProvided && !signersProvided) {
             throw new BusinessLogicException("必须至少为合同分配一种类型的处理人员（会签、审批或签订）。");
         }
-        // 如果要严格按照“需全部指定”，则：
-        // if (!countersignersProvided || !approversProvided || !signersProvided) {
-        //     throw new BusinessLogicException("会签、审批、签订人员均需指定。");
-        // }
-
 
         boolean personnelAssigned = false;
-
-        // 可选：如果重新分配，先清除旧的待处理流程
-        // List<ContractProcess> pendingProcesses = contractProcessRepository.findByContractAndState(contract, ContractProcessState.PENDING);
-        // contractProcessRepository.deleteAll(pendingProcesses);
 
         if (countersignersProvided) {
             for (Long userId : countersignUserIds) {
@@ -124,9 +109,9 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                         .orElseThrow(() -> new ResourceNotFoundException("分配会签：用户未找到，ID: " + userId));
                 ContractProcess cp = new ContractProcess();
                 cp.setContract(contract);
-                cp.setContractNumber(contract.getContractNumber()); // 冗余合同编号
+                cp.setContractNumber(contract.getContractNumber());
                 cp.setOperator(user);
-                cp.setOperatorUsername(user.getUsername()); // 冗余用户名
+                cp.setOperatorUsername(user.getUsername());
                 cp.setType(ContractProcessType.COUNTERSIGN);
                 cp.setState(ContractProcessState.PENDING);
                 contractProcessRepository.save(cp);
@@ -167,7 +152,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
 
         if (personnelAssigned) {
-            // 根据流程顺序更新合同状态
             if (countersignersProvided) {
                 contract.setStatus(ContractStatus.PENDING_COUNTERSIGN);
             } else if (approversProvided) {
@@ -188,7 +172,18 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (userRepository.existsByUsername(user.getUsername())) {
             throw new DuplicateResourceException("用户名 '" + user.getUsername() + "' 已存在");
         }
-        if (user.getEmail() != null && !user.getEmail().isEmpty() && userRepository.existsByEmail(user.getEmail())) {
+
+        // 如果采用方案二（邮箱必填），则 UserCreationRequestDTO 层面已经用 @NotBlank 校验，
+        // 此处 user.getEmail() 理论上不会是空字符串或仅空格。
+        // 如果 email 仍然可能为空字符串（例如，DTO没有@NotBlank），则需要处理：
+        /*
+        if (user.getEmail() != null && user.getEmail().trim().isEmpty()) {
+            user.setEmail(null); // 将空字符串转换为 null，以避免唯一约束问题（如果 email 可选）
+        }
+        */
+
+        // 确保只有在 email 非 null 且非空时才检查其唯一性
+        if (user.getEmail() != null && !user.getEmail().trim().isEmpty() && userRepository.existsByEmail(user.getEmail())) {
             throw new DuplicateResourceException("邮箱 '" + user.getEmail() + "' 已存在");
         }
 
@@ -203,9 +198,16 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                 roles.add(role);
             }
         }
-        // 如果 roleNames 为空或null，用户将没有角色，符合“新用户没有任何权限”的需求
         user.setRoles(roles);
         User savedUser = userRepository.save(user);
+
+        // 初始化懒加载的集合以避免 LazyInitializationException
+        if (savedUser.getRoles() != null) {
+            savedUser.getRoles().forEach(role -> {
+                Hibernate.initialize(role.getFunctionalities()); // 初始化每个角色的功能列表
+            });
+        }
+
         auditLogService.logAction(getCurrentUsername(), "CREATE_USER", "创建用户: " + savedUser.getUsername());
         return savedUser;
     }
@@ -215,7 +217,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public User findUserByUsername(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("用户 '" + username + "' 未找到"));
-        if (user != null) { // 防御性检查
+        if (user != null && user.getRoles() != null) { // 防御性检查并初始化
             user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         return user;
@@ -276,23 +278,26 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (userDetailsToUpdate.getEmail() != null && !userDetailsToUpdate.getEmail().isEmpty() &&
                 !userDetailsToUpdate.getEmail().equals(existingUser.getEmail())) {
             userRepository.findByEmail(userDetailsToUpdate.getEmail())
-                    .filter(userWithEmail -> !userWithEmail.getId().equals(userId)) // 确保不是当前用户自己
+                    .filter(userWithEmail -> !userWithEmail.getId().equals(userId))
                     .ifPresent(u -> {
                         throw new DuplicateResourceException("邮箱 '" + userDetailsToUpdate.getEmail() + "' 已被其他用户使用");
                     });
             existingUser.setEmail(userDetailsToUpdate.getEmail());
         }
-        // 确保 boolean 比较正确
+
         if (userDetailsToUpdate.isEnabled() != existingUser.isEnabled()) {
             existingUser.setEnabled(userDetailsToUpdate.isEnabled());
         }
-
 
         if (userDetailsToUpdate.getRealName() != null) {
             existingUser.setRealName(userDetailsToUpdate.getRealName());
         }
 
         User updatedUser = userRepository.save(existingUser);
+        // 初始化懒加载的集合
+        if (updatedUser.getRoles() != null) {
+            updatedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+        }
         auditLogService.logAction(getCurrentUsername(), "UPDATE_USER_INFO", "更新用户信息: " + updatedUser.getUsername());
         return updatedUser;
     }
@@ -333,6 +338,13 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
         role.setFunctionalities(functionalities);
         Role savedRole = roleRepository.save(role);
+        // 初始化懒加载集合 (虽然 Role 本身被返回，但如果 Role 内部的 Functionality 还有懒加载的集合，也需要考虑)
+        // 在这个场景下，Functionality 是简单对象，所以 Hibernate.initialize(savedRole.getFunctionalities()); 就足够了。
+        // 但为了保持一致性，如果 Functionality 有更深层次的懒加载，需要递归初始化。
+        // 此处假设 Functionality 本身没有需要进一步初始化的懒加载集合。
+        if (savedRole.getFunctionalities() != null) {
+            Hibernate.initialize(savedRole.getFunctionalities());
+        }
         auditLogService.logAction(getCurrentUsername(), "CREATE_ROLE", "创建角色: " + savedRole.getName() + " 并分配功能编号: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
         return savedRole;
     }
@@ -366,6 +378,9 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         existingRole.setFunctionalities(newFunctionalities);
 
         Role updatedRole = roleRepository.save(existingRole);
+        if (updatedRole.getFunctionalities() != null) {
+            Hibernate.initialize(updatedRole.getFunctionalities());
+        }
         auditLogService.logAction(getCurrentUsername(), "UPDATE_ROLE", "更新角色: " + updatedRole.getName() + " 并更新功能编号为: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
         return updatedRole;
     }
@@ -402,7 +417,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             if (description != null && !description.isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), "%" + description.toLowerCase() + "%"));
             }
-            // 确保查询时不获取重复的角色，如果角色可能通过多个功能匹配（尽管这里是按name/desc搜索）
             query.distinct(true);
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
@@ -446,12 +460,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (userCountWithRole > 0) {
             throw new BusinessLogicException("无法删除角色 '" + role.getName() + "'，仍有 " + userCountWithRole + " 个用户拥有此角色。请先解除这些用户的该角色。");
         }
-        // 在删除角色之前，需要确保角色与功能的关联被正确处理。
-        // 如果Role是Functionalities的owning side (通过@JoinTable且没有mappedBy)，
-        // Hibernate会在删除Role时自动处理role_functionalities表中的关联记录。
-        // 如果Functionality是owning side，或者关系管理复杂，可能需要手动清除关联。
-        // 在当前设置下 (Role有@JoinTable，Functionality没有mappedBy指向Role的functionalities字段)，
-        // Role是owning side，所以直接删除Role应该会清除role_functionalities中的记录。
         roleRepository.delete(role);
         auditLogService.logAction(getCurrentUsername(), "DELETE_ROLE", "删除角色: " + role.getName() + " (ID: " + roleId + ")");
     }
@@ -557,10 +565,8 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (!rolesWithFunc.isEmpty()) {
             for(Role role : rolesWithFunc){
                 role.getFunctionalities().remove(func);
-                // roleRepository.save(role); // 保存角色以更新其功能列表 - 这行在多对多关系中，如果Role是owning side，可以省略，因为对集合的修改会被级联。但显式保存更安全。
             }
-            // 最好在循环外批量保存，或者依赖事务结束时的自动刷新
-            roleRepository.saveAll(rolesWithFunc); // 批量保存受影响的角色
+            roleRepository.saveAll(rolesWithFunc);
         }
 
         functionalityRepository.delete(func);
@@ -583,7 +589,9 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
         user.setRoles(newRoles);
         User updatedUser = userRepository.save(user);
-        if (updatedUser != null) {
+
+        // 初始化懒加载的集合
+        if (updatedUser != null && updatedUser.getRoles() != null) {
             updatedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         auditLogService.logAction(getCurrentUsername(), "ASSIGN_ROLES_TO_USER", "为用户 '" + updatedUser.getUsername() + "' 分配角色: " + (roleNames != null ? String.join(", ", roleNames) : "无"));
