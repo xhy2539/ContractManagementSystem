@@ -21,6 +21,7 @@ import org.springframework.security.web.session.HttpSessionEventPublisher; // <-
 @EnableMethodSecurity(prePostEnabled = true, securedEnabled = true, jsr250Enabled = true)
 public class SecurityConfig {
 
+
     @Autowired
     private AuthenticationSuccessHandler customAuthenticationSuccessHandler;
 

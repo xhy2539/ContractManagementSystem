@@ -37,4 +37,14 @@ public class AuditLog {
     @CreationTimestamp
     @Column(name = "timestamp", nullable = false, updatable = false) // 参照数据字典中的 time 字段
     private LocalDateTime timestamp; // 操作时间
+
+    // 方便Service层使用的构造函数
+    public AuditLog(String username, String action, String details) {
+        this.username = username;
+        this.action = action;
+        this.details = details;
+        this.timestamp = LocalDateTime.now(); // 自动设置当前时间
+    }
+
+
 }

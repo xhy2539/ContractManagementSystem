@@ -63,4 +63,14 @@ public class User {
         this.enabled = true;
         this.roles = new HashSet<>();
     }
+    //zjj添加，不要删掉哇
+    // 辅助方法：添加一个角色到用户
+    public void addRole(Role role) {
+        this.roles.add(role);
+    }
+
+    // 辅助方法：从用户中移除一个角色
+    public void removeRole(Role role) {
+        this.roles.remove(role);
+    }
 }
