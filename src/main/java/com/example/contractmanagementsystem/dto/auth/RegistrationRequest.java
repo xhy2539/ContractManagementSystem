@@ -25,6 +25,7 @@ public class RegistrationRequest {
     @Size(max = 100, message = "邮箱长度不能超过100个字符")
     private String email;
 
-    // 可以添加其他注册时需要的信息，例如 realName，但目前为了简洁，我们只包含这几个
-    // private String realName;
+    // 这个字段将用于指定用户是想注册为普通用户还是合同操作员
+    @NotBlank(message = "角色类型不能为空")
+    private String roleType;
 }

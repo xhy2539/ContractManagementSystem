@@ -13,7 +13,7 @@ public interface AuthService {
      * @param request 包含注册信息的DTO
      * @return 注册成功的用户实体
      */
-    User registerUser(RegistrationRequest request);
+    AuthResponse registerUser(RegistrationRequest request);
 
     /**
      * 用户登录功能。

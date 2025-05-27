@@ -36,8 +36,8 @@ public class AuthController {
      * @return 注册成功的用户信息或错误信息
      */
     @PostMapping("/register")
-    public ResponseEntity<User> registerUser(@Valid @RequestBody RegistrationRequest request) {
-        User registeredUser = authService.registerUser(request);
+    public ResponseEntity<AuthResponse> registerUser(@Valid @RequestBody RegistrationRequest request) {
+        AuthResponse registeredUser = authService.registerUser(request);
         // 通常注册成功后会返回用户ID，或者部分信息，避免返回密码等敏感信息
         // 这里的User对象中，密码已经被PasswordEncoder处理过，不会是明文
         return new ResponseEntity<>(registeredUser, HttpStatus.CREATED);
