@@ -5,7 +5,6 @@
     <title>用户注册</title>
     <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
     <style>
-        /* 你现有的样式 */
         body { font-family: Arial, sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 350px; text-align: center; }
         h1 { color: #333; margin-bottom: 25px; }
@@ -109,7 +108,18 @@
                 showMessage('注册成功！用户名: ' + result.username + ', ID: ' + result.userId + ', 角色: ' + result.token, true);
                 registrationForm.reset();
             } else {
-                showMessage('注册失败: ' + (result.message || '未知错误'), false);
+                let errorMessage = result.message || '未知错误'; // 尝试获取总消息
+
+                // 如果后端返回了 "errors" 数组（通常是校验错误）
+                if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
+                    // 将所有详细字段错误拼接起来
+                    errorMessage = '校验失败: ' + result.errors.join('; ');
+                } else if (result.error) {
+                    // 如果后端返回了 "error" 字段，但没有 "errors" 数组
+                    errorMessage = result.error + ": " + errorMessage;
+                }
+
+                showMessage('注册失败: ' + errorMessage, false);
             }
         } catch (error) {
             console.error('注册请求发送失败:', error);
