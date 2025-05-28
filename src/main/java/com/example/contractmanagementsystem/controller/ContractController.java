@@ -105,7 +105,7 @@ public class ContractController {
 
     // 待会签合同列表页面
     @GetMapping("/pending-countersign")
-    @PreAuthorize("hasAuthority('CON_VIEW_COUNTERSIGN')")
+    @PreAuthorize("hasAuthority('CON_CSIGN_VIEW')")
     public String pendingCountersignContracts(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String contractNameSearch,
@@ -121,6 +121,6 @@ public class ContractController {
 
         model.addAttribute("pendingCountersigns", pendingCountersigns);
         model.addAttribute("contractNameSearch", contractNameSearch);
-        return "pending-countersign-contracts";
+        return "pending-countersign";
     }
 }
