@@ -25,6 +25,26 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
     List<Contract> findByStartDateBetween(LocalDate startDate, LocalDate endDate);
     long countByDrafter(User drafter);
 
+    // 新增：按客户统计合同数量
+    @Query("SELECT c.customer.customerName, COUNT(c) FROM Contract c GROUP BY c.customer.customerName")
+    List<Object[]> findContractCountByCustomer();
+
+    // 新增：根据合同名称和编号组合查询
+    @Query("SELECT c FROM Contract c WHERE " +
+           "(:contractName IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractName, '%'))) AND " +
+           "(:contractNumber IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumber, '%')))")
+    Page<Contract> findByContractNameAndNumberContaining(String contractName, String contractNumber, Pageable pageable);
+
+    // 新增：根据状态和其他条件组合查询
+    @Query("SELECT c FROM Contract c WHERE " +
+           "(:status IS NULL OR c.status = :status) AND " +
+           "(:contractName IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractName, '%'))) AND " +
+           "(:contractNumber IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumber, '%')))")
+    Page<Contract> findByStatusAndOtherConditions(ContractStatus status, String contractName, String contractNumber, Pageable pageable);
+
+    // 新增：查询特定状态的合同数量
+    long countByStatus(ContractStatus status);
+
     /**
      * 示例：一个更精确的查询待分配合同的方法（使用JPQL）
      * 这个方法会筛选出状态为 DRAFT 或 PENDING_ASSIGNMENT，并且没有任何关联 ContractProcess 记录的合同。

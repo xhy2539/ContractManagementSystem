@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>合同状态统计</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style layout:fragment="inline-css">
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 400px;
+            width: 100%;
+            max-width: 800px;
+        }
+        .stats-card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .chart-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+<section layout:fragment="content">
+    <div class="container mt-4">
+        <h1 class="mb-4">合同状态统计</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="stats-card">
+                    <div class="chart-title">合同状态分布（饼图）</div>
+                    <div class="chart-container">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stats-card">
+                    <div class="chart-title">合同状态分布（柱状图）</div>
+                    <div class="chart-container">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        // 状态中文名称映射
+        const statusLabels = {
+            'DRAFT': '起草',
+            'PENDING_ASSIGNMENT': '待分配',
+            'PENDING_COUNTERSIGN': '待会签',
+            'PENDING_APPROVAL': '待审批',
+            'PENDING_SIGNING': '待签订',
+            'ACTIVE': '有效',
+            'COMPLETED': '完成',
+            'EXPIRED': '过期',
+            'TERMINATED': '终止'
+        };
+
+        // 图表颜色
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0'
+        ];
+
+        // 加载数据并绘制图表
+        async function loadAndDrawCharts() {
+            try {
+                const response = await fetch('/reports/api/contract-status-data');
+                const data = await response.json();
+                
+                const labels = Object.keys(data).map(key => statusLabels[key]);
+                const values = Object.values(data);
+
+                // 绘制饼图
+                new Chart(document.getElementById('pieChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: colors,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right'
+                            }
+                        }
+                    }
+                });
+
+                // 绘制柱状图
+                new Chart(document.getElementById('barChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '合同数量',
+                            data: values,
+                            backgroundColor: colors,
+                            borderColor: colors,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                alert('加载数据失败，请稍后重试');
+            }
+        }
+
+        // 页面加载完成后加载数据并绘制图表
+        document.addEventListener('DOMContentLoaded', loadAndDrawCharts);
+    </script>
+</th:block>
+</body>
+</html> 

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>合同查询</title>
+    <style layout:fragment="inline-css">
+        .search-card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .table th {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+<section layout:fragment="content">
+    <div class="container mt-4">
+        <h1 class="mb-4">合同查询</h1>
+        
+        <div class="search-card">
+            <form id="contractSearchForm" class="mb-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="contractName" class="form-label">合同名称</label>
+                        <input type="text" class="form-control" id="contractName" name="contractName" placeholder="请输入合同名称">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="contractNumber" class="form-label">合同编号</label>
+                        <input type="text" class="form-control" id="contractNumber" name="contractNumber" placeholder="请输入合同编号">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="contractStatus" class="form-label">合同状态</label>
+                        <select class="form-select" id="contractStatus" name="status">
+                            <option value="">全部状态</option>
+                            <option value="DRAFT">起草</option>
+                            <option value="PENDING_ASSIGNMENT">待分配</option>
+                            <option value="PENDING_COUNTERSIGN">待会签</option>
+                            <option value="PENDING_APPROVAL">待审批</option>
+                            <option value="PENDING_SIGNING">待签订</option>
+                            <option value="ACTIVE">有效</option>
+                            <option value="COMPLETED">完成</option>
+                            <option value="EXPIRED">过期</option>
+                            <option value="TERMINATED">终止</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> 查询
+                    </button>
+                    <button type="reset" class="btn btn-secondary ms-2">
+                        <i class="bi bi-arrow-counterclockwise"></i> 重置
+                    </button>
+                </div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>合同编号</th>
+                            <th>合同名称</th>
+                            <th>客户名称</th>
+                            <th>签订日期</th>
+                            <th>到期日期</th>
+                            <th>合同状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contractTableBody">
+                        <!-- 数据将通过JavaScript动态填充 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- 分页控件 -->
+            <nav aria-label="Page navigation" class="mt-3">
+                <ul class="pagination justify-content-center" id="pagination">
+                    <!-- 分页将通过JavaScript动态填充 -->
+                </ul>
+            </nav>
+        </div>
+    </div>
+</section>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        // 状态中文名称映射
+        const statusLabels = {
+            'DRAFT': '起草',
+            'PENDING_ASSIGNMENT': '待分配',
+            'PENDING_COUNTERSIGN': '待会签',
+            'PENDING_APPROVAL': '待审批',
+            'PENDING_SIGNING': '待签订',
+            'ACTIVE': '有效',
+            'COMPLETED': '完成',
+            'EXPIRED': '过期',
+            'TERMINATED': '终止'
+        };
+
+        // 合同查询相关函数
+        async function searchContracts(page = 1) {
+            const formData = new FormData(document.getElementById('contractSearchForm'));
+            const searchParams = new URLSearchParams();
+            formData.forEach((value, key) => {
+                if (value) searchParams.append(key, value);
+            });
+            searchParams.append('page', page - 1); // Spring Boot 分页从0开始
+            searchParams.append('size', 10);
+
+            try {
+                const response = await fetch(`/reports/api/contracts/search?${searchParams.toString()}`);
+                const data = await response.json();
+                renderContractTable(data.content);
+                renderPagination(data);
+            } catch (error) {
+                console.error('查询失败:', error);
+                alert('查询失败，请稍后重试');
+            }
+        }
+
+        function renderContractTable(contracts) {
+            const tbody = document.getElementById('contractTableBody');
+            tbody.innerHTML = contracts.map(contract => `
+                <tr>
+                    <td>${contract.contractNumber}</td>
+                    <td>${contract.contractName}</td>
+                    <td>${contract.customerName}</td>
+                    <td>${new Date(contract.signingDate).toLocaleDateString()}</td>
+                    <td>${new Date(contract.expirationDate).toLocaleDateString()}</td>
+                    <td>${statusLabels[contract.status]}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="viewContract(${contract.id})">
+                            查看详情
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPagination(pageData) {
+            const pagination = document.getElementById('pagination');
+            const totalPages = pageData.totalPages;
+            const currentPage = pageData.number + 1;
+
+            let paginationHtml = '';
+            
+            // 上一页
+            paginationHtml += `
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="searchContracts(${currentPage - 1})">&laquo;</a>
+                </li>
+            `;
+
+            // 页码
+            for (let i = 1; i <= totalPages; i++) {
+                paginationHtml += `
+                    <li class="page-item ${currentPage === i ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="searchContracts(${i})">${i}</a>
+                    </li>
+                `;
+            }
+
+            // 下一页
+            paginationHtml += `
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="searchContracts(${currentPage + 1})">&raquo;</a>
+                </li>
+            `;
+
+            pagination.innerHTML = paginationHtml;
+        }
+
+        function viewContract(contractId) {
+            window.location.href = `/contracts/view/${contractId}`;
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 注册表单提交事件
+            document.getElementById('contractSearchForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                searchContracts(1);
+            });
+
+            // 加载初始数据
+            searchContracts(1);
+        });
+    </script>
+</th:block>
+</body>
+</html> 
