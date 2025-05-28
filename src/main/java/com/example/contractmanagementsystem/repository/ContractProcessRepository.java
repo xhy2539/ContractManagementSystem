@@ -2,23 +2,37 @@ package com.example.contractmanagementsystem.repository;
 
 import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
-import com.example.contractmanagementsystem.entity.ContractProcessState; // 引入
+import com.example.contractmanagementsystem.entity.ContractProcessState;
+import com.example.contractmanagementsystem.entity.ContractProcessType; // 引入 ContractProcessType
 import com.example.contractmanagementsystem.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor; // <-- 新增导入
 
 import java.util.List;
 
 @Repository
-public interface ContractProcessRepository extends JpaRepository<ContractProcess, Long> {
+public interface ContractProcessRepository extends JpaRepository<ContractProcess, Long>, JpaSpecificationExecutor<ContractProcess> {
+    //                                                                                     ^-------------------- 新增此接口
 
     List<ContractProcess> findByContract(Contract contract);
-    List<ContractProcess> findByContractAndType(Contract contract, Integer type); // type 应该是 ContractProcessType 枚举
-    ContractProcess findByContractAndOperatorAndType(Contract contract, User operator, Integer type); // type 应该是 ContractProcessType 枚举
-    List<ContractProcess> findByOperator(User operator);
-    List<ContractProcess> findByContractAndState(Contract contract, ContractProcessState state); // state 应该是 ContractProcessState 枚举
-    List<ContractProcess> findByTypeAndState(Integer type, ContractProcessState state); // type 和 state 应该是枚举
 
-    // 新增方法: 用于 deleteUser 检查
+    // 修改 type 参数为 ContractProcessType 枚举
+    List<ContractProcess> findByContractAndType(Contract contract, ContractProcessType type);
+
+    // 修改 type 参数为 ContractProcessType 枚举
+    ContractProcess findByContractAndOperatorAndType(Contract contract, User operator, ContractProcessType type);
+
+    List<ContractProcess> findByOperator(User operator);
+
+    // state 参数已经正确使用了 ContractProcessState 枚举
+    List<ContractProcess> findByContractAndState(Contract contract, ContractProcessState state);
+
+    // 修改 type 参数为 ContractProcessType 枚举
+    List<ContractProcess> findByTypeAndState(ContractProcessType type, ContractProcessState state);
+
+    // 用于 deleteUser 检查
     long countByOperatorAndState(User operator, ContractProcessState state);
+
+    // 您可能还需要一些额外的方法，但当前的 JpaSpecificationExecutor 已经满足了 getPendingProcessesForUser 的需求。
 }

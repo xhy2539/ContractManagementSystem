@@ -16,6 +16,9 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     // 根据客户名称模糊查询 (分页)
     Page<Customer> findByCustomerNameContainingIgnoreCase(String customerName, Pageable pageable);
 
+    // 新增：根据客户名称精确查找客户
+    Optional<Customer> findByCustomerName(String customerName); // <--- 新增的行
+
     // 根据邮箱查找客户
     Optional<Customer> findByEmail(String email);
 }

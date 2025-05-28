@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>待会签合同</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .navbar {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar .brand {
+            font-size: 1.5em;
+        }
+        .navbar .user-info {
+            font-size: 0.9em;
+        }
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 15px;
+        }
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .search-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .search-form input[type="text"] {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .search-form button {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-form button:hover {
+            background-color: #0056b3;
+        }
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .pagination a, .pagination span {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 0 5px;
+            border: 1px solid #ddd;
+            text-decoration: none;
+            color: #007bff;
+            border-radius: 4px;
+        }
+        .pagination span.current-page {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .pagination a:hover:not(.current-page) {
+            background-color: #e2e6ea;
+        }
+        .no-records {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .btn-action {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+        .btn-action:hover {
+            background-color: #218838;
+        }
+        .btn-view-attachment {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9em;
+            margin-left: 5px;
+        }
+        .btn-view-attachment:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <div class="brand">合同管理系统</div>
+    <div class="user-info">
+        欢迎, <span sec:authentication="name">用户</span>!
+        <a th:href="@{/perform_logout}" onclick="document.getElementById('logout-form-inline').submit(); return false;">注销</a>
+        <form id="logout-form-inline" th:action="@{/perform_logout}" method="post" style="display: none;">
+        </form>
+    </div>
+</div>
+
+<div class="container">
+    <h1>待会签合同</h1>
+    <p>以下是需要您进行会签的合同列表。</p>
+
+    <form th:action="@{/contracts/pending-countersign}" method="get" class="search-form">
+        <input type="text" name="contractNameSearch" th:value="${contractNameSearch}" placeholder="输入合同名称搜索..."/>
+        <button type="submit">搜索</button>
+    </form>
+
+    <div th:if="${pendingCountersigns.isEmpty()}" class="no-records">
+        <p>没有待会签的合同。</p>
+    </div>
+
+    <div th:unless="${pendingCountersigns.isEmpty()}">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>合同编号</th>
+                <th>合同名称</th>
+                <th>客户名称</th>
+                <th>起草人</th>
+                <th>起草日期</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="process : ${pendingCountersigns.content}">
+                <td th:text="${process.contract.id}"></td>
+                <td th:text="${process.contract.contractNumber}"></td>
+                <td th:text="${process.contract.contractName}"></td>
+                <td th:text="${process.contract.customer.customerName}"></td>
+                <td th:text="${process.contract.drafter.username}"></td>
+                <td th:text="${#temporals.format(process.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+                <td th:text="${process.state.description}"></td>
+                <td>
+                    <a th:href="@{/contracts/countersign-details/{id}(id=${process.contract.id})}" class="btn-action">会签</a>
+                    <span th:if="${process.contract.attachmentPath}">
+                        <a th:href="@{'/attachments/' + ${process.contract.attachmentPath}}" target="_blank" class="btn-view-attachment">查看附件</a>
+                    </span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            <a th:if="${pendingCountersigns.hasPrevious()}"
+               th:href="@{/contracts/pending-countersign(page=${pendingCountersigns.number - 1}, size=${pendingCountersigns.size}, contractNameSearch=${contractNameSearch})}">
+                上一页
+            </a>
+            <span th:each="i : ${#numbers.sequence(0, pendingCountersigns.totalPages - 1)}">
+                <a th:if="${i != pendingCountersigns.number}"
+                   th:href="@{/contracts/pending-countersign(page=${i}, size=${pendingCountersigns.size}, contractNameSearch=${contractNameSearch})}"
+                   th:text="${i + 1}">
+                </a>
+                <span th:if="${i == pendingCountersigns.number}" class="current-page" th:text="${i + 1}"></span>
+            </span>
+            <a th:if="${pendingCountersigns.hasNext()}"
+               th:href="@{/contracts/pending-countersign(page=${pendingCountersigns.number + 1}, size=${pendingCountersigns.size}, contractNameSearch=${contractNameSearch})}">
+                下一页
+            </a>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
