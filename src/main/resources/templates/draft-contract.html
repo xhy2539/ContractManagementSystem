@@ -6,6 +6,7 @@
     <title>起草合同</title>
     <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
     <style>
+        /* CSS样式保持不变 */
         body {
             font-family: sans-serif;
             margin: 0;
@@ -30,7 +31,7 @@
         input[type="text"],
         input[type="date"],
         textarea,
-        input[type="file"] { /* 添加对文件输入框的样式 */
+        input[type="file"] {
             width: 100%;
             padding: 10px;
             margin-bottom: 10px;
@@ -44,7 +45,7 @@
             padding: 10px 15px;
             border-radius: 4px;
             cursor: pointer;
-            margin-right: 10px; /* 按钮之间添加一些间距 */
+            margin-right: 10px;
         }
         button:hover {
             background-color: #0056b3;
@@ -88,27 +89,25 @@
         </ul>
     </div>
 
-
     <form th:action="@{/contracts/draft}" method="post" enctype="multipart/form-data" th:object="${contractDraftRequest}">
         <label for="contractName">合同名称 <span class="required">*</span></label>
         <input type="text" id="contractName" name="contractName" th:field="*{contractName}" required>
         <div th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}" class="error-message"></div>
 
+        <label for="customerNumber">客户编号 <span class="required">*</span></label>
+        <input type="text" id="customerNumber" name="customerNumber" th:field="*{customerNumber}" required>
+        <div th:if="${#fields.hasErrors('customerNumber')}" th:errors="*{customerNumber}" class="error-message"></div>
 
-        <label for="customer">客户 <span class="required">*</span></label>
-        <input type="text" id="customer" name="customer" th:field="*{customer}" required>
-        <div th:if="${#fields.hasErrors('customer')}" th:errors="*{customer}" class="error-message"></div>
-
-
+        <label for="customerName">客户名称 <span class="required">*</span></label>
+        <input type="text" id="customerName" name="customerName" th:field="*{customerName}" required>
+        <div th:if="${#fields.hasErrors('customerName')}" th:errors="*{customerName}" class="error-message"></div>
         <label for="startDate">开始时间 <span class="required">*</span></label>
         <input type="date" id="startDate" name="startDate" th:field="*{startDate}" required>
         <div th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}" class="error-message"></div>
 
-
         <label for="endDate">结束时间 <span class="required">*</span></label>
         <input type="date" id="endDate" name="endDate" th:field="*{endDate}" required>
         <div th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}" class="error-message"></div>
-
 
         <label for="contractContent">合同内容</label>
         <textarea id="contractContent" name="contractContent" rows="5" th:field="*{contractContent}"></textarea>
