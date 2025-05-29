@@ -126,7 +126,63 @@ public class ContractController {
         model.addAttribute("contractNameSearch", contractNameSearch);
         return "pending-countersign";
     }
+    @GetMapping("/pending-signing")
+    @PreAuthorize("hasAuthority('CON_SIGN_VIEW')") // 假设签订的权限编号为 CON_SIGN_VIEW
+    public String pendingSigningContracts(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String contractNameSearch,
+            Model model,
+            Principal principal
+    ) {
+        String username = principal.getName();
+        Page<ContractProcess> pendingSignings = contractService.getPendingProcessesForUser(
+                username, ContractProcessType.SIGNING, ContractProcessState.PENDING, contractNameSearch, pageable);
 
+        model.addAttribute("pendingSignings", pendingSignings);
+        model.addAttribute("contractNameSearch", contractNameSearch);
+        return "contracts/pending-signing"; // 返回新创建的 HTML 模板
+    }
+
+    // --- 新增：显示合同签订详情页面 ---
+    @GetMapping("/sign/{contractProcessId}")
+    @PreAuthorize("hasAuthority('CON_SIGN_DO')") // 假设签订操作的权限编号为 CON_SIGN_DO
+    public String showSignContractForm(@PathVariable Long contractProcessId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
+        try {
+            String username = principal.getName();
+            ContractProcess contractProcess = contractService.getContractProcessByIdAndOperator(
+                    contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
+
+            model.addAttribute("contractProcess", contractProcess);
+            return "contracts/sign-contract"; // 返回新创建的 HTML 模板
+        } catch (BusinessLogicException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/contracts/pending-signing";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "加载签订页面失败，系统错误。");
+            return "redirect:/contracts/pending-signing";
+        }
+    }
+
+    // --- 新增：处理合同签订提交 ---
+    @PostMapping("/sign")
+    @PreAuthorize("hasAuthority('CON_SIGN_DO')")
+    public String signContract(@RequestParam Long contractProcessId,
+                               @RequestParam(required = false) String signingOpinion,
+                               RedirectAttributes redirectAttributes,
+                               Principal principal) {
+        try {
+            String username = principal.getName();
+            contractService.signContract(contractProcessId, signingOpinion, username);
+            redirectAttributes.addFlashAttribute("successMessage", "合同签订成功！");
+            return "redirect:/contracts/pending-signing"; // 签订成功后重定向回待签订列表
+        } catch (BusinessLogicException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/contracts/sign/" + contractProcessId; // 保持在当前页面，显示错误
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "合同签订失败，系统发生未知错误。");
+            return "redirect:/contracts/pending-signing";
+        }
+    }
     // 待审批合同列表页面
     @GetMapping("/pending-approval")
     @PreAuthorize("hasAuthority('CON_APPROVE_VIEW')")
@@ -139,7 +195,7 @@ public class ContractController {
         String username = principal.getName();
         Page<ContractProcess> pendingApprovals = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.APPROVAL, ContractProcessState.PENDING, contractNameSearch, pageable);
-        
+
         model.addAttribute("pendingApprovals", pendingApprovals);
         model.addAttribute("contractNameSearch", contractNameSearch);
         return "pending-approval";
@@ -153,12 +209,12 @@ public class ContractController {
         if (contract == null) {
             throw new ResourceNotFoundException("合同不存在");
         }
-        
+
         // 验证当前用户是否有权限审批该合同
         if (!contractService.canUserApproveContract(principal.getName(), id)) {
             throw new AccessDeniedException("您没有权限审批此合同");
         }
-        
+
         model.addAttribute("contract", contract);
         return "approval-details";
     }
@@ -176,7 +232,7 @@ public class ContractController {
         try {
             boolean isApproved = "APPROVED".equals(decision);
             contractService.processApproval(id, principal.getName(), isApproved, comments);
-            
+
             String resultMessage = isApproved ? "合同审批通过" : "合同已拒绝";
             redirectAttributes.addFlashAttribute("successMessage", resultMessage);
             return "redirect:/contracts/pending-approval";

@@ -1,24 +1,17 @@
 package com.example.contractmanagementsystem.service;
-
-import com.example.contractmanagementsystem.dto.ContractDraftRequest;
-import com.example.contractmanagementsystem.entity.Contract;
-import com.example.contractmanagementsystem.entity.ContractProcess;
-import com.example.contractmanagementsystem.entity.ContractProcessState;
-import com.example.contractmanagementsystem.entity.ContractProcessType;
 import com.example.contractmanagementsystem.entity.ContractStatus;
-import com.example.contractmanagementsystem.entity.Customer;
-import com.example.contractmanagementsystem.entity.User;
+import com.example.contractmanagementsystem.dto.ContractDraftRequest;
+import com.example.contractmanagementsystem.entity.*;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.ContractProcessRepository;
 import com.example.contractmanagementsystem.repository.ContractRepository;
 import com.example.contractmanagementsystem.repository.CustomerRepository;
 import com.example.contractmanagementsystem.repository.UserRepository;
-
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
-
+import com.example.contractmanagementsystem.repository.AuditLogRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -267,6 +260,47 @@ public class ContractServiceImpl implements ContractService {
             throw new BusinessLogicException("附件文件不存在或不可读: " + filename);
         }
         return filePath;
+    }
+    @Override
+    public ContractProcess getContractProcessByIdAndOperator(Long processId, String username, ContractProcessType expectedType, ContractProcessState expectedState) {
+        ContractProcess process = contractProcessRepository.findById(processId)
+                .orElseThrow(() -> new BusinessLogicException("合同流程记录未找到。"));
+
+        if (!process.getOperator().getUsername().equals(username)) {
+            throw new BusinessLogicException("您无权操作此合同流程。");
+        }
+
+        if (!process.getType().equals(expectedType)) {
+            throw new BusinessLogicException("合同流程类型不匹配。预期类型: " + expectedType.getDescription() + ", 实际类型: " + process.getType().getDescription());
+        }
+
+        if (!process.getState().equals(expectedState)) {
+            throw new BusinessLogicException("合同流程状态不正确。预期状态: " + expectedState.getDescription() + ", 实际状态: " + process.getState().getDescription());
+        }
+        return process;
+    }
+
+    // --- 新增：处理合同签订逻辑 ---
+    @Override
+    public void signContract(Long contractProcessId, String signingOpinion, String username) {
+        // 1. 获取并验证合同流程
+        ContractProcess process = getContractProcessByIdAndOperator(
+                contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
+
+        // 2. 更新合同流程状态
+        process.setState(ContractProcessState.COMPLETED);
+        process.setContent(signingOpinion);
+        process.setCompletedAt(LocalDateTime.now());
+        contractProcessRepository.save(process);
+
+        // 3. 更新合同状态
+        Contract contract = process.getContract();
+        // 在实际业务中，可能需要检查其他所有流程（会签、审批）是否都已完成
+        // 这里简化为签订完成后直接将合同状态置为 ACTIVE
+        contract.setStatus(ContractStatus.ACTIVE);
+        contractRepository.save(contract);
+
+
     }
 
     @Override
