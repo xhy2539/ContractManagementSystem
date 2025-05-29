@@ -6,6 +6,7 @@ import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
 import com.example.contractmanagementsystem.entity.ContractProcessType;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
+import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.service.ContractService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,12 +14,14 @@ import org.springframework.data.domain.Page; // 正确的 Page 导入
 import org.springframework.data.domain.Pageable; // 正确的 Pageable 导入
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -72,7 +75,7 @@ public class ContractController {
             Contract draftedContract = contractService.draftContract(contractDraftRequest, attachment, username);
 
             // 2. 成功处理
-            redirectAttributes.addFlashAttribute("successMessage", "合同“" + draftedContract.getContractName() + "”起草成功！");
+            redirectAttributes.addFlashAttribute("successMessage", "合同" + draftedContract.getContractName() + "起草成功！");
             return "redirect:/contracts/draft";
 
         } catch (BusinessLogicException e) {
@@ -122,5 +125,64 @@ public class ContractController {
         model.addAttribute("pendingCountersigns", pendingCountersigns);
         model.addAttribute("contractNameSearch", contractNameSearch);
         return "pending-countersign";
+    }
+
+    // 待审批合同列表页面
+    @GetMapping("/pending-approval")
+    @PreAuthorize("hasAuthority('CON_APPROVE_VIEW')")
+    public String pendingApprovalContracts(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String contractNameSearch,
+            Model model,
+            Principal principal
+    ) {
+        String username = principal.getName();
+        Page<ContractProcess> pendingApprovals = contractService.getPendingProcessesForUser(
+                username, ContractProcessType.APPROVAL, ContractProcessState.PENDING, contractNameSearch, pageable);
+        
+        model.addAttribute("pendingApprovals", pendingApprovals);
+        model.addAttribute("contractNameSearch", contractNameSearch);
+        return "pending-approval";
+    }
+
+    // 审批详情页面
+    @GetMapping("/approval-details/{id}")
+    @PreAuthorize("hasAuthority('CON_APPROVE_SUBMIT')")
+    public String showApprovalDetails(@PathVariable Long id, Model model, Principal principal) {
+        Contract contract = contractService.getContractById(id);
+        if (contract == null) {
+            throw new ResourceNotFoundException("合同不存在");
+        }
+        
+        // 验证当前用户是否有权限审批该合同
+        if (!contractService.canUserApproveContract(principal.getName(), id)) {
+            throw new AccessDeniedException("您没有权限审批此合同");
+        }
+        
+        model.addAttribute("contract", contract);
+        return "approval-details";
+    }
+
+    // 处理审批提交
+    @PostMapping("/approve/{id}")
+    @PreAuthorize("hasAuthority('CON_APPROVE_SUBMIT')")
+    public String approveContract(
+            @PathVariable Long id,
+            @RequestParam String decision,
+            @RequestParam String comments,
+            RedirectAttributes redirectAttributes,
+            Principal principal
+    ) {
+        try {
+            boolean isApproved = "APPROVED".equals(decision);
+            contractService.processApproval(id, principal.getName(), isApproved, comments);
+            
+            String resultMessage = isApproved ? "合同审批通过" : "合同已拒绝";
+            redirectAttributes.addFlashAttribute("successMessage", resultMessage);
+            return "redirect:/contracts/pending-approval";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "审批处理失败：" + e.getMessage());
+            return "redirect:/contracts/approval-details/" + id;
+        }
     }
 }

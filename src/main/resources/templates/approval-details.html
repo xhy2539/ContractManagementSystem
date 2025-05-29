@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>审批合同</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            padding: 20px;
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .contract-info {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .contract-info p {
+            margin: 10px 0;
+        }
+        .contract-content {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 200px;
+        }
+        .approval-form {
+            margin-top: 20px;
+        }
+        .approval-options {
+            margin-bottom: 20px;
+        }
+        .radio-group {
+            margin: 10px 0;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+            min-height: 100px;
+        }
+        .btn-group {
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn-approve {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-reject {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-cancel {
+            background-color: #6c757d;
+            color: white;
+        }
+        .success-message {
+            color: green;
+            background-color: #e6ffe6;
+            border: 1px solid green;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .error-message {
+            color: red;
+            background-color: #ffe6e6;
+            border: 1px solid red;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>审批合同</h2>
+
+    <div th:if="${successMessage}" class="success-message">
+        <p th:text="${successMessage}"></p>
+    </div>
+    <div th:if="${errorMessage}" class="error-message">
+        <p th:text="${errorMessage}"></p>
+    </div>
+
+    <div class="contract-info">
+        <p><strong>合同编号：</strong><span th:text="${contract.contractNumber}"></span></p>
+        <p><strong>合同名称：</strong><span th:text="${contract.contractName}"></span></p>
+        <p><strong>客户名称：</strong><span th:text="${contract.customer.customerName}"></span></p>
+        <p><strong>起草人：</strong><span th:text="${contract.drafter.username}"></span></p>
+        <p><strong>起草日期：</strong><span th:text="${#temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm')}"></span></p>
+        <p><strong>开始日期：</strong><span th:text="${#temporals.format(contract.startDate, 'yyyy-MM-dd')}"></span></p>
+        <p><strong>结束日期：</strong><span th:text="${#temporals.format(contract.endDate, 'yyyy-MM-dd')}"></span></p>
+    </div>
+
+    <div class="contract-content">
+        <h3>合同内容</h3>
+        <p th:text="${contract.content}"></p>
+    </div>
+
+    <form th:action="@{/contracts/approve/{id}(id=${contract.id})}" method="post" class="approval-form">
+        <div class="approval-options">
+            <h3>审批决定</h3>
+            <div class="radio-group">
+                <input type="radio" id="approve" name="decision" value="APPROVED" required>
+                <label for="approve">通过</label>
+            </div>
+            <div class="radio-group">
+                <input type="radio" id="reject" name="decision" value="REJECTED">
+                <label for="reject">拒绝</label>
+            </div>
+        </div>
+
+        <div class="comments-section">
+            <label for="comments">审批意见：</label>
+            <textarea id="comments" name="comments" rows="5" required></textarea>
+        </div>
+
+        <div class="btn-group">
+            <button type="submit" class="btn btn-approve">提交审批</button>
+            <a th:href="@{/contracts/pending-approval}" class="btn btn-cancel">返回</a>
+        </div>
+    </form>
+</div>
+
+</body>
+</html> 

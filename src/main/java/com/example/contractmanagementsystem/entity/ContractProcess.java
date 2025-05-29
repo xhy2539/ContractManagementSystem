@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "contract_process")
+@Table(name = "contract_processes")
 public class ContractProcess {
 
     @Id
@@ -25,32 +25,31 @@ public class ContractProcess {
     @JoinColumn(name = "contract_id", nullable = false)
     private Contract contract;
 
-    @Column(name = "con_num", length = 20) // 可选冗余字段
+    @Column(name = "contract_number", nullable = false)
     private String contractNumber;
 
-    @Enumerated(EnumType.ORDINAL) // 或 EnumType.STRING
-    @Column(nullable = false)
-    private ContractProcessType type; // 操作类型：1-会签, 2-审批, 3-签订
-
-    @Enumerated(EnumType.ORDINAL) // 或 EnumType.STRING
-    @Column(nullable = false)
-    private ContractProcessState state; // 操作状态：0-未完成, 1-已完成, 2-已否决
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User operator; // 操作人
+    @JoinColumn(name = "operator_id", nullable = false)
+    private User operator;
 
-    @Column(name = "user_name", length = 40) // 可选冗余字段
+    @Column(name = "operator_username", nullable = false)
     private String operatorUsername;
 
-    @Lob
-    @Column(columnDefinition = "TEXT")
-    private String content; // 操作内容，例如会签意见、审批意见
+    @Enumerated(EnumType.STRING)
+    @Column(name = "process_type", nullable = false)
+    private ContractProcessType type;
 
-    @Column(name = "time")
-    private LocalDateTime operationTime; // 具体操作完成的时间
+    @Enumerated(EnumType.STRING)
+    @Column(name = "process_state", nullable = false)
+    private ContractProcessState state;
+
+    @Column(name = "comments")
+    private String comments;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt; // 分配记录创建时间
+    private LocalDateTime createdAt;
+
+    @Column(name = "processed_at")
+    private LocalDateTime processedAt;
 }

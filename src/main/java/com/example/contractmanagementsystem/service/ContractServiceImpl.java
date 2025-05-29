@@ -9,6 +9,7 @@ import com.example.contractmanagementsystem.entity.ContractStatus;
 import com.example.contractmanagementsystem.entity.Customer;
 import com.example.contractmanagementsystem.entity.User;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
+import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.ContractProcessRepository;
 import com.example.contractmanagementsystem.repository.ContractRepository;
 import com.example.contractmanagementsystem.repository.CustomerRepository;
@@ -266,5 +267,58 @@ public class ContractServiceImpl implements ContractService {
             throw new BusinessLogicException("附件文件不存在或不可读: " + filename);
         }
         return filePath;
+    }
+
+    @Override
+    public Contract getContractById(Long id) {
+        return contractRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("合同不存在，ID: " + id));
+    }
+
+    @Override
+    public boolean canUserApproveContract(String username, Long contractId) {
+        return contractProcessRepository.findByContractIdAndOperatorUsernameAndTypeAndState(
+                contractId, username, ContractProcessType.APPROVAL, ContractProcessState.PENDING)
+                .isPresent();
+    }
+
+    @Override
+    @Transactional
+    public void processApproval(Long contractId, String username, boolean approved, String comments) {
+        // 1. 获取合同和处理记录
+        Contract contract = getContractById(contractId);
+        ContractProcess process = contractProcessRepository
+                .findByContractIdAndOperatorUsernameAndTypeAndState(
+                        contractId, username, ContractProcessType.APPROVAL, ContractProcessState.PENDING)
+                .orElseThrow(() -> new BusinessLogicException("未找到待处理的审批任务"));
+
+        // 2. 更新处理记录
+        process.setState(approved ? ContractProcessState.APPROVED : ContractProcessState.REJECTED);
+        process.setComments(comments);
+        process.setProcessedAt(LocalDateTime.now());
+        contractProcessRepository.save(process);
+
+        // 3. 更新合同状态
+        if (approved) {
+            // 如果所有审批都通过，将合同状态改为待签订
+            if (areAllApprovalsCompleted(contract)) {
+                contract.setStatus(ContractStatus.PENDING_SIGNING);
+                contractRepository.save(contract);
+            }
+        } else {
+            // 如果有任何审批被拒绝，将合同状态改为已拒绝
+            contract.setStatus(ContractStatus.REJECTED);
+            contractRepository.save(contract);
+        }
+    }
+
+    private boolean areAllApprovalsCompleted(Contract contract) {
+        List<ContractProcess> approvalProcesses = contractProcessRepository
+                .findByContractAndType(contract, ContractProcessType.APPROVAL);
+        
+        // 检查是否所有审批都已完成且通过
+        return !approvalProcesses.isEmpty() && 
+               approvalProcesses.stream()
+                   .allMatch(process -> ContractProcessState.APPROVED.equals(process.getState()));
     }
 }

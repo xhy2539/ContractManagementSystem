@@ -9,5 +9,4 @@ public class ContractManagementSystemApplication {
     public static void main(String[] args) {
         SpringApplication.run(ContractManagementSystemApplication.class, args);
     }
-
 }

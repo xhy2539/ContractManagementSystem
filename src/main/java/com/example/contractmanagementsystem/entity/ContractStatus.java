@@ -9,7 +9,8 @@ public enum ContractStatus {
     ACTIVE("有效"),
     COMPLETED("完成"),
     EXPIRED("过期"),
-    TERMINATED("终止");
+    TERMINATED("终止"),
+    REJECTED("已拒绝");
 
     private final String description;
 

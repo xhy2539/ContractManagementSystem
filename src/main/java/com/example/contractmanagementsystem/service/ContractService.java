@@ -72,4 +72,28 @@ public interface ContractService {
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果文件不存在或无法访问，或文件名格式不正确。
      */
     Path getAttachmentPath(String filename);
+
+    /**
+     * 根据ID获取合同
+     * @param id 合同ID
+     * @return 合同对象
+     */
+    Contract getContractById(Long id);
+
+    /**
+     * 检查用户是否有权限审批指定合同
+     * @param username 用户名
+     * @param contractId 合同ID
+     * @return 是否有权限
+     */
+    boolean canUserApproveContract(String username, Long contractId);
+
+    /**
+     * 处理合同审批
+     * @param contractId 合同ID
+     * @param username 审批人用户名
+     * @param approved 是否通过
+     * @param comments 审批意见
+     */
+    void processApproval(Long contractId, String username, boolean approved, String comments);
 }

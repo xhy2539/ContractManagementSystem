@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor; // <-- 新增导入
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ContractProcessRepository extends JpaRepository<ContractProcess, Long>, JpaSpecificationExecutor<ContractProcess> {
@@ -35,4 +36,10 @@ public interface ContractProcessRepository extends JpaRepository<ContractProcess
     long countByOperatorAndState(User operator, ContractProcessState state);
 
     // 您可能还需要一些额外的方法，但当前的 JpaSpecificationExecutor 已经满足了 getPendingProcessesForUser 的需求。
+
+    Optional<ContractProcess> findByContractIdAndOperatorUsernameAndTypeAndState(
+            Long contractId, 
+            String operatorUsername, 
+            ContractProcessType type, 
+            ContractProcessState state);
 }
