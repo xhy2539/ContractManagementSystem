@@ -221,6 +221,7 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ContractProcess> getPendingProcessesForUser(
             String username,
             ContractProcessType type,

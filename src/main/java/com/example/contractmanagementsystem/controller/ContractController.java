@@ -142,7 +142,7 @@ public class ContractController {
 
         model.addAttribute("pendingSignings", pendingSignings);
         model.addAttribute("contractNameSearch", contractNameSearch);
-        return "contracts/pending-signing"; // 返回新创建的 HTML 模板
+        return "pending-signing"; // 返回新创建的 HTML 模板
     }
 
     // --- 新增：显示合同签订详情页面 ---
@@ -155,13 +155,13 @@ public class ContractController {
                     contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
 
             model.addAttribute("contractProcess", contractProcess);
-            return "contracts/sign-contract"; // 返回新创建的 HTML 模板
+            return "sign-contract"; // 返回新创建的 HTML 模板
         } catch (BusinessLogicException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-            return "redirect:/contracts/pending-signing";
+            return "redirect:/pending-signing";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "加载签订页面失败，系统错误。");
-            return "redirect:/contracts/pending-signing";
+            return "redirect:/pending-signing";
         }
     }
 
@@ -176,13 +176,13 @@ public class ContractController {
             String username = principal.getName();
             contractService.signContract(contractProcessId, signingOpinion, username);
             redirectAttributes.addFlashAttribute("successMessage", "合同签订成功！");
-            return "redirect:/contracts/pending-signing"; // 签订成功后重定向回待签订列表
+            return "redirect:/pending-signing"; // 签订成功后重定向回待签订列表
         } catch (BusinessLogicException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-            return "redirect:/contracts/sign/" + contractProcessId; // 保持在当前页面，显示错误
+            return "redirect:/sign/" + contractProcessId; // 保持在当前页面，显示错误
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "合同签订失败，系统发生未知错误。");
-            return "redirect:/contracts/pending-signing";
+            return "redirect:/pending-signing";
         }
     }
     // 待审批合同列表页面
@@ -237,10 +237,10 @@ public class ContractController {
             
             String resultMessage = isApproved ? "合同审批通过" : "合同已拒绝";
             redirectAttributes.addFlashAttribute("successMessage", resultMessage);
-            return "redirect:/contracts/pending-approval";
+            return "redirect:/ending-approval";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "审批处理失败：" + e.getMessage());
-            return "redirect:/contracts/approval-details/" + id;
+            return "redirect:/approval-details/" + id;
         }
     }
 }

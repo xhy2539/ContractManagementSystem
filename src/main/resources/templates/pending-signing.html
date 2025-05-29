@@ -175,10 +175,10 @@
         </div>
     </form>
 
-    <div th:if="${pendingSignings.isempty}">
+    <div th:if="${pendingSignings.isEmpty()}">
         <p>没有待签订的合同。</p>
     </div>
-    <div th:unless="${pendingSignings.isempty}">
+    <div th:unless="${pendingSignings.isEmpty()}">
         <table>
             <thead>
             <tr>
