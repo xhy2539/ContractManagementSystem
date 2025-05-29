@@ -1,20 +1,21 @@
+// 文件路径: src/main/java/com/example/contractmanagementsystem/entity/ContractProcess.java
 package com.example.contractmanagementsystem.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.Setter; // 确保导入这个
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.LocalDateTime; // 确保导入这个
 
 @Getter
-@Setter
+@Setter // <--- 确保这个注解存在
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "contract_processes")
+@Table(name = "contract_process")
 public class ContractProcess {
 
     @Id
@@ -25,31 +26,43 @@ public class ContractProcess {
     @JoinColumn(name = "contract_id", nullable = false)
     private Contract contract;
 
-    @Column(name = "contract_number", nullable = false)
+    @Column(name = "con_num", length = 20) // 可选冗余字段
     private String contractNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "operator_id", nullable = false)
-    private User operator;
+    @Enumerated(EnumType.ORDINAL) // 或 EnumType.STRING
+    @Column(nullable = false)
+    private ContractProcessType type; // 操作类型：1-会签, 2-审批, 3-签订
 
-    @Column(name = "operator_username", nullable = false)
+    @Enumerated(EnumType.ORDINAL) // 或 EnumType.STRING
+    @Column(nullable = false)
+    private ContractProcessState state; // 操作状态：0-未完成, 1-已完成, 2-已否决
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User operator; // 操作人
+
+    @Column(name = "user_name", length = 40) // 可选冗余字段
     private String operatorUsername;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "process_type", nullable = false)
-    private ContractProcessType type;
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String content;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "process_state", nullable = false)
-    private ContractProcessState state;
-
-    @Column(name = "comments")
+    @Lob
+    @Column(columnDefinition = "TEXT")
     private String comments;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false) // 创建时间
     private LocalDateTime createdAt;
 
-    @Column(name = "processed_at")
+    @Column(name = "processed_at") // 完成或处理时间
     private LocalDateTime processedAt;
+
+    // --- 新增字段 ---
+    @Column(name = "completed_at") // 完成时间，可以为空，因为未完成时没有
+    private LocalDateTime completedAt; // <--- 添加此行
+
+
+
 }

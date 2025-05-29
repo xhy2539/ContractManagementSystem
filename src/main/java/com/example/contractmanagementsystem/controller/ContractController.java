@@ -127,6 +127,64 @@ public class ContractController {
         return "pending-countersign";
     }
 
+
+    @GetMapping("/pending-signing")
+    @PreAuthorize("hasAuthority('CON_SIGN_VIEW')") // 假设签订的权限编号为 CON_SIGN_VIEW
+    public String pendingSigningContracts(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String contractNameSearch,
+            Model model,
+            Principal principal
+    ) {
+        String username = principal.getName();
+        Page<ContractProcess> pendingSignings = contractService.getPendingProcessesForUser(
+                username, ContractProcessType.SIGNING, ContractProcessState.PENDING, contractNameSearch, pageable);
+
+        model.addAttribute("pendingSignings", pendingSignings);
+        model.addAttribute("contractNameSearch", contractNameSearch);
+        return "contracts/pending-signing"; // 返回新创建的 HTML 模板
+    }
+
+    // --- 新增：显示合同签订详情页面 ---
+    @GetMapping("/sign/{contractProcessId}")
+    @PreAuthorize("hasAuthority('CON_SIGN_VIEW')")
+    public String showSignContractForm(@PathVariable Long contractProcessId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
+        try {
+            String username = principal.getName();
+            ContractProcess contractProcess = contractService.getContractProcessByIdAndOperator(
+                    contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
+
+            model.addAttribute("contractProcess", contractProcess);
+            return "contracts/sign-contract"; // 返回新创建的 HTML 模板
+        } catch (BusinessLogicException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/contracts/pending-signing";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "加载签订页面失败，系统错误。");
+            return "redirect:/contracts/pending-signing";
+        }
+    }
+
+    // --- 新增：处理合同签订提交 ---
+    @PostMapping("/sign")
+    @PreAuthorize("hasAuthority('CON_SIGN_VIEW')")
+    public String signContract(@RequestParam Long contractProcessId,
+                               @RequestParam(required = false) String signingOpinion,
+                               RedirectAttributes redirectAttributes,
+                               Principal principal) {
+        try {
+            String username = principal.getName();
+            contractService.signContract(contractProcessId, signingOpinion, username);
+            redirectAttributes.addFlashAttribute("successMessage", "合同签订成功！");
+            return "redirect:/contracts/pending-signing"; // 签订成功后重定向回待签订列表
+        } catch (BusinessLogicException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/contracts/sign/" + contractProcessId; // 保持在当前页面，显示错误
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "合同签订失败，系统发生未知错误。");
+            return "redirect:/contracts/pending-signing";
+        }
+    }
     // 待审批合同列表页面
     @GetMapping("/pending-approval")
     @PreAuthorize("hasAuthority('CON_APPROVE_VIEW')")

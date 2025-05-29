@@ -22,9 +22,9 @@ public interface ContractService {
     /**
      * 起草新合同。
      *
-     * @param request 合同起草请求数据（包含合同名称、客户信息、日期、内容等）。
+     * @param request    合同起草请求数据（包含合同名称、客户信息、日期、内容等）。
      * @param attachment 合同附件文件（可选）。
-     * @param username 当前起草人的用户名。
+     * @param username   当前起草人的用户名。
      * @return 新创建并保存的合同实体。
      * @throws IOException 如果附件处理过程中发生I/O错误。
      */
@@ -41,10 +41,10 @@ public interface ContractService {
     /**
      * 根据多种条件搜索和分页查询合同。
      *
-     * @param contractName 合同名称的模糊搜索关键字（可选）。
+     * @param contractName   合同名称的模糊搜索关键字（可选）。
      * @param contractNumber 合同编号的模糊搜索关键字（可选）。
-     * @param status 合同状态的精确匹配（可选，应为ContractStatus枚举的字符串表示）。
-     * @param pageable 分页和排序信息。
+     * @param status         合同状态的精确匹配（可选，应为ContractStatus枚举的字符串表示）。
+     * @param pageable       分页和排序信息。
      * @return 包含合同列表的分页结果。
      */
     Page<Contract> searchContracts(String contractName, String contractNumber, String status, Pageable pageable);
@@ -52,11 +52,11 @@ public interface ContractService {
     /**
      * 查询指定用户、指定类型和指定状态的合同流程（如待会签、待审批等），并支持按合同名称搜索和分页。
      *
-     * @param username 当前登录用户的用户名。
-     * @param type 流程类型（如 COUNTERSIGN, APPROVAL, SIGNING）。
-     * @param state 流程状态（如 PENDING, COMPLETED, REJECTED）。
+     * @param username           当前登录用户的用户名。
+     * @param type               流程类型（如 COUNTERSIGN, APPROVAL, SIGNING）。
+     * @param state              流程状态（如 PENDING, COMPLETED, REJECTED）。
      * @param contractNameSearch 合同名称搜索关键字（可选）。
-     * @param pageable 分页信息。
+     * @param pageable           分页信息。
      * @return 包含合同流程的 Page 对象。
      */
     Page<ContractProcess> getPendingProcessesForUser(String username, ContractProcessType type,
@@ -75,6 +75,7 @@ public interface ContractService {
 
     /**
      * 根据ID获取合同
+     *
      * @param id 合同ID
      * @return 合同对象
      */
@@ -82,7 +83,8 @@ public interface ContractService {
 
     /**
      * 检查用户是否有权限审批指定合同
-     * @param username 用户名
+     *
+     * @param username   用户名
      * @param contractId 合同ID
      * @return 是否有权限
      */
@@ -90,10 +92,15 @@ public interface ContractService {
 
     /**
      * 处理合同审批
+     *
      * @param contractId 合同ID
-     * @param username 审批人用户名
-     * @param approved 是否通过
-     * @param comments 审批意见
+     * @param username   审批人用户名
+     * @param approved   是否通过
+     * @param comments   审批意见
      */
     void processApproval(Long contractId, String username, boolean approved, String comments);
+
+    ContractProcess getContractProcessByIdAndOperator(Long contractProcessId, String username, ContractProcessType contractProcessType, ContractProcessState contractProcessState);
+
+    void signContract(Long contractProcessId, String signingOpinion, String username);
 }
