@@ -80,7 +80,12 @@
     <div class="brand">合同管理系统</div>
     <div class="user-info">
         欢迎, <span sec:authentication="name">用户</span>!
-        <a th:href="@{/perform_logout}" onclick="document.getElementById('logout-form-inline').submit(); return false;">注销</a>
+        <a th:href="@{/profile}" class="btn btn-outline-light btn-sm" title="个人设置">
+            <i class="bi bi-person-gear"></i> 个人设置
+        </a>
+        <a th:href="@{/perform_logout}" onclick="document.getElementById('logout-form-inline').submit(); return false;" class="btn btn-outline-light btn-sm ms-2">
+            <i class="bi bi-box-arrow-right"></i> 注销
+        </a>
         <form id="logout-form-inline" th:action="@{/perform_logout}" method="post" style="display: none;">
         </form>
     </div>
