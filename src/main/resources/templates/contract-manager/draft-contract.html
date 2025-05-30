@@ -89,7 +89,7 @@
         </ul>
     </div>
 
-    <form th:action="@{/contracts/draft}" method="post" enctype="multipart/form-data" th:object="${contractDraftRequest}">
+    <form th:action="@{/contract-manager/draft}" method="post" enctype="multipart/form-data" th:object="${contractDraftRequest}">
         <label for="contractName">合同名称 <span class="required">*</span></label>
         <input type="text" id="contractName" name="contractName" th:field="*{contractName}" required>
         <div th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}" class="error-message"></div>

@@ -10,8 +10,8 @@ import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.service.ContractService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page; // 正确的 Page 导入
-import org.springframework.data.domain.Pageable; // 正确的 Pageable 导入
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.AccessDeniedException;
@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.security.Principal;
 
 @Controller
-@RequestMapping("/contracts")
+@RequestMapping("/contract-manager") // 控制器级别的基础路径已更新
 public class ContractController {
 
     private final ContractService contractService;
@@ -43,15 +43,19 @@ public class ContractController {
     }
 
     // 显示起草合同页面
-    @GetMapping("/draft")
-    @PreAuthorize("hasAuthority('CON_DRAFT_NEW')") // 假设有创建合同的权限
+    // URL: /contract-manager/draft-contract
+    @GetMapping("/draft-contract")
+    @PreAuthorize("hasAuthority('CON_DRAFT_NEW')")
     public String showDraftContractPage(Model model) {
-        // 为表单提供一个空的 ContractDraftRequest 对象
         model.addAttribute("contractDraftRequest", new ContractDraftRequest());
-        return "draft-contract"; // 返回名为 "draft-contract.html" 的视图模板
+        // 确保移除了末尾多余的空格
+        return "contract-manager/draft-contract"; // 视图路径正确
     }
 
     // 处理合同起草提交
+    // POST URL: /contract-manager/draft (这个Mapping似乎与上面的GET不完全对应，通常会是 /contract-manager/draft-contract 或者 /contract-manager/drafts)
+    // 如果您希望 POST 到 /contract-manager/draft，那么这个Mapping本身是OK的。
+    // 但请注意，成功或失败后重定向的路径也需要与新的基础路径一致。
     @PostMapping("/draft")
     @PreAuthorize("hasAuthority('CON_DRAFT_NEW')")
     public String draftContract(
@@ -60,53 +64,49 @@ public class ContractController {
             @RequestParam(value = "attachment", required = false) MultipartFile attachment,
             RedirectAttributes redirectAttributes,
             Model model,
-            Principal principal // 获取当前登录用户
+            Principal principal
     ) {
         if (bindingResult.hasErrors()) {
-            // 如果有验证错误，重新返回表单页面并显示错误信息
-            return "draft-contract";
+            return "contract-manager/draft-contract"; // 视图路径正确
         }
 
         try {
-            // 获取当前登录用户的用户名
             String username = principal.getName();
-
-            // 1. 调用服务层起草合同
             Contract draftedContract = contractService.draftContract(contractDraftRequest, attachment, username);
-
-            // 2. 成功处理
             redirectAttributes.addFlashAttribute("successMessage", "合同" + draftedContract.getContractName() + "起草成功！");
-            return "redirect:/contracts/draft";
+            // 重定向到显示起草页面的URL
+            return "redirect:/contract-manager/draft-contract"; // 修改1: 重定向到 GET /draft-contract
 
         } catch (BusinessLogicException e) {
-            // 3. 处理业务逻辑错误（如日期不符、文件格式不正确）
             if (e.getMessage().contains("附件格式")) {
                 model.addAttribute("attachmentError", e.getMessage());
             } else {
                 model.addAttribute("errorMessage", e.getMessage());
             }
-            // 重新将请求对象添加到模型，以便表单回显
             model.addAttribute("contractDraftRequest", contractDraftRequest);
-            return "draft-contract";
+            return "contract-manager/draft-contract"; // 视图路径正确
         } catch (IOException e) {
-            // 4. 处理文件操作异常
             redirectAttributes.addFlashAttribute("errorMessage", "文件上传失败，请重试。");
-            return "redirect:/contracts/draft";
+            // 重定向到显示起草页面的URL
+            return "redirect:/contract-manager/draft-contract"; // 修改2: 重定向到 GET /draft-contract
         } catch (Exception e) {
-            // 5. 处理其他未预料的系统异常
             redirectAttributes.addFlashAttribute("errorMessage", "起草合同失败，系统发生未知错误。");
-            return "redirect:/errorPage";
+            // 考虑重定向到仪表盘或一个更通用的错误页面
+            return "redirect:/dashboard"; // 或者 "redirect:/contract-manager/errorPage" (如果errorPage也在此控制器下)
         }
     }
 
-    // 假设的错误页面映射，实际项目中可以更完善
+    // 假设的错误页面映射，如果需要，可以保留或调整
+    // URL: /contract-manager/errorPage
     @GetMapping("/errorPage")
     public String errorPage(Model model) {
         model.addAttribute("errorMessage", "很抱歉，系统发生错误，请联系管理员。");
-        return "error";
+        // 假设 error.html 在 templates 根目录
+        return "error"; // 如果 error.html 在 templates/contract-manager/ 下，则应为 "contract-manager/error"
     }
 
     // 待会签合同列表页面
+    // URL: /contract-manager/pending-countersign
     @GetMapping("/pending-countersign")
     @PreAuthorize("hasAuthority('CON_CSIGN_VIEW')")
     public String pendingCountersignContracts(
@@ -115,21 +115,18 @@ public class ContractController {
             Model model,
             Principal principal
     ) {
-        // 获取当前登录用户的用户名
         String username = principal.getName();
-
-        // 调用服务层获取待会签合同
         Page<ContractProcess> pendingCountersigns = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.COUNTERSIGN, ContractProcessState.PENDING, contractNameSearch, pageable);
-
         model.addAttribute("pendingCountersigns", pendingCountersigns);
         model.addAttribute("contractNameSearch", contractNameSearch);
-        return "pending-countersign";
+        return "contract-manager/pending-countersign"; // 视图路径正确
     }
 
-
+    // 待签订合同列表页面
+    // URL: /contract-manager/pending-signing
     @GetMapping("/pending-signing")
-    @PreAuthorize("hasAuthority('CON_SIGN_VIEW')") // 假设签订的权限编号为 CON_SIGN_VIEW
+    @PreAuthorize("hasAuthority('CON_SIGN_VIEW')")
     public String pendingSigningContracts(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String contractNameSearch,
@@ -139,13 +136,13 @@ public class ContractController {
         String username = principal.getName();
         Page<ContractProcess> pendingSignings = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.SIGNING, ContractProcessState.PENDING, contractNameSearch, pageable);
-
         model.addAttribute("pendingSignings", pendingSignings);
         model.addAttribute("contractNameSearch", contractNameSearch);
-        return "pending-signing"; // 返回新创建的 HTML 模板
+        return "contract-manager/pending-signing"; // 视图路径正确
     }
 
-    // --- 新增：显示合同签订详情页面 ---
+    // 显示合同签订详情页面
+    // URL: /contract-manager/sign/{contractProcessId}
     @GetMapping("/sign/{contractProcessId}")
     @PreAuthorize("hasAuthority('CON_SIGN_VIEW')")
     public String showSignContractForm(@PathVariable Long contractProcessId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
@@ -153,19 +150,21 @@ public class ContractController {
             String username = principal.getName();
             ContractProcess contractProcess = contractService.getContractProcessByIdAndOperator(
                     contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
-
             model.addAttribute("contractProcess", contractProcess);
-            return "sign-contract"; // 返回新创建的 HTML 模板
+            return "contract-manager/sign-contract"; // 视图路径正确
         } catch (BusinessLogicException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-            return "redirect:/pending-signing";
+            // 重定向到待签订列表的URL
+            return "redirect:/contract-manager/pending-signing"; // 修改3
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "加载签订页面失败，系统错误。");
-            return "redirect:/pending-signing";
+            // 重定向到待签订列表的URL
+            return "redirect:/contract-manager/pending-signing"; // 修改4
         }
     }
 
-    // --- 新增：处理合同签订提交 ---
+    // 处理合同签订提交
+    // POST URL: /contract-manager/sign
     @PostMapping("/sign")
     @PreAuthorize("hasAuthority('CON_SIGN_VIEW')")
     public String signContract(@RequestParam Long contractProcessId,
@@ -176,16 +175,21 @@ public class ContractController {
             String username = principal.getName();
             contractService.signContract(contractProcessId, signingOpinion, username);
             redirectAttributes.addFlashAttribute("successMessage", "合同签订成功！");
-            return "redirect:/pending-signing"; // 签订成功后重定向回待签订列表
+            // 重定向到待签订列表的URL
+            return "redirect:/contract-manager/pending-signing"; // 修改5
         } catch (BusinessLogicException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-            return "redirect:/sign/" + contractProcessId; // 保持在当前页面，显示错误
+            // 重定向到显示签订页面的URL
+            return "redirect:/contract-manager/sign/" + contractProcessId; // 修改6
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "合同签订失败，系统发生未知错误。");
-            return "redirect:/pending-signing";
+            // 重定向到待签订列表的URL
+            return "redirect:/contract-manager/pending-signing"; // 修改7
         }
     }
+
     // 待审批合同列表页面
+    // URL: /contract-manager/pending-approval
     @GetMapping("/pending-approval")
     @PreAuthorize("hasAuthority('CON_APPROVE_VIEW')")
     public String pendingApprovalContracts(
@@ -197,13 +201,13 @@ public class ContractController {
         String username = principal.getName();
         Page<ContractProcess> pendingApprovals = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.APPROVAL, ContractProcessState.PENDING, contractNameSearch, pageable);
-        
         model.addAttribute("pendingApprovals", pendingApprovals);
         model.addAttribute("contractNameSearch", contractNameSearch);
-        return "pending-approval";
+        return "contract-manager/pending-approval"; // 视图路径正确
     }
 
     // 审批详情页面
+    // URL: /contract-manager/approval-details/{id}
     @GetMapping("/approval-details/{id}")
     @PreAuthorize("hasAuthority('CON_APPROVE_SUBMIT')")
     public String showApprovalDetails(@PathVariable Long id, Model model, Principal principal) {
@@ -211,17 +215,15 @@ public class ContractController {
         if (contract == null) {
             throw new ResourceNotFoundException("合同不存在");
         }
-        
-        // 验证当前用户是否有权限审批该合同
         if (!contractService.canUserApproveContract(principal.getName(), id)) {
             throw new AccessDeniedException("您没有权限审批此合同");
         }
-        
         model.addAttribute("contract", contract);
-        return "approval-details";
+        return "contract-manager/approval-details"; // 视图路径正确
     }
 
     // 处理审批提交
+    // POST URL: /contract-manager/approve/{id}
     @PostMapping("/approve/{id}")
     @PreAuthorize("hasAuthority('CON_APPROVE_SUBMIT')")
     public String approveContract(
@@ -234,13 +236,15 @@ public class ContractController {
         try {
             boolean isApproved = "APPROVED".equals(decision);
             contractService.processApproval(id, principal.getName(), isApproved, comments);
-            
             String resultMessage = isApproved ? "合同审批通过" : "合同已拒绝";
             redirectAttributes.addFlashAttribute("successMessage", resultMessage);
-            return "redirect:/ending-approval";
+            // 原代码是 redirect:/ending-approval，这里应该是 redirect:/contract-manager/pending-approval (列表页)
+            return "redirect:/contract-manager/pending-approval"; // 修改8
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "审批处理失败：" + e.getMessage());
-            return "redirect:/approval-details/" + id;
+            // 原代码是 redirect:   /approval-details/" + id，注意前面的空格和斜杠
+            // 应该重定向到审批详情页的正确URL
+            return "redirect:/contract-manager/approval-details/" + id; // 修改9
         }
     }
 }
