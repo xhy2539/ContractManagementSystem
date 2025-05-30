@@ -3,10 +3,14 @@ package com.example.contractmanagementsystem.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank; // 确保导入
 import jakarta.validation.constraints.Size;
+import lombok.Getter;
+
 import java.util.Set;
 
+@Getter
 public class UserCreationRequest {
 
+    // Getters and Setters
     @NotBlank(message = "用户名不能为空")
     @Size(min = 4, max = 40, message = "用户名长度必须在4到40之间")
     private String username;
@@ -28,22 +32,15 @@ public class UserCreationRequest {
 
     private Set<String> roleNames;
 
-    // Getters and Setters
-    public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
-    public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
 
-    public String getConfirmPassword() { return confirmPassword; }
     public void setConfirmPassword(String confirmPassword) { this.confirmPassword = confirmPassword; }
 
-    public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
-    public String getRealName() { return realName; }
     public void setRealName(String realName) { this.realName = realName; }
 
-    public Set<String> getRoleNames() { return roleNames; }
     public void setRoleNames(Set<String> roleNames) { this.roleNames = roleNames; }
 }
