@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/admin/contract-assignments")
+@RequestMapping("/api/admin/contract-assignments")
 @PreAuthorize("hasRole('ROLE_ADMIN')")
 public class ContractAssignmentController {
 

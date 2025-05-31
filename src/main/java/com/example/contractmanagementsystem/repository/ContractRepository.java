@@ -63,10 +63,14 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
      * @param pageable 分页参数
      * @return 分页的合同数据
      */
-    @Query("SELECT c FROM Contract c WHERE c.status IN :statuses " +
+    @Query("SELECT DISTINCT c FROM Contract c " +
+            "LEFT JOIN FETCH c.customer cust " +          // 预先抓取 customer
+            "LEFT JOIN FETCH c.drafter dft " +            // 预先抓取 drafter (User)
+            "LEFT JOIN FETCH dft.roles contract_drafter_roles " +  // 预先抓取 drafter 的 roles 集合
+            "LEFT JOIN FETCH contract_drafter_roles.functionalities " + // 预先抓取这些 roles 的 functionalities 集合
+            "WHERE c.status IN :statuses " +
             "AND (:contractNameSearch IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractNameSearch, '%'))) " +
             "AND (:contractNumberSearch IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumberSearch, '%'))) " +
             "AND NOT EXISTS (SELECT cp FROM ContractProcess cp WHERE cp.contract = c)")
     Page<Contract> findContractsForAssignmentWithFilters(List<ContractStatus> statuses, String contractNameSearch, String contractNumberSearch, Pageable pageable);
-
 }

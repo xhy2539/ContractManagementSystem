@@ -34,7 +34,6 @@
     </div>
 </div>
 
-<!-- 消息提示区域 -->
 <div class="alert-container">
     <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
         <i class="bi bi-exclamation-triangle me-2"></i>
@@ -151,7 +150,6 @@
     </div>
 </div>
 
-<!-- 添加客户模态框 -->
 <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -159,41 +157,41 @@
                 <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>添加新客户</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="addCustomerForm" th:action="@{/customers}" method="post">
+            <form id="addCustomerForm" th:action="@{/customers}" method="post" class="needs-validation" novalidate>
                 <div class="modal-body">
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">客户编号 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="customerNumber"
-                                   required th:field="*{customerNumber}">
-                            <div class="invalid-feedback">请输入客户编号</div>
+                            <label for="add_customerNumber" class="form-label">客户编号 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="customerNumber" id="add_customerNumber"
+                                   required >
+                            <div class="invalid-feedback">请输入客户编号 (例如 CUST-XXXX)</div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">客户名称 <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="customerName"
-                                   required th:field="*{customerName}">
+                            <label for="add_customerName" class="form-label">客户名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="customerName" id="add_customerName"
+                                   required >
                             <div class="invalid-feedback">请输入客户名称</div>
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">联系电话 <span class="text-danger">*</span></label>
-                            <input type="tel" class="form-control" name="phoneNumber"
-                                   required th:field="*{phoneNumber}">
+                            <label for="add_phoneNumber" class="form-label">联系电话 <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" name="phoneNumber" id="add_phoneNumber"
+                                   required >
                             <div class="invalid-feedback">请输入联系电话</div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">邮箱 <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" name="email"
-                                   required th:field="*{email}">
+                            <label for="add_email" class="form-label">邮箱 <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" name="email" id="add_email"
+                                   required >
                             <div class="invalid-feedback">请输入有效的邮箱地址</div>
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-12">
-                            <label class="form-label">地址</label>
-                            <input type="text" class="form-control" name="address"
-                                   th:field="*{address}">
+                            <label for="add_address" class="form-label">地址</label>
+                            <input type="text" class="form-control" name="address" id="add_address"
+                            >
                         </div>
                     </div>
                 </div>
@@ -206,7 +204,6 @@
     </div>
 </div>
 
-<!-- 编辑客户模态框 -->
 <div class="modal fade" id="editCustomerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -214,7 +211,7 @@
                 <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>编辑客户信息</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="editCustomerForm" th:action="@{/customers/update}" method="post">
+            <form id="editCustomerForm" th:action="@{/customers/update}" method="post" class="needs-validation" novalidate>
                 <input type="hidden" name="id" id="editCustomerId">
                 <div class="modal-body">
                     <div class="row mb-3">
@@ -222,11 +219,13 @@
                             <label class="form-label">客户编号 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="customerNumber"
                                    required id="editCustomerNumber">
+                            <div class="invalid-feedback">请输入客户编号</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">客户名称 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="customerName"
                                    required id="editCustomerName">
+                            <div class="invalid-feedback">请输入客户名称</div>
                         </div>
                     </div>
                     <div class="row mb-3">
@@ -234,11 +233,13 @@
                             <label class="form-label">联系电话 <span class="text-danger">*</span></label>
                             <input type="tel" class="form-control" name="phoneNumber"
                                    required id="editCustomerPhone">
+                            <div class="invalid-feedback">请输入联系电话</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">邮箱 <span class="text-danger">*</span></label>
                             <input type="email" class="form-control" name="email"
                                    required id="editCustomerEmail">
+                            <div class="invalid-feedback">请输入有效的邮箱地址</div>
                         </div>
                     </div>
                     <div class="row mb-3">
@@ -258,7 +259,6 @@
     </div>
 </div>
 
-<!-- 删除表单 -->
 <form id="deleteCustomerForm" th:action="@{/customers/delete}" method="post">
     <input type="hidden" name="id" id="deleteCustomerId">
 </form>
@@ -267,7 +267,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // 编辑按钮点击事件
-        const editButtons = document.querySelectorAll('.btn-outline-primary');
+        const editButtons = document.querySelectorAll('.btn-outline-primary.btn-action'); // 更精确的选择器
         editButtons.forEach(button => {
             button.addEventListener('click', function() {
                 const customerId = this.getAttribute('data-id');
@@ -283,6 +283,11 @@
                 document.getElementById('editCustomerPhone').value = phoneNumber;
                 document.getElementById('editCustomerEmail').value = email;
                 document.getElementById('editCustomerAddress').value = address;
+
+                // 清除可能存在的验证状态
+                const editForm = document.getElementById('editCustomerForm');
+                editForm.classList.remove('was-validated');
+                editForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
             });
         });
 
@@ -300,33 +305,48 @@
             });
         });
 
-        // 表单验证
-        const forms = document.querySelectorAll('form');
-        forms.forEach(form => {
-            form.addEventListener('submit', function(e) {
-                const requiredFields = this.querySelectorAll('[required]');
-                let isValid = true;
-
-                requiredFields.forEach(field => {
-                    if(!field.value.trim()) {
-                        isValid = false;
-                        field.classList.add('is-invalid');
-                    } else {
-                        field.classList.remove('is-invalid');
+        // Bootstrap 表单验证 (原生HTML5 + Bootstrap样式)
+        var forms = document.querySelectorAll('.needs-validation');
+        Array.prototype.slice.call(forms)
+            .forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
                     }
-                });
-
-                if(!isValid) {
-                    e.preventDefault();
-                    alert('请填写所有必填字段');
-                }
+                    form.classList.add('was-validated');
+                }, false);
             });
+
+        // 清除添加模态框的验证状态当它被隐藏时
+        var addCustomerModalEl = document.getElementById('addCustomerModal');
+        addCustomerModalEl.addEventListener('hidden.bs.modal', function (event) {
+            const form = document.getElementById('addCustomerForm');
+            form.classList.remove('was-validated');
+            form.reset(); // 重置表单内容
+            form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
         });
 
+        // 清除编辑模态框的验证状态当它被隐藏时
+        var editCustomerModalEl = document.getElementById('editCustomerModal');
+        editCustomerModalEl.addEventListener('hidden.bs.modal', function (event) {
+            const form = document.getElementById('editCustomerForm');
+            form.classList.remove('was-validated');
+            // form.reset(); // 编辑时通常不重置，因为数据是从行加载的
+            form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        });
+
+
         // 自动关闭提示消息
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(alert => {
-            new bootstrap.Alert(alert);
+        const alerts = document.querySelectorAll('.alert-dismissible');
+        alerts.forEach(alertNode => {
+            new bootstrap.Alert(alertNode); // 初始化Alert组件以便通过JS关闭
+            setTimeout(() => {
+                const alertInstance = bootstrap.Alert.getInstance(alertNode);
+                if (alertInstance) {
+                    alertInstance.close();
+                }
+            }, 7000); // 7秒后自动关闭
         });
     });
 </script>
