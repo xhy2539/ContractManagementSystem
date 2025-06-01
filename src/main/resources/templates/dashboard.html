@@ -20,11 +20,13 @@
             font-weight: 500;
             border-bottom: 1px solid rgba(0,0,0,.125);
         }
-        .dashboard-card .list-group-item a {
+        .dashboard-card .list-group-item a,
+        .dashboard-card .list-group-item .badge a { /* 确保徽章内的链接也有样式 */
             text-decoration: none;
             color: #0d6efd; /* Bootstrap 主色蓝 */
         }
-        .dashboard-card .list-group-item a:hover {
+        .dashboard-card .list-group-item a:hover,
+        .dashboard-card .list-group-item .badge a:hover { /* 确保徽章内的链接悬停样式 */
             color: #0a58ca; /* 悬停时深蓝色 */
             text-decoration: underline;
         }
@@ -62,6 +64,14 @@
             padding: 0.25rem 0.5rem;
             font-size: 0.875rem;
         }
+        /* 为统计数字徽章内的链接去除下划线，除非悬停 */
+        .stats-badge-link {
+            text-decoration: none !important;
+        }
+        .stats-badge-link:hover {
+            text-decoration: underline !important;
+        }
+
     </style>
 </head>
 <body>
@@ -202,16 +212,25 @@
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             有效合同总数
-                            <span class="badge bg-primary rounded-pill" th:text="${systemStats?.activeContractsCount ?: 'N/A'}">0</span>
+                            <span class="badge bg-primary rounded-pill">
+                                <a th:href="@{/contract-manager/view-all(status='ACTIVE')}"
+                                   class="stats-badge-link text-white"
+                                   title="点击查看所有有效合同"
+                                   th:text="${systemStats?.activeContractsCount != null ? systemStats.activeContractsCount : 'N/A'}">0</a>
+                            </span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             即将到期合同 (30天内)
-                            <span class="badge bg-warning text-dark rounded-pill" th:text="${systemStats?.expiringSoonCount ?: 'N/A'}">0</span>
+                            <span class="badge bg-warning rounded-pill">
+                                <a th:href="@{/contract-manager/view-all(expiringSoon='true', status='ACTIVE')}"
+                                   class="stats-badge-link text-dark"
+                                   title="点击查看即将到期的有效合同"
+                                   th:text="${systemStats?.expiringSoonCount != null ? systemStats.expiringSoonCount : 'N/A'}">0</a>
+                            </span>
                         </li>
                     </ul>
                 </div>
             </div>
-
 
         </div> </div> </section>
 
