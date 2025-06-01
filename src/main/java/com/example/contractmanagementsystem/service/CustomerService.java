@@ -2,15 +2,20 @@ package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.dto.CustomerCreationRequest;
 import com.example.contractmanagementsystem.entity.Customer;
-//import com.example.contractmanagementsystem.exception.DuplicateCustomerException;
-//import com.example.contractmanagementsystem.exception.CustomerNotFoundException;
+import com.example.contractmanagementsystem.exception.DuplicateResourceException;
+import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.CustomerRepository;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
+import jakarta.persistence.criteria.Predicate;
+// import java.util.ArrayList; // 移除，因为未使用
+// import java.util.List; // 移除，因为未使用
+// import java.util.Optional; // 移除，因为未使用，或者根据后续逻辑保留
 
 @Service
 public class CustomerService {
@@ -21,79 +26,116 @@ public class CustomerService {
         this.customerRepository = customerRepository;
     }
 
+    @Transactional(readOnly = true)
     public Page<Customer> searchCustomers(String keyword, Pageable pageable) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return customerRepository.findAll(pageable);
         } else {
-            return customerRepository.findByCustomerNameContainingIgnoreCase(keyword, pageable);
+            // **修正点1：正确声明和使用 searchTerm**
+            String searchTerm = keyword.toLowerCase().trim(); // searchTerm 变量声明
+            Specification<Customer> spec = (root, query, criteriaBuilder) -> {
+                Predicate namePredicate = criteriaBuilder.like(criteriaBuilder.lower(root.get("customerName")), "%" + searchTerm + "%");
+                Predicate numberPredicate = criteriaBuilder.like(criteriaBuilder.lower(root.get("customerNumber")), "%" + searchTerm + "%");
+                return criteriaBuilder.or(namePredicate, numberPredicate);
+            };
+            // **修正点2：确保 CustomerRepository 继承了 JpaSpecificationExecutor**
+            return customerRepository.findAll(spec, pageable);
         }
     }
 
+    @Transactional(readOnly = true)
     public Customer getCustomerById(Long id) {
         return customerRepository.findById(id)
-                .orElseThrow(/*() -> new CustomerNotFoundException("客户ID不存在: " + id)*/);
+                .orElseThrow(() -> new ResourceNotFoundException("客户ID不存在: " + id));
     }
 
+    @Transactional
     public Customer addCustomer(CustomerCreationRequest request) {
-        // 检查客户编号是否唯一
-        if (customerRepository.findByCustomerNumber(request.getCustomerNumber()).isPresent()) {
-//            throw new DuplicateCustomerException("客户编号已存在: " + request.getCustomerNumber());
-        }
+        String customerNumberTrimmed = request.getCustomerNumber().trim();
+        String customerNameTrimmed = request.getCustomerName().trim();
+        String emailTrimmed = (request.getEmail() != null) ? request.getEmail().trim().toLowerCase() : null;
 
-        // 检查客户名称是否唯一
-        if (customerRepository.findByCustomerName(request.getCustomerName()).isPresent()) {
-//            throw new DuplicateCustomerException("客户名称已存在: " + request.getCustomerName());
-        }
 
-        // 检查邮箱是否唯一
-        if (request.getEmail() != null && !request.getEmail().isEmpty() &&
-                customerRepository.findByEmail(request.getEmail()).isPresent()) {
-//            throw new DuplicateCustomerException("邮箱已存在: " + request.getEmail());
+        customerRepository.findByCustomerNumberIgnoreCase(customerNumberTrimmed)
+                .ifPresent(c -> {
+                    throw new DuplicateResourceException("客户编号已存在: " + request.getCustomerNumber());
+                });
+
+        customerRepository.findByCustomerNameContainingIgnoreCase(customerNameTrimmed, Pageable.unpaged()).stream()
+                .filter(c -> c.getCustomerName().equalsIgnoreCase(customerNameTrimmed))
+                .findFirst()
+                .ifPresent(c -> {
+                    throw new DuplicateResourceException("客户名称已存在: " + request.getCustomerName());
+                });
+
+
+        if (emailTrimmed != null && !emailTrimmed.isEmpty()) {
+            customerRepository.findByEmail(emailTrimmed) // 假设 findByEmail 也应该是忽略大小写的，或者数据库层面保证唯一性
+                    .ifPresent(c -> {
+                        throw new DuplicateResourceException("邮箱已存在: " + request.getEmail());
+                    });
         }
 
         Customer customer = new Customer();
         BeanUtils.copyProperties(request, customer);
+        customer.setCustomerNumber(customerNumberTrimmed.toUpperCase());
+        customer.setCustomerName(customerNameTrimmed);
+        if (emailTrimmed != null) {
+            customer.setEmail(emailTrimmed);
+        }
         return customerRepository.save(customer);
     }
 
+    @Transactional
     public Customer updateCustomer(Long id, CustomerCreationRequest request) {
         Customer existing = customerRepository.findById(id)
-                .orElseThrow(/*() -> new CustomerNotFoundException("客户ID不存在: " + id)*/);
+                .orElseThrow(() -> new ResourceNotFoundException("尝试更新的客户ID不存在: " + id));
 
-        // 检查客户编号是否变更且是否冲突
-        if (!request.getCustomerNumber().equals(existing.getCustomerNumber())) {
-            if (customerRepository.findByCustomerNumber(request.getCustomerNumber()).isPresent()) {
-//                throw new DuplicateCustomerException("客户编号已存在: " + request.getCustomerNumber());
+        String newCustomerNumber = request.getCustomerNumber().trim().toUpperCase();
+        if (!newCustomerNumber.equalsIgnoreCase(existing.getCustomerNumber())) {
+            customerRepository.findByCustomerNumberIgnoreCase(newCustomerNumber)
+                    .ifPresent(c -> {
+                        throw new DuplicateResourceException("更新失败，客户编号已存在: " + request.getCustomerNumber());
+                    });
+            existing.setCustomerNumber(newCustomerNumber);
+        }
+
+        String newCustomerName = request.getCustomerName().trim();
+        if (!newCustomerName.equalsIgnoreCase(existing.getCustomerName())) {
+            customerRepository.findByCustomerNameContainingIgnoreCase(newCustomerName, Pageable.unpaged()).stream()
+                    .filter(c -> c.getCustomerName().equalsIgnoreCase(newCustomerName) && !c.getId().equals(id))
+                    .findFirst()
+                    .ifPresent(c -> {
+                        throw new DuplicateResourceException("更新失败，客户名称已存在: " + request.getCustomerName());
+                    });
+            existing.setCustomerName(newCustomerName);
+        }
+
+        if (request.getEmail() != null && !request.getEmail().trim().isEmpty()) {
+            String newEmail = request.getEmail().trim().toLowerCase();
+            // 检查邮箱是否实际更改，并且新邮箱是否与现有邮箱（忽略大小写）不同
+            if (existing.getEmail() == null || !newEmail.equalsIgnoreCase(existing.getEmail())) {
+                customerRepository.findByEmail(newEmail) // 假设 findByEmail 应该是忽略大小写的
+                        .filter(c -> !c.getId().equals(id))
+                        .ifPresent(c -> {
+                            throw new DuplicateResourceException("更新失败，邮箱已存在: " + request.getEmail());
+                        });
+                existing.setEmail(newEmail);
             }
+        } else {
+            existing.setEmail(null);
         }
 
-        // 检查客户名称是否变更且是否冲突
-        if (!request.getCustomerName().equals(existing.getCustomerName())) {
-            if (customerRepository.findByCustomerName(request.getCustomerName()).isPresent()) {
-//                throw new DuplicateCustomerException("客户名称已存在: " + request.getCustomerName());
-            }
-        }
-
-        // 检查邮箱是否变更且是否冲突
-        if (request.getEmail() != null && !request.getEmail().isEmpty() &&
-                !request.getEmail().equals(existing.getEmail()) &&
-                customerRepository.findByEmail(request.getEmail()).isPresent()) {
-//            throw new DuplicateCustomerException("邮箱已存在: " + request.getEmail());
-        }
-
-        // 更新字段
-        existing.setCustomerNumber(request.getCustomerNumber());
-        existing.setCustomerName(request.getCustomerName());
         existing.setPhoneNumber(request.getPhoneNumber());
-        existing.setEmail(request.getEmail());
         existing.setAddress(request.getAddress());
 
         return customerRepository.save(existing);
     }
 
+    @Transactional
     public void deleteCustomer(Long id) {
         if (!customerRepository.existsById(id)) {
-//            throw new CustomerNotFoundException("客户ID不存在: " + id);
+            throw new ResourceNotFoundException("尝试删除的客户ID不存在: " + id);
         }
         customerRepository.deleteById(id);
     }

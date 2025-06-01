@@ -1,128 +1,579 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="zh">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}" lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>起草合同</title>
-    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
-    <style>
-        /* CSS样式保持不变 */
-        body {
-            font-family: sans-serif;
-            margin: 0;
-            background-color: #f4f4f4;
-            color: #333;
+    <title>起草新合同</title>
+    <style layout:fragment="inline-css">
+        .card-header {
+            font-weight: 500;
         }
-        .container {
-            padding: 20px;
-            max-width: 600px;
-            margin: 20px auto;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        #selectedCustomerInfoPlaceholder {
+            padding: 0.575rem .75rem;
+            border: 1px solid #dee2e6;
+            border-left: 0;
+            border-top-right-radius: .25rem;
+            border-bottom-right-radius: .25rem;
+            background-color: #e9ecef;
+            line-height: 1.5;
+            min-height: calc(1.5em + .5rem + 2px);
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
         }
-        h2 {
-            color: #333;
-        }
-        label {
-            display: block;
-            margin: 10px 0 5px;
-        }
-        input[type="text"],
-        input[type="date"],
-        textarea,
-        input[type="file"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
+        #customerTableModal tbody tr {
             cursor: pointer;
-            margin-right: 10px;
         }
-        button:hover {
-            background-color: #0056b3;
+        #customerTableModal tbody tr:hover {
+            background-color: #f8f9fa;
         }
-        .required {
-            color: red;
+        .modal-xl {
+            max-width: 900px;
         }
-        .success-message {
-            color: green;
-            background-color: #e6ffe6;
-            border: 1px solid green;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 4px;
+        .form-label {
+            font-weight: 500;
         }
-        .error-message {
-            color: red;
-            background-color: #ffe6e6;
-            border: 1px solid red;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 4px;
+        .required-asterisk {
+
+            color: var(--bs-danger);
+        }
+        #alertPlaceholder {
+            min-height: 60px;
+            transition: opacity 0.15s linear;
+        }
+        #alertPlaceholder:empty {
+            min-height: 0;
+            opacity: 0;
+        }
+        .form-text {
+            font-size: .875em;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>起草合同</h2>
-
-    <div th:if="${successMessage}" class="success-message">
-        <p th:text="${successMessage}"></p>
-    </div>
-    <div th:if="${errorMessage}" class="error-message">
-        <p th:text="${errorMessage}"></p>
-    </div>
-    <div th:if="${#fields.hasErrors('contractDraftRequest.*')}" class="error-message">
-        <p>请检查您的输入：</p>
-        <ul>
-            <li th:each="err : ${#fields.errors('contractDraftRequest.*')}" th:text="${err}"></li>
-        </ul>
-    </div>
-
-    <form th:action="@{/contract-manager/draft}" method="post" enctype="multipart/form-data" th:object="${contractDraftRequest}">
-        <label for="contractName">合同名称 <span class="required">*</span></label>
-        <input type="text" id="contractName" name="contractName" th:field="*{contractName}" required>
-        <div th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}" class="error-message"></div>
-
-        <label for="customerNumber">客户编号 <span class="required">*</span></label>
-        <input type="text" id="customerNumber" name="customerNumber" th:field="*{customerNumber}" required>
-        <div th:if="${#fields.hasErrors('customerNumber')}" th:errors="*{customerNumber}" class="error-message"></div>
-
-        <label for="customerName">客户名称 <span class="required">*</span></label>
-        <input type="text" id="customerName" name="customerName" th:field="*{customerName}" required>
-        <div th:if="${#fields.hasErrors('customerName')}" th:errors="*{customerName}" class="error-message"></div>
-        <label for="startDate">开始时间 <span class="required">*</span></label>
-        <input type="date" id="startDate" name="startDate" th:field="*{startDate}" required>
-        <div th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}" class="error-message"></div>
-
-        <label for="endDate">结束时间 <span class="required">*</span></label>
-        <input type="date" id="endDate" name="endDate" th:field="*{endDate}" required>
-        <div th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}" class="error-message"></div>
-
-        <label for="contractContent">合同内容</label>
-        <textarea id="contractContent" name="contractContent" rows="5" th:field="*{contractContent}"></textarea>
-        <div th:if="${#fields.hasErrors('contractContent')}" th:errors="*{contractContent}" class="error-message"></div>
-
-        <label for="attachment">合同附件 (可选，支持 doc, jpg, jpeg, png, bmp, gif)</label>
-        <input type="file" id="attachment" name="attachment">
-        <div th:if="${attachmentError}" class="error-message">
-            <p th:text="${attachmentError}"></p>
+<section layout:fragment="content">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0 h2"><i class="bi bi-file-earmark-plus-fill text-primary me-2"></i>起草新合同</h1>
+            <a th:href="@{/dashboard}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left-circle me-1"></i>返回仪表盘
+            </a>
         </div>
 
-        <button type="submit">提交</button>
-        <button type="reset">重置</button>
-    </form>
-</div>
+        <div id="alertPlaceholder">
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${successMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> <span th:text="${errorMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div th:if="${#fields.hasErrors('contractDraftRequest.*')}" class="alert alert-warning alert-dismissible fade show" role="alert">
+                <strong><i class="bi bi-exclamation-circle-fill me-2"></i>请检查您的输入：</strong>
+                <ul class="mb-0">
+                    <li th:each="err : ${#fields.errors('contractDraftRequest.*')}" th:text="${err}"></li>
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div th:if="${attachmentError}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> <span th:text="${attachmentError}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+
+        <form th:action="@{/contract-manager/draft}" method="post" enctype="multipart/form-data" th:object="${contractDraftRequest}" id="draftContractForm" class="needs-validation" novalidate>
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
+                    <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="contractName" class="form-label">合同名称 <span class="required-asterisk">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="contractName" th:field="*{contractName}" required>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}">合同名称不能为空。</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="startDate" class="form-label">开始日期 <span class="required-asterisk">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="startDate" th:field="*{startDate}" required>
+                            <div class="invalid-feedback" th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}">开始日期不能为空。</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="endDate" class="form-label">结束日期 <span class="required-asterisk">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="endDate" th:field="*{endDate}" required>
+                            <div class="invalid-feedback" th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}">结束日期不能为空。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
+                    <i class="bi bi-person-badge-fill me-2"></i>客户信息
+                </div>
+                <div class="card-body">
+                    <label class="form-label">签约客户 <span class="required-asterisk">*</span></label>
+                    <div class="input-group input-group-sm">
+                        <button class="btn btn-sm btn-outline-primary" type="button" id="openCustomerSelectModalBtn" style="min-width: 110px;">
+                            <i class="bi bi-search me-1"></i> 选择客户
+                        </button>
+                        <div id="selectedCustomerInfoPlaceholder">
+                            <span class="text-muted">尚未选择客户</span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="selectedCustomerId" th:field="*{selectedCustomerId}" required>
+                    <div class="d-block" th:if="${#fields.hasErrors('selectedCustomerId')}">
+                        <small class="text-danger" th:errors="*{selectedCustomerId}"></small>
+                    </div>
+                    <div id="selectedCustomerDetailsCard" class="card mt-2" style="display: none;">
+                        <div class="card-body p-2">
+                            <h6 class="card-title mb-1 small"><strong id="selectedCustomerNameText"></strong></h6>
+                            <p class="card-text mb-0 small">
+                                <strong>编号:</strong> <span id="selectedCustomerNumberText"></span> <br>
+                                <strong>电话:</strong> <span id="selectedCustomerPhoneText"></span> <br>
+                                <strong>邮箱:</strong> <span id="selectedCustomerEmailText"></span> <br>
+                                <strong>地址:</strong> <span id="selectedCustomerAddressText"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
+                    <i class="bi bi-file-text-fill me-2"></i>合同条款与附件
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="contractContent" class="form-label">合同主要内容</label>
+                        <textarea class="form-control form-control-sm" id="contractContent" rows="8" th:field="*{contractContent}" placeholder="请在此处填写合同的核心条款和内容..."></textarea>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('contractContent')}" th:errors="*{contractContent}"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="attachment" class="form-label">上传合同附件 (可选)</label>
+                        <input type="file" class="form-control form-control-sm" id="attachment" name="attachment">
+                        <div class="form-text">支持的格式：PDF, 图片 (JPEG, PNG, GIF, BMP), Word文档 (doc, docx)。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex justify-content-center">
+                <button type="submit" class="btn btn-primary btn-lg px-5 me-3">
+                    <i class="bi bi-save-fill me-2"></i>确认起草并提交
+                </button>
+                <button type="reset" class="btn btn-outline-secondary btn-lg px-4">
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>全部重置
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="modal fade" id="customerSelectModal" tabindex="-1" aria-labelledby="customerSelectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customerSelectModalLabel"><i class="bi bi-people-fill me-2"></i>选择签约客户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <div class="input-group input-group-sm flex-grow-1 me-2">
+                            <input type="text" id="modalCustomerSearchInput" class="form-control" placeholder="输入客户名称或编号搜索...">
+                            <button type="button" class="btn btn-sm btn-primary" id="modalSearchCustomerBtn"><i class="bi bi-search"></i></button>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm" id="modalAddNewCustomerBtn" data-bs-toggle="modal" data-bs-target="#addCustomerFormModal">
+                            <i class="bi bi-plus-circle me-1"></i> 添加新客户
+                        </button>
+                    </div>
+                    <div id="customerModalAlertPlaceholder"></div>
+                    <div class="table-responsive" style="max-height: 400px;">
+                        <table class="table table-hover table-sm" id="customerTableModal">
+                            <thead class="table-light sticky-top">
+                            <tr>
+                                <th scope="col">客户编号</th>
+                                <th scope="col">客户名称</th>
+                                <th scope="col">联系电话</th>
+                                <th scope="col">邮箱</th>
+                                <th scope="col" class="text-center">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="customerModalSpinner" class="text-center my-3" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                    </div>
+                    <nav aria-label="客户分页" class="mt-3">
+                        <ul class="pagination pagination-sm justify-content-center" id="customerModalPagination">
+                        </ul>
+                    </nav>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>关闭
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addCustomerFormModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="addCustomerFormModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form id="addCustomerFormInModal_draft" class="needs-validation" novalidate>
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title" id="addCustomerFormModalLabel"><i class="bi bi-person-plus-fill me-2"></i>快速添加新客户</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="addCustomerModalAlertPlaceholder_draft" class="mb-3"></div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="new_draft_customerNumber" class="form-label">客户编号 <span class="required-asterisk">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="customerNumber" id="new_draft_customerNumber" required placeholder="例如: CUST-2025-001">
+                                <div class="invalid-feedback">请输入客户编号。</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="new_draft_customerName" class="form-label">客户名称 <span class="required-asterisk">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="customerName" id="new_draft_customerName" required placeholder="请输入完整的客户官方名称">
+                                <div class="invalid-feedback">请输入客户名称。</div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="new_draft_phoneNumber" class="form-label">联系电话 <span class="required-asterisk">*</span></label>
+                                <input type="tel" class="form-control form-control-sm" name="phoneNumber" id="new_draft_phoneNumber" required placeholder="例如: 0755-12345678 或 13800138000">
+                                <div class="invalid-feedback">请输入有效的联系电话。</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="new_draft_email" class="form-label">邮箱 <span class="required-asterisk">*</span></label>
+                                <input type="email" class="form-control form-control-sm" name="email" id="new_draft_email" required placeholder="例如: contact@example.com">
+                                <div class="invalid-feedback">请输入有效的邮箱地址。</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_draft_address" class="form-label">客户地址</label>
+                            <textarea class="form-control form-control-sm" name="address" id="new_draft_address" rows="2" placeholder="请输入客户详细通讯地址"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-target="#customerSelectModal" data-bs-toggle="modal" id="backToCustomerSelectModalBtn">
+                            <i class="bi bi-arrow-left-short"></i> 返回选择
+                        </button>
+                        <button type="submit" class="btn btn-success" id="saveNewCustomerBtn_draft">
+                            <i class="bi bi-check-circle-fill me-1"></i>确认并保存客户
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // JavaScript 部分与上一版本相同，此处省略以减少重复。
+        // 确保这里的JS代码与上一版本中提供的完整JS代码一致。
+        (function () {
+            'use strict'
+            var forms = document.querySelectorAll('.needs-validation')
+            Array.prototype.slice.call(forms)
+                .forEach(function (form) {
+                    form.addEventListener('submit', function (event) {
+                        if (!form.checkValidity()) {
+                            event.preventDefault()
+                            event.stopPropagation()
+                        }
+                        form.classList.add('was-validated')
+                    }, false)
+                })
+        })()
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
+            const customerSelectModalEl = document.getElementById('customerSelectModal');
+            const customerSelectModal = new bootstrap.Modal(customerSelectModalEl);
+
+            const modalCustomerSearchInput = document.getElementById('modalCustomerSearchInput');
+            const modalSearchCustomerBtn = document.getElementById('modalSearchCustomerBtn');
+            const customerTableBody = document.querySelector('#customerTableModal tbody');
+            const customerModalPagination = document.getElementById('customerModalPagination');
+            const customerModalSpinner = document.getElementById('customerModalSpinner');
+            const customerModalAlertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
+
+
+            const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
+            const selectedCustomerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
+            const selectedCustomerDetailsCard = document.getElementById('selectedCustomerDetailsCard');
+
+
+            const modalAddNewCustomerBtn = document.getElementById('modalAddNewCustomerBtn');
+            const addCustomerFormModalEl = document.getElementById('addCustomerFormModal');
+            const addCustomerFormModal = new bootstrap.Modal(addCustomerFormModalEl);
+            const addCustomerFormInModalDraft = document.getElementById('addCustomerFormInModal_draft');
+            const saveNewCustomerBtnDraft = document.getElementById('saveNewCustomerBtn_draft');
+            const addCustomerModalAlertPlaceholderDraft = document.getElementById('addCustomerModalAlertPlaceholder_draft');
+            const backToCustomerSelectModalBtn = document.getElementById('backToCustomerSelectModalBtn');
+
+
+            let currentCustomerPage = 0;
+            const CUSTOMER_PAGE_SIZE = 5;
+            let customerSearchKeyword = '';
+
+            if(openCustomerSelectModalBtn) {
+                openCustomerSelectModalBtn.addEventListener('click', function() {
+                    modalCustomerSearchInput.value = '';
+                    customerSearchKeyword = '';
+                    loadCustomersForModal(0);
+                    customerSelectModal.show();
+                });
+            }
+
+            if(modalSearchCustomerBtn) {
+                modalSearchCustomerBtn.addEventListener('click', function() {
+                    customerSearchKeyword = modalCustomerSearchInput.value.trim();
+                    loadCustomersForModal(0, customerSearchKeyword);
+                });
+            }
+            if(modalCustomerSearchInput){
+                modalCustomerSearchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        customerSearchKeyword = modalCustomerSearchInput.value.trim();
+                        loadCustomersForModal(0, customerSearchKeyword);
+                    }
+                });
+            }
+
+            function loadCustomersForModal(page, keyword = customerSearchKeyword) {
+                currentCustomerPage = page;
+                const searchUrl = `/customers/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${CUSTOMER_PAGE_SIZE}&sort=customerName,asc`;
+
+                if(customerModalSpinner) customerModalSpinner.style.display = 'block';
+                if(customerTableBody) customerTableBody.innerHTML = '';
+                if(customerModalAlertPlaceholder) customerModalAlertPlaceholder.innerHTML = '';
+
+
+                fetch(searchUrl)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`网络响应错误 (${response.status})`);
+                        return response.json();
+                    })
+                    .then(pageData => {
+                        renderCustomerTable(pageData.content || []);
+                        renderCustomerPagination(pageData);
+                    })
+                    .catch(error => {
+                        console.error('加载客户列表失败:', error);
+                        if(customerTableBody) customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">加载客户数据失败: ${error.message}</td></tr>`;
+                        showAlertInCustomerModal('加载客户数据失败: ' + error.message, 'danger');
+                    })
+                    .finally(() => {
+                        if(customerModalSpinner) customerModalSpinner.style.display = 'none';
+                    });
+            }
+
+            function renderCustomerTable(customers) {
+                if(!customerTableBody) return;
+                customerTableBody.innerHTML = '';
+                if (customers.length === 0) {
+                    customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">未找到匹配的客户记录。</td></tr>`;
+                    return;
+                }
+                customers.forEach(customer => {
+                    const row = customerTableBody.insertRow();
+                    row.insertCell().textContent = customer.customerNumber || 'N/A';
+                    row.insertCell().textContent = customer.customerName;
+                    row.insertCell().textContent = customer.phoneNumber || 'N/A';
+                    row.insertCell().textContent = customer.email || 'N/A';
+                    const actionCell = row.insertCell();
+                    actionCell.classList.add('text-center');
+                    const selectBtn = document.createElement('button');
+                    selectBtn.classList.add('btn', 'btn-sm', 'btn-primary');
+                    selectBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> 选择';
+                    selectBtn.type = 'button';
+                    selectBtn.addEventListener('click', function() {
+                        selectCustomerForForm(customer);
+                    });
+                    actionCell.appendChild(selectBtn);
+                });
+            }
+
+            function selectCustomerForForm(customer) {
+                selectedCustomerIdInput.value = customer.id;
+                if (selectedCustomerInfoPlaceholder) {
+                    selectedCustomerInfoPlaceholder.innerHTML = `<strong class="text-success">${customer.customerName}</strong> <small class="text-muted">(编号: ${customer.customerNumber || 'N/A'})</small>`;
+                }
+                if(selectedCustomerDetailsCard) {
+                    document.getElementById('selectedCustomerNameText').textContent = customer.customerName || 'N/A';
+                    document.getElementById('selectedCustomerNumberText').textContent = customer.customerNumber || 'N/A';
+                    document.getElementById('selectedCustomerPhoneText').textContent = customer.phoneNumber || 'N/A';
+                    document.getElementById('selectedCustomerEmailText').textContent = customer.email || 'N/A';
+                    document.getElementById('selectedCustomerAddressText').textContent = customer.address || 'N/A';
+                    selectedCustomerDetailsCard.style.display = 'block';
+                }
+
+                customerSelectModal.hide();
+                selectedCustomerIdInput.dispatchEvent(new Event('change'));
+                selectedCustomerIdInput.classList.remove('is-invalid');
+                const errorFeedback = selectedCustomerIdInput.closest('.card-body').querySelector('.invalid-feedback.d-block');
+                if(errorFeedback) errorFeedback.innerHTML = '';
+            }
+
+            function renderCustomerPagination(pageData) {
+                if(!customerModalPagination) return;
+                customerModalPagination.innerHTML = '';
+                if (!pageData || pageData.totalPages <= 1) return;
+
+                const { totalPages, number: currentPageIdx, first, last } = pageData;
+
+                let prevLi = document.createElement('li');
+                prevLi.className = `page-item ${first ? 'disabled' : ''}`;
+                let prevA = document.createElement('a');
+                prevA.className = 'page-link';
+                prevA.href = '#';
+                prevA.innerHTML = '&laquo; <span class="d-none d-sm-inline">上一页</span>';
+                if (!first) prevA.addEventListener('click', (e) => { e.preventDefault(); loadCustomersForModal(currentPageIdx - 1); });
+                prevLi.appendChild(prevA);
+                customerModalPagination.appendChild(prevLi);
+
+                let currentLi = document.createElement('li');
+                currentLi.className = 'page-item disabled';
+                let currentA = document.createElement('a');
+                currentA.className = 'page-link';
+                currentA.textContent = `第 ${currentPageIdx + 1} / ${totalPages} 页`;
+                currentLi.appendChild(currentA);
+                customerModalPagination.appendChild(currentLi);
+
+                let nextLi = document.createElement('li');
+                nextLi.className = `page-item ${last ? 'disabled' : ''}`;
+                let nextA = document.createElement('a');
+                nextA.className = 'page-link';
+                nextA.href = '#';
+                nextA.innerHTML = '<span class="d-none d-sm-inline">下一页</span> &raquo;';
+                if (!last) nextA.addEventListener('click', (e) => { e.preventDefault(); loadCustomersForModal(currentPageIdx + 1); });
+                nextLi.appendChild(nextA);
+                customerModalPagination.appendChild(nextLi);
+            }
+
+            if(addCustomerFormInModalDraft) {
+                addCustomerFormInModalDraft.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    if (!addCustomerFormInModalDraft.checkValidity()) {
+                        event.stopPropagation();
+                        addCustomerFormInModalDraft.classList.add('was-validated');
+                        return;
+                    }
+                    addCustomerFormInModalDraft.classList.add('was-validated');
+
+
+                    const formData = new FormData(addCustomerFormInModalDraft);
+
+                    if(addCustomerModalAlertPlaceholderDraft) addCustomerModalAlertPlaceholderDraft.innerHTML = '';
+
+                    saveNewCustomerBtnDraft.disabled = true;
+                    saveNewCustomerBtnDraft.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>保存中...';
+
+                    fetch('/customers/api/add', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: new URLSearchParams(formData).toString()
+                    })
+                        .then(response => {
+                            if (response.status === 201) return response.json();
+                            return response.text().then(text => {
+                                let detail = text;
+                                try { const jsonError = JSON.parse(text); detail = Array.isArray(jsonError) ? jsonError.join(', ') : (jsonError.message || text); }
+                                catch (e) { /* ignore parsing error, use text */ }
+                                throw new Error(`${response.status}: ${detail}`);
+                            });
+                        })
+                        .then(newlyAddedCustomer => {
+                            addCustomerFormInModalDraft.reset();
+                            addCustomerFormInModalDraft.classList.remove('was-validated');
+                            addCustomerFormModal.hide();
+                            showAlertOnMainPage(`新客户 "${newlyAddedCustomer.customerName}" 已成功添加!`, 'success', 5000);
+                            selectCustomerForForm(newlyAddedCustomer);
+                        })
+                        .catch(error => {
+                            console.error('添加新客户失败:', error);
+                            showAlertInAddCustomerModal('添加客户失败: ' + error.message, 'danger');
+                        })
+                        .finally(() => {
+                            saveNewCustomerBtnDraft.disabled = false;
+                            saveNewCustomerBtnDraft.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>确认并保存客户';
+                        });
+                });
+            }
+
+            if(backToCustomerSelectModalBtn){
+                backToCustomerSelectModalBtn.addEventListener('click', function(){
+                    addCustomerFormModal.hide();
+                    customerSelectModal.show();
+                });
+            }
+
+            function showAlertInCustomerModal(message, type = 'info', duration = 7000) {
+                showAlert(message, type, duration, customerModalAlertPlaceholder);
+            }
+            function showAlertInAddCustomerModal(message, type = 'info', duration = 7000) {
+                showAlert(message, type, duration, addCustomerModalAlertPlaceholderDraft);
+            }
+            function showAlertOnMainPage(message, type = 'info', duration = 7000) {
+                showAlert(message, type, duration, document.getElementById('alertPlaceholder'));
+            }
+
+            function showAlert(message, type = 'info', duration = 7000, placeholderElement) {
+                if (!placeholderElement) {
+                    console.warn("Alert placeholder not found for message:", message);
+                    alert(message);
+                    return;
+                }
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
+                placeholderElement.innerHTML = '';
+                placeholderElement.append(wrapper.firstChild);
+
+                if (duration > 0) {
+                    setTimeout(() => {
+                        const activeAlert = wrapper.firstChild;
+                        if (activeAlert) {
+                            const bsAlert = bootstrap.Alert.getInstance(activeAlert);
+                            if (bsAlert) bsAlert.close();
+                            else if (activeAlert.parentNode) activeAlert.parentNode.removeChild(activeAlert);
+                        }
+                    }, duration);
+                }
+            }
+
+            const mainDraftForm = document.getElementById('draftContractForm');
+            if (mainDraftForm) {
+                mainDraftForm.addEventListener('reset', function() {
+                    setTimeout(() => {
+                        selectedCustomerIdInput.value = '';
+                        if(selectedCustomerInfoPlaceholder) selectedCustomerInfoPlaceholder.innerHTML = '<span class="text-muted">尚未选择客户</span>';
+                        if(selectedCustomerDetailsCard) selectedCustomerDetailsCard.style.display = 'none';
+                        mainDraftForm.classList.remove('was-validated');
+                        const customerIdErrorFeedback = selectedCustomerIdInput.closest('.card-body').querySelector('.invalid-feedback.d-block');
+                        if (customerIdErrorFeedback) customerIdErrorFeedback.innerHTML = '';
+
+                    },0);
+                });
+            }
+        });
+        /*]]>*/
+    </script>
+</th:block>
 
 </body>
 </html>
