@@ -5,7 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
-// ... 可能需要的其他导入 ...
+import org.springframework.security.access.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -27,7 +27,17 @@ public class GlobalExceptionHandler {
         body.put("path", request.getDescription(false).replace("uri=", ""));
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
     }
-
+    @ExceptionHandler(AccessDeniedException.class) // 注意这里的参数类型
+    public ResponseEntity<Object> handleAccessDeniedException(
+            AccessDeniedException ex, WebRequest request) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.FORBIDDEN.value()); // 403 Forbidden
+        body.put("error", "Forbidden");
+        body.put("message", "您没有权限执行此操作。"); // 或者 ex.getMessage()
+        body.put("path", request.getDescription(false).replace("uri=", ""));
+        return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
+    }
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<Object> handleDuplicateResourceException(
             DuplicateResourceException ex, WebRequest request) {

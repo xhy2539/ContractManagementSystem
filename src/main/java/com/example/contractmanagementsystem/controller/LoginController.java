@@ -1,15 +1,26 @@
 package com.example.contractmanagementsystem.controller;
 
-// import org.springframework.security.access.prepost.PreAuthorize; // 如果没有其他地方用到，可以移除
+import com.example.contractmanagementsystem.entity.ContractProcess; // 新增导入
+import com.example.contractmanagementsystem.service.ContractService; // 新增导入
+import org.springframework.beans.factory.annotation.Autowired; // 新增导入
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.security.Principal;
+import java.util.List; // 新增导入
 
 @Controller
 public class LoginController {
+
+    // 新增：注入 ContractService
+    private final ContractService contractService;
+
+    @Autowired
+    public LoginController(ContractService contractService) {
+        this.contractService = contractService;
+    }
 
     // 处理对 /login 的 GET 请求，显示登录页面
     @GetMapping("/login")
@@ -38,10 +49,23 @@ public class LoginController {
     @GetMapping("/dashboard")
     public String dashboardPage(Principal principal, Model model) {
         if (principal != null) {
-            model.addAttribute("username", principal.getName());
-            // 这里可以添加更多加载到 dashboard 页面的数据, 例如用户角色等
-            // Collection<? extends GrantedAuthority> authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
-            // model.addAttribute("authorities", authorities);
+            String username = principal.getName();
+            model.addAttribute("username", username);
+
+            // --- 新增逻辑：获取并添加待处理任务列表到模型 ---
+            // 确保 contractService 已通过构造函数注入
+            if (contractService != null) {
+                List<ContractProcess> pendingTasks = contractService.getAllPendingTasksForUser(username);
+                model.addAttribute("pendingTasks", pendingTasks);
+                // 可以在这里添加日志，方便调试
+                // System.out.println("为用户 " + username + " 加载了 " + (pendingTasks != null ? pendingTasks.size() : 0) + " 个待处理任务。");
+            } else {
+                // 处理 contractService 未注入的情况，例如打印错误日志或添加一个空列表
+                System.err.println("错误: ContractService 未在 LoginController 中注入!");
+                model.addAttribute("pendingTasks", List.of()); // 提供一个空列表以避免模板错误
+            }
+            // --- 结束新增逻辑 ---
+
         }
         return "dashboard"; // 返回名为 "dashboard.html" 的视图模板
     }

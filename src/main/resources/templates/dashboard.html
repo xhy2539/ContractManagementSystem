@@ -16,31 +16,51 @@
             transform: translateY(-5px);
         }
         .dashboard-card .card-header {
-            background-color: #e9ecef; /* Lighter header for cards */
+            background-color: #e9ecef; /* 卡片头部浅色背景 */
             font-weight: 500;
             border-bottom: 1px solid rgba(0,0,0,.125);
         }
         .dashboard-card .list-group-item a {
             text-decoration: none;
-            color: #0d6efd; /* Bootstrap primary blue */
+            color: #0d6efd; /* Bootstrap 主色蓝 */
         }
         .dashboard-card .list-group-item a:hover {
-            color: #0a58ca; /* Darker blue on hover */
+            color: #0a58ca; /* 悬停时深蓝色 */
             text-decoration: underline;
         }
-        .dashboard-card .list-group-item i {
+        .dashboard-card .list-group-item i.action-icon { /* 待办事项列表中图标的特定类 */
+            margin-right: 0.75rem; /* 图标与文字间距增大 */
+            width: 1.5em; /* 图标宽度略微增大 */
+            font-size: 1.1rem; /* 图标大小略微增大 */
+        }
+        .dashboard-card .card-header i { /* 卡片头部图标 */
             margin-right: 0.5rem;
-            width: 1.2em; /* Consistent icon width */
         }
         .welcome-message {
             padding: 1.5rem;
             margin-bottom: 2rem;
-            background-color: #cfe2ff; /* Light blue background */
+            background-color: #cfe2ff; /* 淡蓝色背景 */
             border-radius: 0.375rem;
             border: 1px solid #b6d4fe;
         }
         .welcome-message h1 {
             color: #07408c;
+        }
+        .pending-tasks-header { /* 待处理任务卡片头部的特定样式 */
+            background-color: #fff3cd; /* Bootstrap 警告色（浅黄） */
+            color: #664d03; /* Bootstrap 警告色对应深色文字 */
+            border-color: #ffecb5;
+        }
+        .pending-tasks-header i { /* 待处理任务卡片头部图标颜色 */
+            color: #ffc107; /* Bootstrap 警告色 */
+        }
+        .list-group-item .task-details { /* 任务详情文字样式 */
+            font-size: 0.85em;
+            color: #6c757d; /* Bootstrap 次要文字颜色 */
+        }
+        .btn-process-task { /* “去处理”按钮样式 */
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
         }
     </style>
 </head>
@@ -51,9 +71,66 @@
 
         <div class="welcome-message text-center">
             <h1 class="display-5">欢迎, <span sec:authentication="name" class="fw-bold">用户</span>!</h1>
-            <p class="lead">欢迎使用合同管理系统。请从下方选择您要操作的功能模块。</p>
+            <p class="lead">欢迎使用合同管理系统。</p>
         </div>
 
+        <div class="card dashboard-card" th:if="${pendingTasks != null && not #lists.isEmpty(pendingTasks)}">
+            <div class="card-header pending-tasks-header">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>待处理任务</strong>
+            </div>
+            <div class="card-body">
+                <p class="card-text">您有 <strong th:text="${#lists.size(pendingTasks)}">X</strong> 个待处理的合同任务：</p>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center" th:each="task : ${pendingTasks}">
+                        <div>
+                            <i th:classappend="${task.type.name() == 'COUNTERSIGN' ? 'bi-person-check-fill text-info action-icon' :
+                                               (task.type.name() == 'APPROVAL' ? 'bi-clipboard-check-fill text-success action-icon' :
+                                               (task.type.name() == 'SIGNING' ? 'bi-pen-fill text-primary action-icon' :
+                                               (task.type.name() == 'FINALIZE' ? 'bi-file-earmark-check-fill text-warning action-icon' : 'bi-question-circle-fill action-icon')))}"></i>
+                            <strong><span th:text="${task.contract?.contractName ?: '未知合同'}">合同名称</span></strong> -
+                            <span th:switch="${task.type.name()}">
+                                <span th:case="'COUNTERSIGN'">需要您会签</span>
+                                <span th:case="'APPROVAL'">需要您审批</span>
+                                <span th:case="'SIGNING'">需要您签订</span>
+                                <span th:case="'FINALIZE'">需要您定稿</span>
+                                <span th:case="*">待处理 (<span th:text="${task.type?.description ?: task.type.name()}">类型</span>)</span>
+                            </span>
+                            <div class="task-details mt-1">
+                                合同编号: <span th:text="${task.contract?.contractNumber ?: 'N/A'}"></span> |
+                                起草人: <span th:text="${task.contract?.drafter?.username ?: 'N/A'}"></span> |
+                                流程创建时间: <span th:text="${task.createdAt != null ? #temporals.format(task.createdAt, 'yyyy-MM-dd HH:mm') : 'N/A'}"></span>
+                            </div>
+                        </div>
+                        <th:block th:switch="${task.type.name()}">
+                            <a th:case="'COUNTERSIGN'" th:href="@{/contract-manager/countersign/{id}(id=task.id)}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                去处理 <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                            <a th:case="'APPROVAL'" th:href="@{/contract-manager/approval-details/{id}(id=task.contract.id)}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                去处理 <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                            <a th:case="'SIGNING'" th:href="@{/contract-manager/sign/{id}(id=task.id)}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                去处理 <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                            <a th:case="'FINALIZE'" th:href="@{/contract-manager/finalize/{id}(id=task.contract.id)}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                去处理 <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                            <a th:case="*" href="#" class="btn btn-sm btn-outline-secondary btn-process-task disabled" title="未知任务类型，无法直接处理">
+                                查看 <i class="bi bi-info-circle"></i>
+                            </a>
+                        </th:block>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div th:if="${pendingTasks == null || #lists.isEmpty(pendingTasks)}" class="alert alert-info">
+            <i class="bi bi-check-circle-fill me-2"></i>您当前没有待处理的合同任务。
+        </div>
+
+        <hr class="my-4" th:if="${pendingTasks != null && not #lists.isEmpty(pendingTasks)}">
+
+        <h2 class="mb-3" th:if="${#authorization.expression('isAuthenticated()')}">快速访问</h2>
         <div class="row">
             <div class="col-lg-6 col-xl-4" sec:authorize="hasRole('ROLE_ADMIN')">
                 <div class="card dashboard-card">
@@ -76,38 +153,65 @@
                         <i class="bi bi-file-earmark-text-fill me-2"></i>合同管理
                     </div>
                     <ul class="list-group list-group-flush">
-                        <li class="list-group-item"><a th:href="@{/contract-manager/draft-contract}"><i class="bi bi-file-earmark-plus-fill"></i>起草合同</a></li>
-                        <li class="list-group-item"><a th:href="@{/contract-manager/pending-countersign}"><i class="bi bi-people-fill"></i>待会签合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_DRAFT_NEW')"><a th:href="@{/contract-manager/draft-contract}"><i class="bi bi-file-earmark-plus-fill"></i>起草合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_CSIGN_VIEW')"><a th:href="@{/contract-manager/pending-countersign}"><i class="bi bi-person-check-fill"></i>待会签合同</a></li>
                         <li class="list-group-item" sec:authorize="hasAuthority('CON_FINAL_VIEW')"><a th:href="@{/contract-manager/pending-finalization}"><i class="bi bi-file-earmark-check-fill"></i>待定稿合同</a></li>
-                        <li class="list-group-item"><a th:href="@{/contract-manager/pending-approval}"><i class="bi bi-check-circle-fill"></i>待审批合同</a></li>
-                        <li class="list-group-item"><a th:href="@{/contract-manager/pending-signing}"><i class="bi bi-pen-fill"></i>待签订合同</a></li>
-                        <li class="list-group-item"><a th:href="@{/contract-manager/view-all}"><i class="bi bi-folder-fill"></i>查看我的合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_APPROVE_VIEW')"><a th:href="@{/contract-manager/pending-approval}"><i class="bi bi-clipboard-check-fill"></i>待审批合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_SIGN_VIEW')"><a th:href="@{/contract-manager/pending-signing}"><i class="bi bi-pen-fill"></i>待签订合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_VIEW_MY') or hasRole('ROLE_ADMIN')">
+                            <a th:href="@{/contract-manager/view-all}"><i class="bi bi-folder-fill"></i>我的合同查询</a>
+                        </li>
                     </ul>
                 </div>
             </div>
 
-            <div class="col-lg-6 col-xl-4" sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_DATA_MANAGER')">
+            <div class="col-lg-6 col-xl-4" sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_DATA_MANAGER', 'ROLE_CUSTOMER_MANAGER')">
                 <div class="card dashboard-card">
                     <div class="card-header">
                         <i class="bi bi-database-fill-gear me-2"></i>基础数据管理
                     </div>
                     <ul class="list-group list-group-flush">
-                        <li class="list-group-item"><a th:href="@{/customers}"><i class="bi bi-person-badge-fill"></i>客户信息管理</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CUSTOMER_VIEW_LIST') or hasRole('ROLE_ADMIN')">
+                            <a th:href="@{/customers}"><i class="bi bi-person-badge-fill"></i>客户信息管理</a>
+                        </li>
                     </ul>
                 </div>
             </div>
 
-            <div class="col-lg-6 col-xl-4" sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_CONTRACT_OPERATOR')">
+            <div class="col-lg-6 col-xl-4" sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_CONTRACT_OPERATOR', 'ROLE_REPORTER')">
                 <div class="card dashboard-card">
                     <div class="card-header">
                         <i class="bi bi-search me-2"></i>查询统计
                     </div>
                     <ul class="list-group list-group-flush">
-                        <li class="list-group-item"><a th:href="@{/reports/contract-status}"><i class="bi bi-pie-chart-fill"></i>合同状态统计</a></li>
-                        <li class="list-group-item"><a th:href="@{/reports/contract-search}"><i class="bi bi-file-text-fill"></i>合同查询</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_QUERY_VIEW') or hasRole('ROLE_ADMIN')">
+                            <a th:href="@{/reports/contract-search}"><i class="bi bi-file-text-fill"></i>合同综合查询</a>
+                        </li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('REPORT_STATUS_VIEW') or hasRole('ROLE_ADMIN')">
+                            <a th:href="@{/reports/contract-status}"><i class="bi bi-pie-chart-fill"></i>合同状态统计</a>
+                        </li>
                     </ul>
                 </div>
             </div>
+
+            <div class="col-lg-6 col-xl-4" sec:authorize="isAuthenticated()">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <i class="bi bi-bar-chart-line-fill me-2"></i>系统概览
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            有效合同总数
+                            <span class="badge bg-primary rounded-pill" th:text="${systemStats?.activeContractsCount ?: 'N/A'}">0</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            即将到期合同 (30天内)
+                            <span class="badge bg-warning text-dark rounded-pill" th:text="${systemStats?.expiringSoonCount ?: 'N/A'}">0</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
 
         </div> </div> </section>
 

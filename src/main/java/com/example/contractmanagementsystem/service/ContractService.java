@@ -5,13 +5,14 @@ import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
 import com.example.contractmanagementsystem.entity.ContractProcessType;
-// import com.example.contractmanagementsystem.entity.ContractStatus; // 通常由IDE自动导入，或已存在
+import org.springframework.security.access.AccessDeniedException; // <--- 确保导入这个
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -66,6 +67,18 @@ public interface ContractService {
                                                      ContractProcessState state, String contractNameSearch,
                                                      Pageable pageable);
 
+    // --- 新增方法声明 ---
+    /**
+     * 获取指定用户的所有待处理任务列表。
+     * 用于仪表盘显示用户需要操作的各类合同流程。
+     *
+     * @param username 当前登录用户的用户名。
+     * @return 该用户的所有状态为 PENDING 的 ContractProcess 列表。
+     */
+    List<ContractProcess> getAllPendingTasksForUser(String username);
+    // --- 结束新增方法声明 ---
+
+
     /**
      * 获取指定附件文件的完整路径。
      * 主要用于文件下载操作。
@@ -104,9 +117,9 @@ public interface ContractService {
      * @param comments   审批意见。
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同或用户未找到。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不允许审批或发生其他业务逻辑错误。
-     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果用户无权执行此操作。
+     * @throws AccessDeniedException 如果用户无权执行此操作。 // <--- 修改处
      */
-    void processApproval(Long contractId, String username, boolean approved, String comments);
+    void processApproval(Long contractId, String username, boolean approved, String comments) throws AccessDeniedException;
 
     /**
      * 根据流程ID、操作员用户名、期望的流程类型和状态，获取合同流程记录。
@@ -119,9 +132,9 @@ public interface ContractService {
      * @return 验证通过的合同流程实体。
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录或用户未找到。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果流程类型或状态不匹配。
-     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果当前用户不是该流程记录的指定操作员。
+     * @throws AccessDeniedException 如果当前用户不是该流程记录的指定操作员。 // <--- 修改处
      */
-    ContractProcess getContractProcessByIdAndOperator(Long contractProcessId, String username, ContractProcessType expectedType, ContractProcessState expectedState);
+    ContractProcess getContractProcessByIdAndOperator(Long contractProcessId, String username, ContractProcessType expectedType, ContractProcessState expectedState) throws AccessDeniedException;
 
     /**
      * 执行合同签订操作。
@@ -131,9 +144,9 @@ public interface ContractService {
      * @param username          执行签订操作的用户名。
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录或用户未找到。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果流程类型或状态不正确。
-     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果用户无权执行此操作。
+     * @throws AccessDeniedException 如果用户无权执行此操作。 // <--- 修改处
      */
-    void signContract(Long contractProcessId, String signingOpinion, String username);
+    void signContract(Long contractProcessId, String signingOpinion, String username) throws AccessDeniedException;
 
     // --- 新增“定稿合同”相关方法声明 ---
 
@@ -156,10 +169,10 @@ public interface ContractService {
      * @param username 当前登录用户的用户名。
      * @return 合同实体，包含了定稿所需的信息。
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果指定ID的合同不存在。
-     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果当前用户无权定稿此合同。
+     * @throws AccessDeniedException 如果当前用户无权定稿此合同。 // <--- 修改处
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不适合进行定稿。
      */
-    Contract getContractForFinalization(Long contractId, String username);
+    Contract getContractForFinalization(Long contractId, String username) throws AccessDeniedException;
 
     /**
      * 执行合同定稿操作。
@@ -173,8 +186,8 @@ public interface ContractService {
      * @return 已定稿并更新状态后的合同实体。
      * @throws IOException 如果处理附件时发生I/O错误。
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果指定ID的合同或用户不存在。
-     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果当前用户无权定稿此合同。
+     * @throws AccessDeniedException 如果当前用户无权定稿此合同。 // <--- 修改处
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不适合定稿，或发生其他业务校验失败。
      */
-    Contract finalizeContract(Long contractId, String finalizationComments, MultipartFile newAttachment, String username) throws IOException;
+    Contract finalizeContract(Long contractId, String finalizationComments, MultipartFile newAttachment, String username) throws IOException, AccessDeniedException;
 }
