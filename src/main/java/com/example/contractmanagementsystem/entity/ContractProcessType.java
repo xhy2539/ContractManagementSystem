@@ -3,7 +3,8 @@ package com.example.contractmanagementsystem.entity;
 public enum ContractProcessType {
     COUNTERSIGN(1, "会签"),
     APPROVAL(2, "审批"),
-    SIGNING(3, "签订");
+    SIGNING(3, "签订"),
+    FINALIZE(4, "定稿"); // <--- 确保这一行已添加
 
     private final int code;
     private final String description;

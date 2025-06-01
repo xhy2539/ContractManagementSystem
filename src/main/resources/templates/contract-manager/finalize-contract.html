@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>定稿合同 - <span th:text="${contract?.contractName ?: '合同详情'}"></span></title>
+    <style layout:fragment="inline-css">
+        .contract-details-section {
+            margin-bottom: 1.5rem; /* 卡片间距 */
+        }
+        .contract-content-display {
+            background-color: #f8f9fa; /* 内容区域浅灰色背景 */
+            border: 1px solid #e3e6ea; /* 边框颜色 */
+            padding: 1rem 1.25rem;    /* 内边距 */
+            border-radius: 0.375rem; /* 圆角 */
+            min-height: 150px;       /* 最小高度 */
+            white-space: pre-wrap;   /* 保留空白符和换行 */
+            font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; /* 等宽字体，适合显示代码或预格式化文本 */
+            font-size: 0.9em;        /* 稍小字体 */
+            line-height: 1.6;        /* 行高 */
+            overflow-x: auto;        /* 内容过长时允许横向滚动 */
+        }
+        .attachment-link i {
+            margin-right: 0.3rem; /* 图标与文字间距 */
+        }
+        .form-actions {
+            border-top: 1px solid #e9ecef; /* 操作按钮区域顶部分隔线 */
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .sticky-lg-top { /* 在大屏幕上，定稿操作卡片可以设置为吸顶 */
+            top: calc(56px + 1.5rem); /* 导航栏高度 (56px) + 主内容区域上边距 (1.5rem) */
+            /* z-index: 1019;  确保在其他元素之上，如果需要 */
+        }
+        .dl-horizontal dt { /* 优化描述列表的显示 */
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+<section layout:fragment="content">
+    <div class="container-fluid mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">
+                <i class="bi bi-file-earmark-check-fill text-success me-2"></i>定稿合同:
+                <span th:if="${contract != null}" th:text="${contract.contractName}" class="text-primary"></span>
+                <span th:if="${contract == null}" class="text-muted">加载中...</span>
+            </h1>
+            <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left-circle"></i> 返回待定稿列表
+            </a>
+        </div>
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i><span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div th:if="${contract == null}" class="alert alert-warning text-center py-4" role="alert">
+            <h5 class="alert-heading"><i class="bi bi-exclamation-octagon-fill me-2"></i>无法加载合同信息</h5>
+            <p class="mb-0">未能加载合同详细信息，或您没有权限访问此合同进行定稿操作。</p>
+            <hr>
+            <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-primary btn-sm">返回列表</a>
+        </div>
+
+        <div th:if="${contract != null}" class="row g-4"> <div class="col-lg-7 col-xl-8">
+            <div class="card shadow-sm contract-details-section">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>合同基本信息</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row dl-horizontal mb-0">
+                        <dt class="col-sm-4 col-md-3 text-muted">合同编号:</dt>
+                        <dd class="col-sm-8 col-md-9" th:text="${contract.contractNumber ?: '-'}"></dd>
+
+                        <dt class="col-sm-4 col-md-3 text-muted">合同名称:</dt>
+                        <dd class="col-sm-8 col-md-9" th:text="${contract.contractName ?: '-'}"></dd>
+
+                        <dt class="col-sm-4 col-md-3 text-muted">客户名称:</dt>
+                        <dd class="col-sm-8 col-md-9" th:text="${contract.customer?.customerName ?: '-'}"></dd>
+
+                        <dt class="col-sm-4 col-md-3 text-muted">起草人:</dt>
+                        <dd class="col-sm-8 col-md-9" th:text="${contract.drafter?.username ?: '-'}"></dd>
+
+                        <dt class="col-sm-4 col-md-3 text-muted">开始日期:</dt>
+                        <dd class="col-sm-8 col-md-9" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></dd>
+
+                        <dt class="col-sm-4 col-md-3 text-muted">结束日期:</dt>
+                        <dd class="col-sm-8 col-md-9" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></dd>
+
+                        <dt class="col-sm-4 col-md-3 text-muted">当前状态:</dt>
+                        <dd class="col-sm-8 col-md-9">
+                                <span th:if="${contract.status != null}"
+                                      th:text="${contract.status.description}"
+                                      class="status-badge"
+                                      th:classappend="'status-' + ${contract.status.name()}">待定稿</span>
+                            <span th:unless="${contract.status != null}">未知状态</span>
+                        </dd>
+                        <dt class="col-sm-4 col-md-3 text-muted">创建时间:</dt>
+                        <dd class="col-sm-8 col-md-9" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
+
+                        <dt class="col-sm-4 col-md-3 text-muted">最后更新:</dt>
+                        <dd class="col-sm-8 col-md-9" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card shadow-sm contract-details-section">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-text-fill me-2"></i>合同内容与附件</h5>
+                </div>
+                <div class="card-body">
+                    <h6>合同正文内容:</h6>
+                    <div class="contract-content-display mb-3">
+                        <pre th:text="${contract.content ?: '（无合同正文内容）'}"></pre>
+                    </div>
+                    <hr>
+                    <h6><i class="bi bi-paperclip"></i> 当前附件:</h6>
+                    <div th:if="${contract.attachmentPath}" class="mt-2">
+                        <a th:href="@{/attachments/{filename}(filename=${contract.attachmentPath})}"
+                           target="_blank" class="btn btn-outline-primary btn-sm attachment-link"
+                           th:title="'下载/查看当前附件: ' + ${contract.attachmentPath}">
+                            <i class="bi bi-download"></i>
+                            <span th:text="${#strings.abbreviate(contract.attachmentPath, 40)}">附件文件名</span>
+                        </a>
+                    </div>
+                    <div th:unless="${contract.attachmentPath}" class="text-muted small mt-2">
+                        （当前没有附件）
+                    </div>
+                </div>
+            </div>
+        </div> <div class="col-lg-5 col-xl-4">
+            <div class="card shadow-sm sticky-lg-top"> <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>执行定稿操作</h5>
+            </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">
+                        请仔细审阅合同信息。一旦确认定稿，合同将进入后续的审批流程，通常定稿后的内容将不应再做大的修改。
+                    </p>
+                    <form th:action="@{/contract-manager/finalize/{contractId}(contractId=${contract.id})}" method="post" enctype="multipart/form-data" id="finalizeForm">
+                        <div class="mb-3">
+                            <label for="finalizationComments" class="form-label">定稿意见/备注:</label>
+                            <textarea class="form-control form-control-sm" id="finalizationComments" name="finalizationComments" rows="5" placeholder="（可选）输入您的定稿意见或重要备注..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="newAttachment" class="form-label">替换或上传新附件:</label>
+                            <input type="file" class="form-control form-control-sm" id="newAttachment" name="newAttachment">
+                            <div class="form-text small text-muted">如果上传新附件，它将替换当前存在的附件（如有）。支持PDF、图片(JPEG, PNG, GIF, BMP)、Word文档(doc, docx)。</div>
+                        </div>
+
+                        <div class="form-actions text-end mt-4">
+                            <button type="submit" class="btn btn-success btn-lg"
+                                    sec:authorize="hasAuthority('CON_FINAL_SUBMIT')"
+                                    onclick="return confirmFinalization();"> <i class="bi bi-check-circle-fill"></i> 确认定稿
+                            </button>
+                            <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-secondary ms-2">
+                                <i class="bi bi-x-circle"></i> 取消
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div> </div> </div> </section>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        function confirmFinalization() {
+            return confirm("您确定要将此合同定稿并提交进入下一流程吗？\n定稿后，合同内容通常将不应再做大的修改。");
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("合同定稿页面已加载。合同ID: [[${contract?.id}]]");
+            // 如果有更复杂的表单校验或交互，可以在此添加
+        });
+    </script>
+</th:block>
+
+</body>
+</html>

@@ -73,4 +73,8 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
             "AND (:contractNumberSearch IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumberSearch, '%'))) " +
             "AND NOT EXISTS (SELECT cp FROM ContractProcess cp WHERE cp.contract = c)")
     Page<Contract> findContractsForAssignmentWithFilters(List<ContractStatus> statuses, String contractNameSearch, String contractNumberSearch, Pageable pageable);
+
+    @Query("SELECT c.status, COUNT(c) FROM Contract c GROUP BY c.status")
+    List<Object[]> findContractCountByStatus();
+
 }

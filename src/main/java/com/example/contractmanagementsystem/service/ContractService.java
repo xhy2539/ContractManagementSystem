@@ -5,6 +5,7 @@ import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
 import com.example.contractmanagementsystem.entity.ContractProcessType;
+// import com.example.contractmanagementsystem.entity.ContractStatus; // 通常由IDE自动导入，或已存在
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,7 +16,7 @@ import java.util.Map;
 
 /**
  * 合同管理业务接口。
- * 定义合同起草、查询、状态统计等核心业务操作。
+ * 定义合同起草、查询、状态统计、定稿等核心业务操作。
  */
 public interface ContractService {
 
@@ -27,6 +28,8 @@ public interface ContractService {
      * @param username   当前起草人的用户名。
      * @return 新创建并保存的合同实体。
      * @throws IOException 如果附件处理过程中发生I/O错误。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果业务逻辑校验失败 (例如日期错误)。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果关联的客户或用户不存在。
      */
     Contract draftContract(ContractDraftRequest request, MultipartFile attachment, String username) throws IOException;
 
@@ -34,7 +37,7 @@ public interface ContractService {
      * 获取合同状态统计数据。
      * 统计不同状态（如草稿、待审批、已完成等）的合同数量。
      *
-     * @return 一个Map，键为合同状态的字符串表示，值为对应状态的合同数量。
+     * @return 一个Map，键为合同状态的字符串表示 (枚举的名称)，值为对应状态的合同数量。
      */
     Map<String, Long> getContractStatusStatistics();
 
@@ -50,7 +53,7 @@ public interface ContractService {
     Page<Contract> searchContracts(String contractName, String contractNumber, String status, Pageable pageable);
 
     /**
-     * 查询指定用户、指定类型和指定状态的合同流程（如待会签、待审批等），并支持按合同名称搜索和分页。
+     * 查询指定用户、指定类型和指定状态的合同流程（如待会签、待审批、待签订等），并支持按合同名称搜索和分页。
      *
      * @param username           当前登录用户的用户名。
      * @param type               流程类型（如 COUNTERSIGN, APPROVAL, SIGNING）。
@@ -70,37 +73,108 @@ public interface ContractService {
      * @param filename 附件的文件名（不包含路径）。
      * @return 附件文件的绝对路径。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果文件不存在或无法访问，或文件名格式不正确。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果文件未找到。
      */
     Path getAttachmentPath(String filename);
 
     /**
-     * 根据ID获取合同
+     * 根据ID获取合同的详细信息。
      *
-     * @param id 合同ID
-     * @return 合同对象
+     * @param id 合同ID。
+     * @return 合同实体。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同未找到。
      */
     Contract getContractById(Long id);
 
     /**
-     * 检查用户是否有权限审批指定合同
+     * 检查当前用户是否有权限审批指定的合同。
      *
-     * @param username   用户名
-     * @param contractId 合同ID
-     * @return 是否有权限
+     * @param username   用户名。
+     * @param contractId 合同ID。
+     * @return 如果用户有权限审批，则返回true；否则返回false。
      */
     boolean canUserApproveContract(String username, Long contractId);
 
     /**
-     * 处理合同审批
+     * 处理合同审批操作（通过或拒绝）。
      *
-     * @param contractId 合同ID
-     * @param username   审批人用户名
-     * @param approved   是否通过
-     * @param comments   审批意见
+     * @param contractId 合同ID。
+     * @param username   审批人用户名。
+     * @param approved   审批决定 (true表示通过, false表示拒绝)。
+     * @param comments   审批意见。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同或用户未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不允许审批或发生其他业务逻辑错误。
+     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果用户无权执行此操作。
      */
     void processApproval(Long contractId, String username, boolean approved, String comments);
 
-    ContractProcess getContractProcessByIdAndOperator(Long contractProcessId, String username, ContractProcessType contractProcessType, ContractProcessState contractProcessState);
+    /**
+     * 根据流程ID、操作员用户名、期望的流程类型和状态，获取合同流程记录。
+     * 用于在执行具体流程操作（如签订、审批）前验证并获取流程对象。
+     *
+     * @param contractProcessId 合同流程记录ID。
+     * @param username          当前操作员的用户名。
+     * @param expectedType      期望的合同流程类型。
+     * @param expectedState     期望的合同流程状态。
+     * @return 验证通过的合同流程实体。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录或用户未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果流程类型或状态不匹配。
+     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果当前用户不是该流程记录的指定操作员。
+     */
+    ContractProcess getContractProcessByIdAndOperator(Long contractProcessId, String username, ContractProcessType expectedType, ContractProcessState expectedState);
 
+    /**
+     * 执行合同签订操作。
+     *
+     * @param contractProcessId 待签订的合同流程记录ID。
+     * @param signingOpinion    签订意见 (可选)。
+     * @param username          执行签订操作的用户名。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录或用户未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果流程类型或状态不正确。
+     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果用户无权执行此操作。
+     */
     void signContract(Long contractProcessId, String signingOpinion, String username);
+
+    // --- 新增“定稿合同”相关方法声明 ---
+
+    /**
+     * 获取当前用户（通常假定为起草人，或具有特定权限的用户）的待定稿合同列表。
+     *
+     * @param username 当前登录用户的用户名。
+     * @param contractNameSearch 用于按合同名称进行模糊搜索的关键字 (可选, 为null或空则不进行名称筛选)。
+     * @param pageable 分页和排序参数。
+     * @return 分页后的待定稿合同列表。列表中的合同应处于 'PENDING_FINALIZATION' 状态。
+     */
+    Page<Contract> getContractsPendingFinalizationForUser(String username, String contractNameSearch, Pageable pageable);
+
+    /**
+     * 获取指定合同的详细信息，用于用户进行定稿操作前的审查。
+     * 此方法应包含权限检查，确保当前用户有权对该合同进行定稿操作，
+     * 并且合同处于正确的状态（例如 'PENDING_FINALIZATION'）。
+     *
+     * @param contractId 要获取详情的合同ID。
+     * @param username 当前登录用户的用户名。
+     * @return 合同实体，包含了定稿所需的信息。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果指定ID的合同不存在。
+     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果当前用户无权定稿此合同。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不适合进行定稿。
+     */
+    Contract getContractForFinalization(Long contractId, String username);
+
+    /**
+     * 执行合同定稿操作。
+     * 此操作会将合同状态从 'PENDING_FINALIZATION' 更新到下一个流程状态（例如 'PENDING_APPROVAL'）。
+     * 可能会涉及更新合同内容（如果业务允许在定稿时修改）、替换或添加附件、记录定稿意见等。
+     *
+     * @param contractId 要定稿的合同ID。
+     * @param finalizationComments 用户在定稿时提交的意见或备注 (可选)。
+     * @param newAttachment 用户在定稿时上传的新附件 (可选, 如果上传会替换旧附件)。
+     * @param username 执行定稿操作的用户名。
+     * @return 已定稿并更新状态后的合同实体。
+     * @throws IOException 如果处理附件时发生I/O错误。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果指定ID的合同或用户不存在。
+     * @throws com.example.contractmanagementsystem.exception.AccessDeniedException 如果当前用户无权定稿此合同。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不适合定稿，或发生其他业务校验失败。
+     */
+    Contract finalizeContract(Long contractId, String finalizationComments, MultipartFile newAttachment, String username) throws IOException;
 }
