@@ -26,7 +26,7 @@ public class ContractProcess {
     @JoinColumn(name = "contract_id", nullable = false)
     private Contract contract;
 
-    @Column(name = "con_num", length = 20) // 可选冗余字段
+    @Column(name = "con_num", length = 50) // 可选冗余字段
     private String contractNumber;
 
     @Enumerated(EnumType.ORDINAL) // 或 EnumType.STRING

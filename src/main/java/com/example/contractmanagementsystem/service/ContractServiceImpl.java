@@ -12,6 +12,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import com.example.contractmanagementsystem.repository.AuditLogRepository;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -230,6 +231,7 @@ public class ContractServiceImpl implements ContractService {
             Pageable pageable) {
         User currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessLogicException("用户不存在: " + username));
+
         Specification<ContractProcess> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("type"), type));
@@ -239,9 +241,30 @@ public class ContractServiceImpl implements ContractService {
                 Join<ContractProcess, Contract> contractJoin = root.join("contract");
                 predicates.add(cb.like(contractJoin.get("contractName"), "%" + contractNameSearch.trim() + "%"));
             }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
-        return contractProcessRepository.findAll(spec, pageable);
+
+        Page<ContractProcess> resultPage = contractProcessRepository.findAll(spec, pageable);
+
+        // 在事务内显式初始化需要在模板中访问的懒加载属性
+        resultPage.getContent().forEach(process -> {
+            Hibernate.initialize(process.getOperator()); // 初始化操作员
+            if (process.getOperator() != null) {
+                Hibernate.initialize(process.getOperator().getRoles()); // 如果模板中会访问操作员的角色
+            }
+
+            Hibernate.initialize(process.getContract()); // 初始化关联的合同
+            if (process.getContract() != null) {
+                Hibernate.initialize(process.getContract().getCustomer());  // 初始化合同关联的客户
+                Hibernate.initialize(process.getContract().getDrafter());   // 初始化合同关联的起草人
+                if (process.getContract().getDrafter() != null) {
+                    Hibernate.initialize(process.getContract().getDrafter().getRoles()); // 如果模板中会访问起草人的角色
+                }
+            }
+        });
+
+        return resultPage;
     }
 
     @Override
