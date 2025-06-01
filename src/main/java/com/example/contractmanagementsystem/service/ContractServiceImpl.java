@@ -141,7 +141,7 @@ public class ContractServiceImpl implements ContractService {
         contract.setDrafter(drafter);
         contract.setAttachmentPath(attachmentFilename);
 
-        contract.setStatus(ContractStatus.PENDING_ASSIGNMENT); // 起草后等待分配
+        contract.setStatus(ContractStatus.PENDING_ASSIGNMENT);
 
         Contract savedContract = contractRepository.save(contract);
         auditLogService.logAction(username, "CONTRACT_DRAFTED_FOR_ASSIGNMENT", "用户 " + username + " 起草了合同: " + savedContract.getContractName() + " (ID: " + savedContract.getId() + ")，状态变更为待分配。");
@@ -210,9 +210,11 @@ public class ContractServiceImpl implements ContractService {
         Page<Contract> contractsPage = contractRepository.findAll(spec, pageable);
         contractsPage.getContent().forEach(contract -> {
             Hibernate.initialize(contract.getCustomer());
-            Hibernate.initialize(contract.getDrafter());
-            if (contract.getDrafter() != null) {
-                Hibernate.initialize(contract.getDrafter().getRoles());
+            User drafter = contract.getDrafter();
+            if (drafter != null) {
+                Hibernate.initialize(drafter);
+                Hibernate.initialize(drafter.getRoles());
+                drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
             }
         });
         return contractsPage;
@@ -230,9 +232,11 @@ public class ContractServiceImpl implements ContractService {
         }
 
         Hibernate.initialize(contract.getCustomer());
-        Hibernate.initialize(contract.getDrafter());
-        if (contract.getDrafter() != null) {
-            Hibernate.initialize(contract.getDrafter().getRoles());
+        User drafter = contract.getDrafter();
+        if (drafter != null) {
+            Hibernate.initialize(drafter);
+            Hibernate.initialize(drafter.getRoles());
+            drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         return contract;
     }
@@ -430,6 +434,9 @@ public class ContractServiceImpl implements ContractService {
                 Fetch<ContractProcess, Contract> contractFetch = root.fetch("contract", JoinType.LEFT);
                 contractFetch.fetch("customer", JoinType.LEFT);
                 Fetch<Contract, User> drafterFetch = contractFetch.fetch("drafter", JoinType.LEFT);
+                // **修正点：移除 drafterFetch.getJavaMember()**
+                // 如果需要进一步 fetch drafter 的 roles:
+                // drafterFetch.fetch("roles", JoinType.LEFT);
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -438,10 +445,20 @@ public class ContractServiceImpl implements ContractService {
 
         resultPage.getContent().forEach(process -> {
             Hibernate.initialize(process.getOperator());
+            User operator = process.getOperator();
+            if (operator != null) {
+                Hibernate.initialize(operator.getRoles());
+                operator.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+            }
             Hibernate.initialize(process.getContract());
             if (process.getContract() != null) {
                 Hibernate.initialize(process.getContract().getCustomer());
-                Hibernate.initialize(process.getContract().getDrafter());
+                User drafter = process.getContract().getDrafter();
+                if (drafter != null) {
+                    Hibernate.initialize(drafter);
+                    Hibernate.initialize(drafter.getRoles());
+                    drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+                }
             }
         });
         return resultPage;
@@ -483,7 +500,7 @@ public class ContractServiceImpl implements ContractService {
             if (query.getResultType().equals(ContractProcess.class)) {
                 Fetch<ContractProcess, Contract> contractFetch = root.fetch("contract", JoinType.LEFT);
                 contractFetch.fetch("customer", JoinType.LEFT);
-                contractFetch.fetch("drafter", JoinType.LEFT);
+                contractFetch.fetch("drafter", JoinType.LEFT); // Fetching drafter is enough here
             }
             query.orderBy(cb.desc(root.get("createdAt")));
             return cb.and(mainPredicates.toArray(new Predicate[0]));
@@ -491,10 +508,21 @@ public class ContractServiceImpl implements ContractService {
 
         List<ContractProcess> tasks = contractProcessRepository.findAll(spec);
         tasks.forEach(task -> {
+            // Initialize necessary associations for JSON serialization / Thymeleaf access
             Hibernate.initialize(task.getContract());
             if (task.getContract() != null) {
                 Hibernate.initialize(task.getContract().getCustomer());
-                Hibernate.initialize(task.getContract().getDrafter());
+                User drafter = task.getContract().getDrafter();
+                if (drafter != null) {
+                    Hibernate.initialize(drafter); // Initialize the drafter User object
+                    Hibernate.initialize(drafter.getRoles()); // Initialize roles of the drafter
+                    drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities())); // And their functionalities
+                }
+            }
+            User operator = task.getOperator();
+            if (operator != null) { // Initialize operator (current user) roles and functionalities
+                Hibernate.initialize(operator.getRoles());
+                operator.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
             }
         });
         return tasks;
@@ -526,9 +554,11 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = contractRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("合同不存在，ID: " + id));
         Hibernate.initialize(contract.getCustomer());
-        Hibernate.initialize(contract.getDrafter());
-        if (contract.getDrafter() != null) {
-            Hibernate.initialize(contract.getDrafter().getRoles());
+        User drafter = contract.getDrafter();
+        if (drafter != null) {
+            Hibernate.initialize(drafter);
+            Hibernate.initialize(drafter.getRoles());
+            drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         return contract;
     }
@@ -563,14 +593,17 @@ public class ContractServiceImpl implements ContractService {
         Hibernate.initialize(process.getContract());
         if (process.getContract() != null) {
             Hibernate.initialize(process.getContract().getCustomer());
-            Hibernate.initialize(process.getContract().getDrafter());
-            if (process.getContract().getDrafter() != null) {
-                Hibernate.initialize(process.getContract().getDrafter().getRoles());
+            User drafter = process.getContract().getDrafter();
+            if (drafter != null) {
+                Hibernate.initialize(drafter);
+                Hibernate.initialize(drafter.getRoles());
+                drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
             }
         }
-        Hibernate.initialize(process.getOperator());
-        if (process.getOperator() != null) {
-            Hibernate.initialize(process.getOperator().getRoles());
+        User operator = process.getOperator();
+        if (operator != null) {
+            Hibernate.initialize(operator.getRoles());
+            operator.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         return process;
     }
@@ -615,19 +648,23 @@ public class ContractServiceImpl implements ContractService {
             }
             if (query.getResultType().equals(Contract.class)) {
                 root.fetch("customer", JoinType.LEFT);
-                root.fetch("drafter", JoinType.LEFT);
+                root.fetch("drafter", JoinType.LEFT); // Fetching drafter is enough here for the main entity
             }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
         Page<Contract> contractsPage = contractRepository.findAll(spec, pageable);
         contractsPage.getContent().forEach(contract -> {
             Hibernate.initialize(contract.getCustomer());
-            Hibernate.initialize(contract.getDrafter());
+            User drafter = contract.getDrafter();
+            if (drafter != null) {
+                Hibernate.initialize(drafter);
+                Hibernate.initialize(drafter.getRoles()); // Initialize roles
+                drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities())); // Initialize functionalities for each role
+            }
         });
         return contractsPage;
     }
 
-    // --- 新增：为仪表盘统计信息添加方法实现 ---
     @Override
     @Transactional(readOnly = true)
     public long countActiveContracts() {
@@ -642,18 +679,11 @@ public class ContractServiceImpl implements ContractService {
 
         Specification<Contract> spec = (root, query, criteriaBuilder) -> {
             Predicate statusPredicate = criteriaBuilder.equal(root.get("status"), ContractStatus.ACTIVE);
-            // 只统计结束日期在今天之后（不包括今天），但在 futureDate 或之前（包括 futureDate）的合同
             Predicate endDateRangePredicate = criteriaBuilder.between(root.get("endDate"), today.plusDays(1), futureDate);
-            // 或者，如果您想包括今天到期的合同，可以使用：
-            // Predicate endDateRangePredicate = criteriaBuilder.between(root.get("endDate"), today, futureDate);
-
-            // 确保合同尚未过期（虽然 ACTIVE 状态通常意味着未过期，但双重检查无害）
             Predicate notYetExpiredPredicate = criteriaBuilder.greaterThanOrEqualTo(root.get("endDate"), today);
 
             return criteriaBuilder.and(statusPredicate, endDateRangePredicate, notYetExpiredPredicate);
         };
-        // 确保 ContractRepository 继承了 JpaSpecificationExecutor<Contract>
         return contractRepository.count(spec);
     }
-    // --- 结束新增 ---
 }
