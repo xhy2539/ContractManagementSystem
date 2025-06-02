@@ -12,7 +12,7 @@ public class ContractDraftRequest {
     @NotBlank(message = "合同名称不能为空")
     private String contractName;
 
-    @NotNull(message = "必须选择一个客户") // 新增字段，用于接收前端选择的客户ID
+    @NotNull(message = "必须选择一个客户")
     private Long selectedCustomerId;
 
     @NotNull(message = "开始时间不能为空")
@@ -24,6 +24,9 @@ public class ContractDraftRequest {
     private LocalDate endDate;
 
     private String contractContent;
+
+    // 新增字段，用于存储通过断点续传成功后，服务器返回的实际存储文件名
+    private String attachmentServerFileName;
 
     // Getters and Setters
     public String getContractName() {
@@ -64,5 +67,13 @@ public class ContractDraftRequest {
 
     public void setContractContent(String contractContent) {
         this.contractContent = contractContent;
+    }
+
+    public String getAttachmentServerFileName() { // Getter for the new field
+        return attachmentServerFileName;
+    }
+
+    public void setAttachmentServerFileName(String attachmentServerFileName) { // Setter for the new field
+        this.attachmentServerFileName = attachmentServerFileName;
     }
 }

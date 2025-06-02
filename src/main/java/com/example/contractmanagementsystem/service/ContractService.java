@@ -8,7 +8,7 @@ import com.example.contractmanagementsystem.entity.ContractProcessType;
 import org.springframework.security.access.AccessDeniedException; // 确保导入
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.multipart.MultipartFile;
+// import org.springframework.web.multipart.MultipartFile; // <--- 移除此导入
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -23,16 +23,17 @@ public interface ContractService {
 
     /**
      * 起草新合同。
+     * 附件现在通过 contractDraftRequest.attachmentServerFileName 间接处理。
      *
-     * @param request    合同起草请求数据（包含合同名称、客户信息、日期、内容等）。
-     * @param attachment 合同附件文件（可选）。
+     * @param request    合同起草请求数据（包含合同名称、客户信息、日期、内容、以及已上传附件的服务器端文件名等）。
      * @param username   当前起草人的用户名。
      * @return 新创建并保存的合同实体。
-     * @throws IOException 如果附件处理过程中发生I/O错误。
+     * @throws IOException 如果（例如在服务层实现中仍有其他）I/O错误。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果业务逻辑校验失败 (例如日期错误)。
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果关联的客户或用户不存在。
      */
-    Contract draftContract(ContractDraftRequest request, MultipartFile attachment, String username) throws IOException;
+    // 修改点：移除了 MultipartFile attachment 参数
+    Contract draftContract(ContractDraftRequest request, String username) throws IOException;
 
     /**
      * 获取合同状态统计数据。
@@ -172,20 +173,25 @@ public interface ContractService {
 
     /**
      * 执行合同定稿操作。
-     * 此操作会将合同状态从 'PENDING_FINALIZATION' 更新到下一个流程状态（例如 'PENDING_APPROVAL'）。
-     * 可能会涉及更新合同内容（如果业务允许在定稿时修改）、替换或添加附件、记录定稿意见等。
+     * 附件通过 attachmentServerFileName 间接处理，该文件名应由前端断点续传成功后提供。
+     * 如果在定稿时允许替换附件，并且新附件已通过分块上传，则 attachmentServerFileName 应为新附件的服务器端文件名。
      *
      * @param contractId 要定稿的合同ID。
      * @param finalizationComments 用户在定稿时提交的意见或备注 (可选)。
-     * @param newAttachment 用户在定稿时上传的新附件 (可选, 如果上传会替换旧附件)。
+     * @param attachmentServerFileName 已上传的附件在服务器上的文件名 (可选, 如果有附件或替换附件)。
      * @param username 执行定稿操作的用户名。
      * @return 已定稿并更新状态后的合同实体。
-     * @throws IOException 如果处理附件时发生I/O错误。
+     * @throws IOException 如果（例如在服务层实现中仍有其他）I/O错误。
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果指定ID的合同或用户不存在。
      * @throws AccessDeniedException 如果当前用户无权定稿此合同。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不适合定稿，或发生其他业务校验失败。
      */
-    Contract finalizeContract(Long contractId, String finalizationComments, MultipartFile newAttachment, String username) throws IOException, AccessDeniedException;
+    // 修改点：MultipartFile newAttachment 参数替换为 String attachmentServerFileName
+    Contract finalizeContract(Long contractId, String finalizationComments, String attachmentServerFileName, String username) throws IOException, AccessDeniedException;
+
+    // 新增会签处理方法声明 (如果之前没有)
+    void processCountersign(Long contractProcessId, String comments, String username, boolean isApproved) throws AccessDeniedException;
+
 
     // --- 新增：为仪表盘统计信息添加方法声明 ---
     /**
