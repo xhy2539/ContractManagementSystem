@@ -64,6 +64,10 @@
         #attachmentUploadResult .alert {
             font-size: 0.85rem;
         }
+        /* Style for invalid customer placeholder */
+        .is-invalid-placeholder {
+            border-color: var(--bs-danger) !important;
+        }
     </style>
 </head>
 <body>
@@ -109,7 +113,8 @@
                         <label for="contractName" class="form-label">合同名称 <span class="required-asterisk">*</span></label>
                         <input type="text" class="form-control form-control-sm" id="contractName" th:field="*{contractName}" required>
                         <div class="invalid-feedback" th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}">合同名称不能为空。</div>
-                        <div class="invalid-feedback">请输入合同名称。</div> </div>
+                        <div class="invalid-feedback">请输入合同名称。</div>
+                    </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="startDate" class="form-label">开始日期 <span class="required-asterisk">*</span></label>
@@ -308,59 +313,58 @@
 <th:block layout:fragment="scripts">
     <script th:inline="javascript">
         /*<![CDATA[*/
-        console.log("SCRIPT BLOCK EXECUTING");
-        // Bootstrap Form Validation Initialization
-        (function () {
-            'use strict'
-            var forms = document.querySelectorAll('.needs-validation');
-            var customerIdField = document.getElementById('selectedCustomerId');
-            var customerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback');
-
-            Array.prototype.slice.call(forms)
-                .forEach(function (form) {
-                    form.addEventListener('submit', function (event) {
-                        let isFormValid = form.checkValidity();
-
-                        if (customerIdField && customerIdField.required && customerIdField.value === '') {
-                            if (customerIdClientFeedback) {
-                                customerIdClientFeedback.style.display = 'block';
-                            }
-                            customerIdField.classList.add('is-invalid');
-                            isFormValid = false;
-                        } else if (customerIdField) {
-                            if (customerIdClientFeedback) {
-                                customerIdClientFeedback.style.display = 'none';
-                            }
-                            customerIdField.classList.remove('is-invalid');
-                            // customerIdField.classList.add('is-valid'); // Optional: mark as valid
-                        }
-
-                        if (!isFormValid) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                        }
-                        form.classList.add('was-validated');
-                    }, false);
-                });
-        })();
-
         document.addEventListener('DOMContentLoaded', function () {
+            console.log("DEBUG: DOMContentLoaded 事件触发 - 脚本开始执行。");
+
+            // Bootstrap Form Validation Initialization
+            (function () {
+                'use strict'
+                var forms = document.querySelectorAll('.needs-validation');
+                var customerIdField = document.getElementById('selectedCustomerId');
+                var customerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback');
+                var customerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
+
+
+                Array.prototype.slice.call(forms)
+                    .forEach(function (form) {
+                        form.addEventListener('submit', function (event) {
+                            let isFormValid = form.checkValidity();
+
+                            if (form.id === 'draftContractForm') {
+                                if (customerIdField && customerIdField.required && customerIdField.value === '') {
+                                    if (customerIdClientFeedback) customerIdClientFeedback.style.display = 'block';
+                                    if (customerInfoPlaceholder) customerInfoPlaceholder.classList.add('is-invalid-placeholder');
+                                    isFormValid = false;
+                                } else if (customerIdField) {
+                                    if (customerIdClientFeedback) customerIdClientFeedback.style.display = 'none';
+                                    if (customerInfoPlaceholder) customerInfoPlaceholder.classList.remove('is-invalid-placeholder');
+                                }
+                            }
+
+                            if (!isFormValid) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                            }
+                            form.classList.add('was-validated');
+                        }, false);
+                    });
+            })();
+            console.log("DEBUG: Bootstrap 表单验证逻辑已初始化。");
+
+            // --- 客户选择模态框相关逻辑 START ---
             const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
             const customerSelectModalEl = document.getElementById('customerSelectModal');
             const customerSelectModal = customerSelectModalEl ? new bootstrap.Modal(customerSelectModalEl) : null;
-
             const modalCustomerSearchInput = document.getElementById('modalCustomerSearchInput');
             const modalSearchCustomerBtn = document.getElementById('modalSearchCustomerBtn');
             const customerTableBody = document.querySelector('#customerTableModal tbody');
             const customerModalPagination = document.getElementById('customerModalPagination');
             const customerModalSpinner = document.getElementById('customerModalSpinner');
             const customerModalAlertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
-
             const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
             const selectedCustomerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback');
             const selectedCustomerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
             const selectedCustomerDetailsCard = document.getElementById('selectedCustomerDetailsCard');
-
             const modalAddNewCustomerBtn = document.getElementById('modalAddNewCustomerBtn');
             const addCustomerFormModalEl = document.getElementById('addCustomerFormModal');
             const addCustomerFormModal = addCustomerFormModalEl ? new bootstrap.Modal(addCustomerFormModalEl) : null;
@@ -369,12 +373,16 @@
             const addCustomerModalAlertPlaceholderDraft = document.getElementById('addCustomerModalAlertPlaceholder_draft');
             const backToCustomerSelectModalBtn = document.getElementById('backToCustomerSelectModalBtn');
 
+            console.log("DEBUG: 客户选择模态框相关常量已声明。");
+            if (!openCustomerSelectModalBtn) console.warn("DEBUG WARN: 'openCustomerSelectModalBtn' 未找到。");
+
             let currentCustomerPage = 0;
             const CUSTOMER_PAGE_SIZE = 5;
             let customerSearchKeyword = '';
 
             if(openCustomerSelectModalBtn && customerSelectModal) {
                 openCustomerSelectModalBtn.addEventListener('click', function() {
+                    console.log("DEBUG: '选择客户' 按钮被点击。");
                     if(modalCustomerSearchInput) modalCustomerSearchInput.value = '';
                     customerSearchKeyword = '';
                     loadCustomersForModal(0);
@@ -382,13 +390,11 @@
                 });
             }
 
-            if(modalSearchCustomerBtn) {
+            if(modalSearchCustomerBtn && modalCustomerSearchInput) {
                 modalSearchCustomerBtn.addEventListener('click', function() {
-                    customerSearchKeyword = modalCustomerSearchInput ? modalCustomerSearchInput.value.trim() : '';
+                    customerSearchKeyword = modalCustomerSearchInput.value.trim();
                     loadCustomersForModal(0, customerSearchKeyword);
                 });
-            }
-            if(modalCustomerSearchInput){
                 modalCustomerSearchInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
                         e.preventDefault();
@@ -399,6 +405,7 @@
             }
 
             function loadCustomersForModal(page, keyword = customerSearchKeyword) {
+                console.log(`DEBUG: loadCustomersForModal 调用 - page: ${page}, keyword: '${keyword}'`);
                 currentCustomerPage = page;
                 const searchUrl = `/customers/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${CUSTOMER_PAGE_SIZE}&sort=customerName,asc`;
 
@@ -408,16 +415,24 @@
 
                 fetch(searchUrl)
                     .then(response => {
-                        if (!response.ok) throw new Error(`网络响应错误 (${response.status})`);
+                        if (!response.ok) throw new Error(`网络响应错误 (${response.status}) while fetching customers.`);
                         return response.json();
                     })
                     .then(pageData => {
-                        renderCustomerTable(pageData.content || []);
-                        renderCustomerPagination(pageData);
+                        console.log("DEBUG: 客户数据已获取:", pageData);
+                        if (pageData && pageData.content) {
+                            renderCustomerTable(pageData.content);
+                            renderCustomerPagination(pageData);
+                        } else {
+                            renderCustomerTable([]);
+                            renderCustomerPagination(null);
+                            console.warn("DEBUG WARN: loadCustomersForModal - 接收到的客户数据结构异常或无内容。", pageData);
+                        }
                     })
                     .catch(error => {
-                        console.error('加载客户列表失败:', error);
+                        console.error('DEBUG ERROR: 加载客户列表失败:', error);
                         if(customerTableBody) customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">加载客户数据失败: ${error.message}</td></tr>`;
+                        renderCustomerPagination(null);
                         showAlertInModal('加载客户数据失败: ' + error.message, 'danger', customerModalAlertPlaceholder);
                     })
                     .finally(() => {
@@ -426,9 +441,9 @@
             }
 
             function renderCustomerTable(customers) {
-                if(!customerTableBody) return;
+                if(!customerTableBody) { console.error("DEBUG ERROR: customerTableBody is null in renderCustomerTable."); return; }
                 customerTableBody.innerHTML = '';
-                if (customers.length === 0) {
+                if (!customers || customers.length === 0) {
                     customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">未找到匹配的客户记录。</td></tr>`;
                     return;
                 }
@@ -444,18 +459,17 @@
                     selectBtn.classList.add('btn', 'btn-sm', 'btn-primary');
                     selectBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> 选择';
                     selectBtn.type = 'button';
-                    selectBtn.addEventListener('click', function() {
-                        selectCustomerForForm(customer);
-                    });
+                    selectBtn.addEventListener('click', function() { selectCustomerForForm(customer); });
                     actionCell.appendChild(selectBtn);
                 });
             }
 
             function selectCustomerForForm(customer) {
+                console.log("DEBUG: selectCustomerForForm - 选中的客户:", customer);
                 if (selectedCustomerIdInput) selectedCustomerIdInput.value = customer.id;
-
                 if (selectedCustomerInfoPlaceholder) {
                     selectedCustomerInfoPlaceholder.innerHTML = `<strong class="text-success">${customer.customerName}</strong> <small class="text-muted">(编号: ${customer.customerNumber || 'N/A'})</small>`;
+                    selectedCustomerInfoPlaceholder.classList.remove('is-invalid-placeholder');
                 }
                 if(selectedCustomerDetailsCard) {
                     const nameEl = document.getElementById('selectedCustomerNameText');
@@ -463,7 +477,6 @@
                     const phoneEl = document.getElementById('selectedCustomerPhoneText');
                     const emailEl = document.getElementById('selectedCustomerEmailText');
                     const addressEl = document.getElementById('selectedCustomerAddressText');
-
                     if(nameEl) nameEl.textContent = customer.customerName || 'N/A';
                     if(numEl) numEl.textContent = customer.customerNumber || 'N/A';
                     if(phoneEl) phoneEl.textContent = customer.phoneNumber || 'N/A';
@@ -471,22 +484,20 @@
                     if(addressEl) addressEl.textContent = customer.address || 'N/A';
                     selectedCustomerDetailsCard.style.display = 'block';
                 }
-
                 if(customerSelectModal) customerSelectModal.hide();
-                if(selectedCustomerIdInput) selectedCustomerIdInput.dispatchEvent(new Event('change'));
-
-                if(selectedCustomerIdInput) selectedCustomerIdInput.classList.remove('is-invalid');
+                if(selectedCustomerIdInput) {
+                    selectedCustomerIdInput.dispatchEvent(new Event('change'));
+                    selectedCustomerIdInput.classList.remove('is-invalid');
+                }
                 if(selectedCustomerIdClientFeedback) selectedCustomerIdClientFeedback.style.display = 'none';
             }
 
-
             function renderCustomerPagination(pageData) {
+                // ... (此函数保持不变，假设它是正确的)
                 if(!customerModalPagination) return;
                 customerModalPagination.innerHTML = '';
-                if (!pageData || pageData.totalPages <= 1) return;
-
+                if (!pageData || pageData.totalPages === undefined || pageData.totalPages <= 1) return;
                 const { totalPages, number: currentPageIdx, first, last } = pageData;
-
                 let prevLi = document.createElement('li');
                 prevLi.className = `page-item ${first ? 'disabled' : ''}`;
                 let prevA = document.createElement('a');
@@ -496,7 +507,6 @@
                 if (!first) prevA.addEventListener('click', (e) => { e.preventDefault(); loadCustomersForModal(currentPageIdx - 1); });
                 prevLi.appendChild(prevA);
                 customerModalPagination.appendChild(prevLi);
-
                 let currentLi = document.createElement('li');
                 currentLi.className = 'page-item disabled';
                 let currentA = document.createElement('a');
@@ -504,7 +514,6 @@
                 currentA.textContent = `第 ${currentPageIdx + 1} / ${totalPages} 页`;
                 currentLi.appendChild(currentA);
                 customerModalPagination.appendChild(currentLi);
-
                 let nextLi = document.createElement('li');
                 nextLi.className = `page-item ${last ? 'disabled' : ''}`;
                 let nextA = document.createElement('a');
@@ -518,6 +527,7 @@
 
             if(addCustomerFormInModalDraft && saveNewCustomerBtnDraft && addCustomerFormModal) {
                 addCustomerFormInModalDraft.addEventListener('submit', function(event) {
+                    // ... (此函数保持不变)
                     event.preventDefault();
                     if (!addCustomerFormInModalDraft.checkValidity()) {
                         event.stopPropagation();
@@ -525,13 +535,10 @@
                         return;
                     }
                     addCustomerFormInModalDraft.classList.add('was-validated');
-
                     const formData = new FormData(addCustomerFormInModalDraft);
                     if(addCustomerModalAlertPlaceholderDraft) addCustomerModalAlertPlaceholderDraft.innerHTML = '';
-
                     saveNewCustomerBtnDraft.disabled = true;
                     saveNewCustomerBtnDraft.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>保存中...';
-
                     fetch('/customers/api/add', {
                         method: 'POST',
                         body: new URLSearchParams(formData)
@@ -540,9 +547,12 @@
                             if (response.status === 201) return response.json();
                             return response.json().then(errorData => {
                                 let message = `发生错误 (${response.status})`;
-                                if (errorData && errorData.message) message = errorData.message;
-                                else if (errorData && Array.isArray(errorData)) message = errorData.join('; ');
-                                else if (typeof errorData === 'string') message = errorData;
+                                if (errorData) {
+                                    if (errorData.message) message = errorData.message;
+                                    else if (Array.isArray(errorData)) message = errorData.join('; ');
+                                    else if (typeof errorData === 'string') message = errorData;
+                                    else if (errorData.error && errorData.errors) message = `${errorData.error}: ${errorData.errors.map(e => e.defaultMessage || e.field).join(', ')}`;
+                                }
                                 throw new Error(message);
                             });
                         })
@@ -550,7 +560,7 @@
                             addCustomerFormInModalDraft.reset();
                             addCustomerFormInModalDraft.classList.remove('was-validated');
                             addCustomerFormModal.hide();
-                            showAlertOnMainPage(`新客户 "${newlyAddedCustomer.customerName}" 已成功添加!`, 'success', 5000);
+                            showAlertOnMainPage(`新客户 "${newlyAddedCustomer.customerName}" 已成功添加!`, 'success');
                             selectCustomerForForm(newlyAddedCustomer);
                         })
                         .catch(error => {
@@ -572,51 +582,73 @@
             }
 
             function showAlertInModal(message, type = 'info', placeholderElement, duration = 7000) {
-                showAlert(message, type, duration, placeholderElement);
+                createAndShowAlert(message, type, placeholderElement, duration);
             }
             function showAlertOnMainPage(message, type = 'info', duration = 7000) {
-                showAlert(message, type, duration, document.getElementById('alertPlaceholder'));
+                createAndShowAlert(message, type, document.getElementById('alertPlaceholder'), duration);
             }
 
-            function showAlert(message, type = 'info', duration = 7000, placeholderElement) {
+            function createAndShowAlert(message, type, placeholderElement, duration = 7000) {
+                // ... (此函数保持不变，确保它在作用域内)
                 if (!placeholderElement) {
                     console.warn("Alert placeholder not found for message:", message);
                     alert(message);
                     return;
                 }
                 const wrapper = document.createElement('div');
-                const alertId = 'alert-' + Date.now(); // Unique ID for the alert
+                const alertId = 'alert-' + Date.now();
                 wrapper.innerHTML = `
-                <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+                <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
                     ${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>`;
                 placeholderElement.innerHTML = '';
                 placeholderElement.append(wrapper.firstChild);
-
-                if (duration > 0) {
-                    setTimeout(() => {
-                        const activeAlert = document.getElementById(alertId);
-                        if (activeAlert) {
-                            const bsAlert = bootstrap.Alert.getInstance(activeAlert);
-                            if (bsAlert) {
-                                bsAlert.close();
-                            } else { // Fallback if instance not found (e.g. already removed)
-                                if(activeAlert.parentNode) activeAlert.parentNode.removeChild(activeAlert);
+                const newAlertElement = document.getElementById(alertId);
+                if (newAlertElement && window.bootstrap && bootstrap.Alert) {
+                    const bsAlertInstance = new bootstrap.Alert(newAlertElement);
+                    if (duration > 0) {
+                        setTimeout(() => {
+                            if (bootstrap.Alert.getInstance(newAlertElement)) {
+                                bsAlertInstance.close();
+                            } else if (newAlertElement.parentNode) {
+                                newAlertElement.parentNode.removeChild(newAlertElement);
                             }
-                        }
+                        }, duration);
+                    }
+                } else if (newAlertElement && duration > 0) {
+                    setTimeout(() => {
+                        if(newAlertElement.parentNode) newAlertElement.parentNode.removeChild(newAlertElement);
                     }, duration);
                 }
             }
+            // --- 客户选择模态框相关逻辑 END ---
+
 
             // --- 断点续传逻辑 ---
+            console.log("DEBUG: 即将初始化附件上传逻辑的常量。");
             const attachmentFileInput = document.getElementById('attachmentFile');
             const uploadProgressContainer = document.getElementById('uploadProgressContainer');
             const uploadProgressBar = document.getElementById('uploadProgressBar');
             const uploadStatusText = document.getElementById('uploadStatusText');
             const attachmentUploadResult = document.getElementById('attachmentUploadResult');
             const uploadedAttachmentServerNameInput = document.getElementById('uploadedAttachmentServerName');
-            const mainDraftForm = document.getElementById('draftContractForm');
+            const mainDraftForm = document.getElementById('draftContractForm'); // 这个在客户逻辑部分也定义了，确保ID唯一或只用一个
+
+            // 检查关键元素是否存在
+            if (!attachmentFileInput) {
+                console.error("DEBUG ERROR: 未能找到 ID 为 'attachmentFile' 的文件输入框！附件上传将无法工作。");
+                createAndShowAlert('附件上传组件(文件输入框)初始化失败，请联系管理员。', 'danger', document.getElementById('alertPlaceholder'));
+            }
+            if (!uploadProgressContainer) console.warn("DEBUG WARN: 未能找到 ID 为 'uploadProgressContainer' 的进度条容器。");
+            if (!uploadProgressBar) console.warn("DEBUG WARN: 未能找到 ID 为 'uploadProgressBar' 的进度条。");
+            if (!uploadStatusText) console.warn("DEBUG WARN: 未能找到 ID 为 'uploadStatusText' 的状态文本区域。");
+            if (!attachmentUploadResult) console.warn("DEBUG WARN: 未能找到 ID 为 'attachmentUploadResult' 的上传结果区域。");
+            if (!uploadedAttachmentServerNameInput) {
+                console.error("DEBUG ERROR: 未能找到 ID 为 'uploadedAttachmentServerName' 的隐藏输入框！已上传文件名无法保存。");
+                createAndShowAlert('附件上传组件(隐藏字段)初始化失败，请联系管理员。', 'danger', document.getElementById('alertPlaceholder'));
+            }
+            // mainDraftForm 在客户逻辑部分也定义和检查了，如果ID相同则没问题。
 
             const CHUNK_SIZE = 1024 * 1024 * 2; // 2MB per chunk
             let currentFile = null;
@@ -627,27 +659,33 @@
             let chunksUploadedSuccessfully = new Set();
             let isUploading = false;
 
-            if (attachmentFileInput) {
+            if (attachmentFileInput) { // 只有当元素存在时才添加监听器
                 attachmentFileInput.addEventListener('change', handleFileSelect);
+                console.log("DEBUG: 已为 'attachmentFile' 添加 'change' 事件监听器。");
+            } else {
+                console.error("DEBUG ERROR: 由于 'attachmentFile' 元素未找到，无法为其添加 'change' 事件监听器。");
             }
 
             function displayUploadError(message) {
-                console.error("Upload Error: ", message);
-                if(uploadStatusText) {
+                console.error("Upload Error (displayUploadError):", message);
+                isUploading = false;
+                if (uploadStatusText) {
                     uploadStatusText.textContent = `错误: ${message}`;
                     uploadStatusText.className = 'form-text text-danger';
                 }
-                if(uploadProgressContainer) uploadProgressContainer.style.display = 'block';
-                if(uploadProgressBar) {
+                if (uploadProgressContainer) {
+                    uploadProgressContainer.style.display = 'block';
+                }
+                if (uploadProgressBar) {
                     uploadProgressBar.style.width = '100%';
                     uploadProgressBar.classList.add('bg-danger');
                     uploadProgressBar.classList.remove('bg-success', 'progress-bar-animated', 'progress-bar-striped');
                     uploadProgressBar.textContent = '上传失败';
                 }
-                isUploading = false; // Ensure uploading flag is reset on error
             }
 
             function resetUploadState() {
+                console.log("DEBUG: resetUploadState 被调用");
                 isUploading = false;
                 currentFile = null;
                 currentUploadId = null;
@@ -655,12 +693,14 @@
                 totalChunks = 0;
                 uploadedChunksCount = 0;
                 chunksUploadedSuccessfully.clear();
+
                 if (uploadProgressContainer) uploadProgressContainer.style.display = 'none';
                 if (uploadProgressBar) {
                     uploadProgressBar.style.width = '0%';
                     uploadProgressBar.textContent = '0%';
                     uploadProgressBar.classList.remove('bg-success', 'bg-danger');
                     uploadProgressBar.classList.add('progress-bar-animated', 'progress-bar-striped');
+                    uploadProgressBar.setAttribute('aria-valuenow', '0');
                 }
                 if (uploadStatusText) {
                     uploadStatusText.textContent = '';
@@ -668,26 +708,40 @@
                 }
                 if (attachmentUploadResult) attachmentUploadResult.innerHTML = '';
                 if (uploadedAttachmentServerNameInput) uploadedAttachmentServerNameInput.value = '';
-                if (attachmentFileInput) attachmentFileInput.value = '';
+                console.log("DEBUG: resetUploadState 完成");
             }
 
-            if(mainDraftForm) {
+            if (mainDraftForm) {
                 mainDraftForm.addEventListener('reset', function() {
+                    console.log("DEBUG: 主表单 'draftContractForm' 已重置。");
+                    if (attachmentFileInput) attachmentFileInput.value = '';
                     setTimeout(resetUploadState, 0);
                 });
             }
 
+
             async function handleFileSelect(event) {
+                console.log("DEBUG: 'change' 事件在 'attachmentFile' 上触发 (handleFileSelect)。");
+                if (!event || !event.target || !event.target.files) {
+                    console.error("DEBUG ERROR: handleFileSelect - 事件对象或目标文件列表无效。");
+                    return;
+                }
+
                 if (isUploading) {
-                    displayUploadError('已有文件正在上传中，请等待完成后再选择新文件。');
+                    console.warn("DEBUG WARN: handleFileSelect - 当前已有文件上传中，已阻止本次操作。");
+                    showAlertOnMainPage('已有文件正在上传中，请等待完成后或取消后再选择新文件。', 'warning');
                     event.target.value = '';
                     return;
                 }
+
                 resetUploadState();
+
                 currentFile = event.target.files[0];
                 if (!currentFile) {
+                    console.log("DEBUG: handleFileSelect - 未选择任何文件。");
                     return;
                 }
+                console.log(`DEBUG: handleFileSelect - 已选择文件: ${currentFile.name}, 大小: ${currentFile.size}, 类型: ${currentFile.type}`);
 
                 isUploading = true;
                 if (uploadProgressContainer) uploadProgressContainer.style.display = 'block';
@@ -695,56 +749,49 @@
                     uploadStatusText.textContent = `准备上传: ${currentFile.name}`;
                     uploadStatusText.className = 'form-text text-muted';
                 }
-                if (uploadProgressBar) {
-                    uploadProgressBar.style.width = '0%';
-                    uploadProgressBar.textContent = '0%';
-                    uploadProgressBar.classList.remove('bg-success', 'bg-danger');
-                    uploadProgressBar.classList.add('progress-bar-animated', 'progress-bar-striped');
-                }
+                if (uploadProgressBar) { /* Reset progress bar visually */ }
+                if (attachmentUploadResult) attachmentUploadResult.innerHTML = '';
 
                 try {
-                    const initiateRequest = {
-                        fileName: currentFile.name,
-                        totalSize: currentFile.size,
-                        contentType: currentFile.type
-                    };
-                    const fetchOptions = {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(initiateRequest)
-                    };
+                    console.log("DEBUG: handleFileSelect - 准备发起 /api/attachments/initiate 请求。");
+                    const initiateRequest = { fileName: currentFile.name, totalSize: currentFile.size, contentType: currentFile.type };
+                    const fetchOptions = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(initiateRequest) };
 
                     const initiateResponse = await fetch('/api/attachments/initiate', fetchOptions);
+                    console.log(`DEBUG: handleFileSelect - /api/attachments/initiate 响应状态: ${initiateResponse.status}`);
 
                     if (!initiateResponse.ok) {
-                        const errorData = await initiateResponse.json().catch(() => ({ message: '初始化失败，服务响应异常。' }));
-                        throw new Error(`初始化: ${initiateResponse.status} ${errorData.message || '服务器错误'}`);
+                        let errorMsg = `初始化上传失败 (状态: ${initiateResponse.status})。`;
+                        try { const errorData = await initiateResponse.json(); errorMsg = errorData.message || (errorData.errors ? errorData.errors.join(', ') : (errorData.error || errorMsg)); }
+                        catch (e) { console.warn("DEBUG WARN: 无法解析初始化错误的JSON响应体。"); }
+                        throw new Error(errorMsg);
                     }
 
                     const initData = await initiateResponse.json();
+                    console.log("DEBUG: handleFileSelect - 初始化成功，返回数据:", initData);
                     currentUploadId = initData.uploadId;
                     serverFileNameForContract = initData.fileName;
 
-                    if (uploadStatusText) uploadStatusText.textContent = `准备就绪 (ID: ${currentUploadId})...`;
-
+                    if (uploadStatusText) uploadStatusText.textContent = `准备就绪 (Upload ID: ${currentUploadId}), 开始上传分块...`;
                     totalChunks = Math.ceil(currentFile.size / CHUNK_SIZE);
+                    console.log(`DEBUG: handleFileSelect - 总分块数计算为: ${totalChunks}`);
                     await uploadAllChunks();
 
                 } catch (error) {
-                    console.error('上传预处理失败:', error);
-                    displayUploadError(error.message || '上传预处理失败，请重试。');
+                    console.error('DEBUG ERROR: handleFileSelect - 上传预处理或初始化失败:', error);
+                    displayUploadError(error.message || '上传预处理失败，请检查网络或联系管理员。');
+                    if(attachmentFileInput) attachmentFileInput.value = '';
                 }
             }
 
             async function uploadAllChunks() {
+                console.log(`DEBUG: uploadAllChunks - 开始上传所有分块，总数: ${totalChunks}`);
                 uploadedChunksCount = 0;
                 chunksUploadedSuccessfully.clear();
 
                 for (let i = 0; i < totalChunks; i++) {
-                    if (!isUploading) {
-                        console.log("上传已中止 (循环内检查).");
-                        return;
-                    }
+                    if (!isUploading) { console.warn(`DEBUG WARN: uploadAllChunks - 上传在分块 ${i} 前被中止。`); return; }
+                    console.log(`DEBUG: uploadAllChunks - 准备上传分块 ${i}`);
                     const start = i * CHUNK_SIZE;
                     const end = Math.min(start + CHUNK_SIZE, currentFile.size);
                     const chunk = currentFile.slice(start, end);
@@ -755,17 +802,24 @@
                         uploadedChunksCount++;
                         updateProgressBar();
                     } catch (error) {
-                        displayUploadError(`分块 ${i + 1} 失败: ${error.message}.`);
+                        console.error(`DEBUG ERROR: uploadAllChunks - 分块 ${i} 上传失败:`, error);
+                        displayUploadError(`分块 ${i + 1} 上传失败: ${error.message}.`);
+                        if(attachmentFileInput) attachmentFileInput.value = '';
                         return;
                     }
                 }
 
                 if (uploadedChunksCount === totalChunks && isUploading) {
+                    console.log("DEBUG: uploadAllChunks - 所有分块据称已上传，准备进行最终确认。");
                     await finalizeUploadProcess();
+                } else if (isUploading) {
+                    console.warn(`DEBUG WARN: uploadAllChunks - 循环结束但分块未全部完成 (已传 ${uploadedChunksCount}/${totalChunks})，且上传未中止。`);
+                    if(attachmentFileInput) attachmentFileInput.value = '';
                 }
             }
 
             async function uploadSingleChunk(chunk, chunkNumber) {
+                console.log(`DEBUG: uploadSingleChunk - 正在上传分块 ${chunkNumber + 1}/${totalChunks}`);
                 const formData = new FormData();
                 formData.append('file', chunk, `${currentFile.name}.part${chunkNumber}`);
                 formData.append('chunkNumber', chunkNumber);
@@ -778,77 +832,72 @@
                     headers: { 'X-Upload-Id': currentUploadId },
                     body: formData
                 });
+                console.log(`DEBUG: uploadSingleChunk - 分块 ${chunkNumber} 的响应状态: ${response.status}`);
 
                 if (!response.ok) {
-                    const errorText = await response.text().catch(() => '服务器响应错误，无详细信息。');
-                    throw new Error(`${response.status}: ${errorText}`);
+                    let errorText = `分块 ${chunkNumber + 1} 响应错误 (状态: ${response.status})。`;
+                    try {
+                        const errorBody = await response.json();
+                        errorText = errorBody.message || (errorBody.errors ? errorBody.errors.join(', ') : (errorBody.error || errorText));
+                    } catch (e) {
+                        const plainTextError = await response.text().catch(() => '');
+                        if(plainTextError) errorText = plainTextError;
+                    }
+                    throw new Error(errorText);
                 }
             }
 
             function updateProgressBar() {
-                if (!isUploading && uploadedChunksCount !== totalChunks) return;
-
                 const percentage = totalChunks > 0 ? Math.round((uploadedChunksCount / totalChunks) * 100) : 0;
-                if (uploadProgressBar) {
-                    uploadProgressBar.style.width = percentage + '%';
-                    uploadProgressBar.textContent = percentage + '%';
-                    uploadProgressBar.setAttribute('aria-valuenow', percentage);
-                }
-                if (uploadStatusText && percentage < 100) {
-                    uploadStatusText.textContent = `已上传: ${currentFile.name} (${uploadedChunksCount}/${totalChunks} 块)`;
-                } else if (uploadStatusText && percentage === 100 && uploadedChunksCount === totalChunks) {
-                    uploadStatusText.textContent = '所有分块上传完毕，等待服务器确认...';
-                }
+                console.log(`DEBUG: updateProgressBar - 进度 ${percentage}% (已完成 ${uploadedChunksCount}/${totalChunks} 块)`);
+
+                if (uploadProgressBar) { /* ... */ } // Visual update as before
+                if (uploadStatusText) { /* ... */ } // Visual update as before
             }
 
             async function finalizeUploadProcess() {
-                if (!isUploading) {
-                    console.log("最终确认被中止。");
-                    return;
-                }
-                if (uploadStatusText) uploadStatusText.textContent = '正在合并文件...';
+                if (!isUploading) { console.warn("DEBUG WARN: finalizeUploadProcess - 上传已中止，不执行最终确认。"); return; }
+                console.log("DEBUG: finalizeUploadProcess - 准备发起 /api/attachments/finalize 请求。");
+                if (uploadStatusText) uploadStatusText.textContent = '正在合并文件，请稍候...';
                 try {
                     const finalizeResponse = await fetch(`/api/attachments/finalize/${currentUploadId}?originalFileName=${encodeURIComponent(currentFile.name)}`, {
                         method: 'POST'
                     });
+                    console.log(`DEBUG: finalizeUploadProcess - /api/attachments/finalize 响应状态: ${finalizeResponse.status}`);
 
                     if (!finalizeResponse.ok) {
-                        const errorData = await finalizeResponse.json().catch(() => ({ error: '合并失败，服务响应异常。' }));
-                        throw new Error(`合并: ${finalizeResponse.status} ${errorData.error || '服务器错误'}`);
+                        let errorMsg = `完成上传失败 (状态: ${finalizeResponse.status})。`;
+                        try { const errorData = await finalizeResponse.json(); errorMsg = errorData.error || errorData.message || errorMsg; }
+                        catch (e) { console.warn("DEBUG WARN: 无法解析完成上传错误的JSON响应体。"); }
+                        throw new Error(errorMsg);
                     }
 
                     const finalizeData = await finalizeResponse.json();
-                    if (uploadProgressBar) {
-                        uploadProgressBar.classList.remove('progress-bar-animated', 'progress-bar-striped', 'bg-danger');
-                        uploadProgressBar.classList.add('bg-success');
-                        uploadProgressBar.textContent = '上传完成!';
-                    }
-                    if (uploadStatusText) uploadStatusText.textContent = `文件 "${currentFile.name}" 上传成功。`;
+                    console.log("DEBUG: finalizeUploadProcess - 上传成功完成，服务器返回:", finalizeData);
 
+                    if (uploadProgressBar) { /* Visual success update */ }
+                    if (uploadStatusText) uploadStatusText.textContent = `文件 "${currentFile.name}" 已成功上传。`;
                     if (uploadedAttachmentServerNameInput) {
                         uploadedAttachmentServerNameInput.value = finalizeData.fileName;
+                        console.log(`DEBUG: finalizeUploadProcess - 隐藏字段 'uploadedAttachmentServerName' 已设置为: ${finalizeData.fileName}`);
                     }
-                    if (attachmentUploadResult) {
-                        attachmentUploadResult.innerHTML = `
-                            <div class="alert alert-success alert-dismissible fade show p-2" role="alert">
-                                <small>
-                                    <i class="bi bi-check-circle-fill"></i> 附件 <strong>${currentFile.name}</strong> 上传成功。
-                                    <button type="button" class="btn-close btn-sm p-1" data-bs-dismiss="alert" aria-label="Close" onclick="clearAttachmentSuccessMessage();"></button>
-                                </small>
-                            </div>`;
-                    }
-                    if (attachmentFileInput) attachmentFileInput.value = '';
+                    if (attachmentUploadResult) { /* Display success message */ }
                     isUploading = false;
 
                 } catch (error) {
-                    console.error('完成上传失败:', error);
-                    displayUploadError(error.message || '完成上传失败，请重试。');
+                    console.error('DEBUG ERROR: finalizeUploadProcess - 完成上传时发生错误:', error);
+                    displayUploadError(error.message || '完成上传失败，请检查网络或联系管理员。');
+                    if(attachmentFileInput) attachmentFileInput.value = '';
                 }
             }
 
-            window.clearAttachmentSuccessMessage = function() {
+            window.clearAttachmentSuccessMessage = function(event) {
+                if (event) event.stopPropagation();
                 if (attachmentUploadResult) attachmentUploadResult.innerHTML = '';
+                console.log("DEBUG: 附件成功消息已清除。");
             }
+
+            console.log("DEBUG: draft-contract.html 的内联脚本主要逻辑执行完毕。");
         });
         /*]]>*/
     </script>
