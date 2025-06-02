@@ -5,14 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>起草新合同 - 合同管理系统</title>
-
     <th:block layout:fragment="css-links">
     </th:block>
-
     <style layout:fragment="inline-css">
-        .card-header {
-            font-weight: 500;
-        }
+        .card-header { font-weight: 500; }
         #selectedCustomerInfoPlaceholder {
             padding: 0.575rem .75rem;
             border: 1px solid #dee2e6;
@@ -21,52 +17,76 @@
             border-bottom-right-radius: .25rem;
             background-color: #e9ecef;
             line-height: 1.5;
-            min-height: calc(1.5em + .5rem + 2px);
+            min-height: calc(1.5em + .5rem + 2px); /* Updated from .75rem to .5rem for form-control-sm */
             display: flex;
             align-items: center;
-            flex-grow: 1;
+            flex-grow: 1; /* Ensure it takes available space */
         }
-        #customerTableModal tbody tr {
-            cursor: pointer;
-        }
-        #customerTableModal tbody tr:hover {
-            background-color: #f8f9fa;
-        }
-        .modal-xl {
-            max-width: 900px;
-        }
-        .form-label {
-            font-weight: 500;
-        }
-        .required-asterisk {
-            color: var(--bs-danger);
-        }
-        #alertPlaceholder { /* For main page alerts */
-            min-height: 60px; /* Ensure space for alerts */
-            transition: opacity 0.15s linear;
-        }
-        #alertPlaceholder:empty {
-            min-height: 0;
-            opacity: 0;
-        }
-        .form-text {
-            font-size: .875em;
-        }
-        /* Styles for upload progress */
-        #uploadProgressContainer .progress {
-            height: 20px;
-            margin-bottom: 0.5rem;
-        }
-        #uploadProgressBar {
-            font-size: 0.75rem;
-            line-height: 20px;
-        }
-        #attachmentUploadResult .alert {
-            font-size: 0.85rem;
-        }
-        /* Style for invalid customer placeholder */
+        #customerTableModal tbody tr { cursor: pointer; }
+        #customerTableModal tbody tr:hover { background-color: #f8f9fa; }
+        .modal-xl { max-width: 900px; }
+        .form-label { font-weight: 500; }
+        .required-asterisk { color: var(--bs-danger); }
+        #alertPlaceholder { min-height: 60px; transition: opacity 0.15s linear; }
+        #alertPlaceholder:empty { min-height: 0; opacity: 0; }
+        .form-text { font-size: .875em; }
         .is-invalid-placeholder {
             border-color: var(--bs-danger) !important;
+        }
+
+        /* Styles for multi-file upload list */
+        .file-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            background-color: #f8f9fa;
+        }
+        .file-info {
+            flex-grow: 1;
+            margin-right: 1rem;
+            overflow: hidden; /* Prevents long names from breaking layout */
+        }
+        .file-name {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block; /* Important for text-overflow to work */
+        }
+        .file-size, .file-status {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+        .file-actions button {
+            margin-left: 0.5rem;
+        }
+        .file-progress {
+            height: 10px;
+            margin-top: 0.25rem;
+            background-color: #e9ecef;
+            border-radius: .25rem; /* Rounded corners for progress container */
+            overflow: hidden; /* Ensures progress bar stays within rounded corners */
+        }
+        .file-progress-bar {
+            background-color: #0d6efd; /* Bootstrap primary blue */
+            height: 100%;
+            transition: width 0.2s ease-in-out;
+            color: white;
+            font-size: 0.7em;
+            line-height:10px;
+            text-align: center;
+        }
+        .file-list-item.upload-error {
+            border-left: 5px solid var(--bs-danger); /* Red for error */
+            background-color: #fbe9e7; /* Lighter red */
+        }
+        .file-list-item.upload-success {
+            border-left: 5px solid var(--bs-success); /* Green for success */
+            background-color: #e8f5e9; /* Lighter green */
         }
     </style>
 </head>
@@ -103,7 +123,10 @@
             </div>
         </div>
 
+
         <form th:action="@{/contract-manager/draft}" method="post" th:object="${contractDraftRequest}" id="draftContractForm" class="needs-validation" novalidate>
+            <div id="hiddenAttachmentInputsContainer"></div>
+
             <div class="card mb-4 shadow-sm">
                 <div class="card-header bg-light">
                     <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
@@ -142,14 +165,12 @@
                         <button class="btn btn-sm btn-outline-primary" type="button" id="openCustomerSelectModalBtn" style="min-width: 110px;">
                             <i class="bi bi-search me-1"></i> 选择客户
                         </button>
-                        <div id="selectedCustomerInfoPlaceholder">
-                            <span class="text-muted">尚未选择客户</span>
+                        <div id="selectedCustomerInfoPlaceholder" class="form-control-sm"> <span class="text-muted">尚未选择客户</span>
                         </div>
                     </div>
                     <input type="hidden" id="selectedCustomerId" th:field="*{selectedCustomerId}" required>
                     <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('selectedCustomerId')}" th:errors="*{selectedCustomerId}"></div>
                     <div class="invalid-feedback" id="selectedCustomerIdClientFeedback">请选择一个签约客户。</div>
-
 
                     <div id="selectedCustomerDetailsCard" class="card mt-2" style="display: none;">
                         <div class="card-body p-2">
@@ -165,6 +186,7 @@
                 </div>
             </div>
 
+
             <div class="card mb-4 shadow-sm">
                 <div class="card-header bg-light">
                     <i class="bi bi-file-text-fill me-2"></i>合同条款与附件
@@ -176,26 +198,18 @@
                         <div class="invalid-feedback" th:if="${#fields.hasErrors('contractContent')}" th:errors="*{contractContent}"></div>
                     </div>
                     <div class="mb-3">
-                        <label for="attachmentFile" class="form-label">上传合同附件 (可选)</label>
-                        <input type="file" class="form-control form-control-sm" id="attachmentFile">
-                        <div class="form-text mb-2">支持的格式：PDF, 图片 (JPEG, PNG, GIF, BMP), Word文档 (doc, docx)。</div>
+                        <label for="attachmentFilesInput" class="form-label">上传合同附件 (可选, 可多选)</label>
+                        <input type="file" class="form-control form-control-sm" id="attachmentFilesInput" multiple>
+                        <div class="form-text mb-2">支持的格式：PDF, 图片 (JPEG, PNG), Word文档 (doc, docx)。可按住Ctrl/Shift选择多个文件。</div>
 
-                        <div id="uploadProgressContainer" class="mt-2" style="display: none;">
-                            <div class="progress">
-                                <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                            </div>
-                            <small id="uploadStatusText" class="form-text text-muted"></small>
-                        </div>
-                        <div id="attachmentUploadResult" class="mt-2">
+                        <div id="fileListContainer" class="mt-2">
                         </div>
                     </div>
-                    <input type="hidden" id="uploadedAttachmentServerName" th:field="*{attachmentServerFileName}">
-                    <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('attachmentServerFileName')}" th:errors="*{attachmentServerFileName}"></div>
                 </div>
             </div>
 
             <div class="mt-4 d-flex justify-content-center">
-                <button type="submit" class="btn btn-primary btn-lg px-5 me-3">
+                <button type="submit" class="btn btn-primary btn-lg px-5 me-3" id="submitDraftContractBtn">
                     <i class="bi bi-save-fill me-2"></i>确认起草并提交
                 </button>
                 <button type="reset" class="btn btn-outline-secondary btn-lg px-4">
@@ -316,7 +330,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             console.log("DEBUG: DOMContentLoaded 事件触发 - 脚本开始执行。");
 
-            // Bootstrap Form Validation Initialization
+            // --- START: Existing Customer Selection and Bootstrap Validation Logic ---
             (function () {
                 'use strict'
                 var forms = document.querySelectorAll('.needs-validation');
@@ -324,13 +338,15 @@
                 var customerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback');
                 var customerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
 
-
                 Array.prototype.slice.call(forms)
                     .forEach(function (form) {
                         form.addEventListener('submit', function (event) {
                             let isFormValid = form.checkValidity();
 
                             if (form.id === 'draftContractForm') {
+                                // 在这里准备要提交的附件文件名
+                                prepareAttachmentsForSubmission();
+
                                 if (customerIdField && customerIdField.required && customerIdField.value === '') {
                                     if (customerIdClientFeedback) customerIdClientFeedback.style.display = 'block';
                                     if (customerInfoPlaceholder) customerInfoPlaceholder.classList.add('is-invalid-placeholder');
@@ -351,7 +367,6 @@
             })();
             console.log("DEBUG: Bootstrap 表单验证逻辑已初始化。");
 
-            // --- 客户选择模态框相关逻辑 START ---
             const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
             const customerSelectModalEl = document.getElementById('customerSelectModal');
             const customerSelectModal = customerSelectModalEl ? new bootstrap.Modal(customerSelectModalEl) : null;
@@ -362,7 +377,6 @@
             const customerModalSpinner = document.getElementById('customerModalSpinner');
             const customerModalAlertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
             const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
-            const selectedCustomerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback');
             const selectedCustomerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
             const selectedCustomerDetailsCard = document.getElementById('selectedCustomerDetailsCard');
             const modalAddNewCustomerBtn = document.getElementById('modalAddNewCustomerBtn');
@@ -374,7 +388,6 @@
             const backToCustomerSelectModalBtn = document.getElementById('backToCustomerSelectModalBtn');
 
             console.log("DEBUG: 客户选择模态框相关常量已声明。");
-            if (!openCustomerSelectModalBtn) console.warn("DEBUG WARN: 'openCustomerSelectModalBtn' 未找到。");
 
             let currentCustomerPage = 0;
             const CUSTOMER_PAGE_SIZE = 5;
@@ -426,7 +439,6 @@
                         } else {
                             renderCustomerTable([]);
                             renderCustomerPagination(null);
-                            console.warn("DEBUG WARN: loadCustomersForModal - 接收到的客户数据结构异常或无内容。", pageData);
                         }
                     })
                     .catch(error => {
@@ -489,11 +501,11 @@
                     selectedCustomerIdInput.dispatchEvent(new Event('change'));
                     selectedCustomerIdInput.classList.remove('is-invalid');
                 }
-                if(selectedCustomerIdClientFeedback) selectedCustomerIdClientFeedback.style.display = 'none';
+                var customerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback');
+                if(customerIdClientFeedback) customerIdClientFeedback.style.display = 'none';
             }
 
             function renderCustomerPagination(pageData) {
-                // ... (此函数保持不变，假设它是正确的)
                 if(!customerModalPagination) return;
                 customerModalPagination.innerHTML = '';
                 if (!pageData || pageData.totalPages === undefined || pageData.totalPages <= 1) return;
@@ -527,7 +539,6 @@
 
             if(addCustomerFormInModalDraft && saveNewCustomerBtnDraft && addCustomerFormModal) {
                 addCustomerFormInModalDraft.addEventListener('submit', function(event) {
-                    // ... (此函数保持不变)
                     event.preventDefault();
                     if (!addCustomerFormInModalDraft.checkValidity()) {
                         event.stopPropagation();
@@ -589,7 +600,6 @@
             }
 
             function createAndShowAlert(message, type, placeholderElement, duration = 7000) {
-                // ... (此函数保持不变，确保它在作用域内)
                 if (!placeholderElement) {
                     console.warn("Alert placeholder not found for message:", message);
                     alert(message);
@@ -602,7 +612,7 @@
                     ${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>`;
-                placeholderElement.innerHTML = '';
+                placeholderElement.innerHTML = ''; // Clear previous alerts in this specific placeholder
                 placeholderElement.append(wrapper.firstChild);
                 const newAlertElement = document.getElementById(alertId);
                 if (newAlertElement && window.bootstrap && bootstrap.Alert) {
@@ -611,12 +621,12 @@
                         setTimeout(() => {
                             if (bootstrap.Alert.getInstance(newAlertElement)) {
                                 bsAlertInstance.close();
-                            } else if (newAlertElement.parentNode) {
+                            } else if (newAlertElement.parentNode) { // Fallback if instance is gone
                                 newAlertElement.parentNode.removeChild(newAlertElement);
                             }
                         }, duration);
                     }
-                } else if (newAlertElement && duration > 0) {
+                } else if (newAlertElement && duration > 0) { // Fallback if bootstrap not fully loaded
                     setTimeout(() => {
                         if(newAlertElement.parentNode) newAlertElement.parentNode.removeChild(newAlertElement);
                     }, duration);
@@ -624,278 +634,332 @@
             }
             // --- 客户选择模态框相关逻辑 END ---
 
-
-            // --- 断点续传逻辑 ---
-            console.log("DEBUG: 即将初始化附件上传逻辑的常量。");
-            const attachmentFileInput = document.getElementById('attachmentFile');
-            const uploadProgressContainer = document.getElementById('uploadProgressContainer');
-            const uploadProgressBar = document.getElementById('uploadProgressBar');
-            const uploadStatusText = document.getElementById('uploadStatusText');
-            const attachmentUploadResult = document.getElementById('attachmentUploadResult');
-            const uploadedAttachmentServerNameInput = document.getElementById('uploadedAttachmentServerName');
-            const mainDraftForm = document.getElementById('draftContractForm'); // 这个在客户逻辑部分也定义了，确保ID唯一或只用一个
-
-            // 检查关键元素是否存在
-            if (!attachmentFileInput) {
-                console.error("DEBUG ERROR: 未能找到 ID 为 'attachmentFile' 的文件输入框！附件上传将无法工作。");
-                createAndShowAlert('附件上传组件(文件输入框)初始化失败，请联系管理员。', 'danger', document.getElementById('alertPlaceholder'));
-            }
-            if (!uploadProgressContainer) console.warn("DEBUG WARN: 未能找到 ID 为 'uploadProgressContainer' 的进度条容器。");
-            if (!uploadProgressBar) console.warn("DEBUG WARN: 未能找到 ID 为 'uploadProgressBar' 的进度条。");
-            if (!uploadStatusText) console.warn("DEBUG WARN: 未能找到 ID 为 'uploadStatusText' 的状态文本区域。");
-            if (!attachmentUploadResult) console.warn("DEBUG WARN: 未能找到 ID 为 'attachmentUploadResult' 的上传结果区域。");
-            if (!uploadedAttachmentServerNameInput) {
-                console.error("DEBUG ERROR: 未能找到 ID 为 'uploadedAttachmentServerName' 的隐藏输入框！已上传文件名无法保存。");
-                createAndShowAlert('附件上传组件(隐藏字段)初始化失败，请联系管理员。', 'danger', document.getElementById('alertPlaceholder'));
-            }
-            // mainDraftForm 在客户逻辑部分也定义和检查了，如果ID相同则没问题。
+            // --- START: New Multi-File Resumable Upload Logic ---
+            const attachmentFilesInput = document.getElementById('attachmentFilesInput');
+            const fileListContainer = document.getElementById('fileListContainer');
+            const hiddenAttachmentInputsContainer = document.getElementById('hiddenAttachmentInputsContainer');
+            const mainDraftForm = document.getElementById('draftContractForm'); // Re-declare for this scope, ensure ID is correct
 
             const CHUNK_SIZE = 1024 * 1024 * 2; // 2MB per chunk
-            let currentFile = null;
-            let currentUploadId = null;
-            let serverFileNameForContract = null;
-            let totalChunks = 0;
-            let uploadedChunksCount = 0;
-            let chunksUploadedSuccessfully = new Set();
-            let isUploading = false;
+            let uploadedFilesData = []; // Array to store state of each file being uploaded
 
-            if (attachmentFileInput) { // 只有当元素存在时才添加监听器
-                attachmentFileInput.addEventListener('change', handleFileSelect);
-                console.log("DEBUG: 已为 'attachmentFile' 添加 'change' 事件监听器。");
+            if (attachmentFilesInput) {
+                attachmentFilesInput.addEventListener('change', handleFileSelection);
             } else {
-                console.error("DEBUG ERROR: 由于 'attachmentFile' 元素未找到，无法为其添加 'change' 事件监听器。");
+                console.error("ERROR: Attachment input 'attachmentFilesInput' not found!");
+                showAlertOnMainPage('附件上传组件初始化失败，请联系管理员。', 'danger');
             }
 
-            function displayUploadError(message) {
-                console.error("Upload Error (displayUploadError):", message);
-                isUploading = false;
-                if (uploadStatusText) {
-                    uploadStatusText.textContent = `错误: ${message}`;
-                    uploadStatusText.className = 'form-text text-danger';
-                }
-                if (uploadProgressContainer) {
-                    uploadProgressContainer.style.display = 'block';
-                }
-                if (uploadProgressBar) {
-                    uploadProgressBar.style.width = '100%';
-                    uploadProgressBar.classList.add('bg-danger');
-                    uploadProgressBar.classList.remove('bg-success', 'progress-bar-animated', 'progress-bar-striped');
-                    uploadProgressBar.textContent = '上传失败';
-                }
-            }
-
-            function resetUploadState() {
-                console.log("DEBUG: resetUploadState 被调用");
-                isUploading = false;
-                currentFile = null;
-                currentUploadId = null;
-                serverFileNameForContract = null;
-                totalChunks = 0;
-                uploadedChunksCount = 0;
-                chunksUploadedSuccessfully.clear();
-
-                if (uploadProgressContainer) uploadProgressContainer.style.display = 'none';
-                if (uploadProgressBar) {
-                    uploadProgressBar.style.width = '0%';
-                    uploadProgressBar.textContent = '0%';
-                    uploadProgressBar.classList.remove('bg-success', 'bg-danger');
-                    uploadProgressBar.classList.add('progress-bar-animated', 'progress-bar-striped');
-                    uploadProgressBar.setAttribute('aria-valuenow', '0');
-                }
-                if (uploadStatusText) {
-                    uploadStatusText.textContent = '';
-                    uploadStatusText.className = 'form-text text-muted';
-                }
-                if (attachmentUploadResult) attachmentUploadResult.innerHTML = '';
-                if (uploadedAttachmentServerNameInput) uploadedAttachmentServerNameInput.value = '';
-                console.log("DEBUG: resetUploadState 完成");
-            }
-
-            if (mainDraftForm) {
+            if (mainDraftForm) { // Ensure mainDraftForm is not null before adding listener
                 mainDraftForm.addEventListener('reset', function() {
-                    console.log("DEBUG: 主表单 'draftContractForm' 已重置。");
-                    if (attachmentFileInput) attachmentFileInput.value = '';
-                    setTimeout(resetUploadState, 0);
+                    console.log("DEBUG: 主表单 'draftContractForm' 已重置 (multi-file logic).");
+                    if (attachmentFilesInput) attachmentFilesInput.value = ''; // Clear file input
+                    uploadedFilesData = []; // Clear internal state
+                    if (fileListContainer) fileListContainer.innerHTML = ''; // Clear UI list
+                    if (hiddenAttachmentInputsContainer) hiddenAttachmentInputsContainer.innerHTML = ''; // Clear hidden inputs
                 });
             }
 
 
-            async function handleFileSelect(event) {
-                console.log("DEBUG: 'change' 事件在 'attachmentFile' 上触发 (handleFileSelect)。");
-                if (!event || !event.target || !event.target.files) {
-                    console.error("DEBUG ERROR: handleFileSelect - 事件对象或目标文件列表无效。");
-                    return;
-                }
+            function handleFileSelection(event) {
+                const files = event.target.files;
+                if (!files.length) return;
 
-                if (isUploading) {
-                    console.warn("DEBUG WARN: handleFileSelect - 当前已有文件上传中，已阻止本次操作。");
-                    showAlertOnMainPage('已有文件正在上传中，请等待完成后或取消后再选择新文件。', 'warning');
-                    event.target.value = '';
-                    return;
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileId = `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                    const fileEntry = {
+                        id: fileId,
+                        fileObject: file,
+                        originalName: file.name,
+                        size: file.size,
+                        status: 'pending', // pending, initiating, uploading, finalizing, completed, error, cancelled
+                        progress: 0,
+                        uploadId: null,
+                        serverFileName: null,
+                        errorMessage: null,
+                        uiElement: null,
+                        chunks: [],
+                        totalChunks: Math.ceil(file.size / CHUNK_SIZE),
+                        uploadedChunksCount: 0,
+                        xhr: null // To store XMLHttpRequest object for aborting
+                    };
+                    uploadedFilesData.push(fileEntry);
+                    addFileToUI(fileEntry);
+                    initiateFileUpload(fileEntry); // Automatically start upload
                 }
+                // Clear the file input so the same file can be selected again if removed and re-added
+                event.target.value = '';
+            }
 
-                resetUploadState();
+            function addFileToUI(fileEntry) {
+                const fileItemHTML = `
+                    <div class="file-list-item" id="${fileEntry.id}">
+                        <div class="file-info">
+                            <span class="file-name" title="${fileEntry.originalName}">${fileEntry.originalName}</span>
+                            <span class="file-size">(${formatFileSize(fileEntry.size)})</span>
+                            <div class="file-progress mt-1">
+                                <div class="file-progress-bar" style="width: 0%;">0%</div>
+                            </div>
+                            <small class="file-status text-muted d-block mt-1">等待上传...</small>
+                        </div>
+                        <div class="file-actions">
+                            <button type="button" class="btn btn-sm btn-outline-info preview-btn" style="display: none;" title="预览">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger delete-btn" title="删除">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                fileListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
+                fileEntry.uiElement = document.getElementById(fileEntry.id);
 
-                currentFile = event.target.files[0];
-                if (!currentFile) {
-                    console.log("DEBUG: handleFileSelect - 未选择任何文件。");
-                    return;
-                }
-                console.log(`DEBUG: handleFileSelect - 已选择文件: ${currentFile.name}, 大小: ${currentFile.size}, 类型: ${currentFile.type}`);
+                fileEntry.uiElement.querySelector('.delete-btn').addEventListener('click', () => handleDeleteFile(fileEntry.id));
+                fileEntry.uiElement.querySelector('.preview-btn').addEventListener('click', () => {
+                    if (fileEntry.status === 'completed' && fileEntry.serverFileName) {
+                        handlePreviewFile(fileEntry.serverFileName);
+                    }
+                });
+            }
 
-                isUploading = true;
-                if (uploadProgressContainer) uploadProgressContainer.style.display = 'block';
-                if (uploadStatusText) {
-                    uploadStatusText.textContent = `准备上传: ${currentFile.name}`;
-                    uploadStatusText.className = 'form-text text-muted';
-                }
-                if (uploadProgressBar) { /* Reset progress bar visually */ }
-                if (attachmentUploadResult) attachmentUploadResult.innerHTML = '';
+            async function initiateFileUpload(fileEntry) {
+                updateFileStatusUI(fileEntry, 'initiating', '正在初始化上传...');
+                if(fileEntry.uiElement) fileEntry.uiElement.querySelector('.file-progress').style.display = 'block';
 
                 try {
-                    console.log("DEBUG: handleFileSelect - 准备发起 /api/attachments/initiate 请求。");
-                    const initiateRequest = { fileName: currentFile.name, totalSize: currentFile.size, contentType: currentFile.type };
-                    const fetchOptions = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(initiateRequest) };
+                    const requestBody = {
+                        fileName: fileEntry.originalName,
+                        totalSize: fileEntry.size,
+                        contentType: fileEntry.fileObject.type
+                    };
+                    const response = await fetch('/api/attachments/initiate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
 
-                    const initiateResponse = await fetch('/api/attachments/initiate', fetchOptions);
-                    console.log(`DEBUG: handleFileSelect - /api/attachments/initiate 响应状态: ${initiateResponse.status}`);
-
-                    if (!initiateResponse.ok) {
-                        let errorMsg = `初始化上传失败 (状态: ${initiateResponse.status})。`;
-                        try { const errorData = await initiateResponse.json(); errorMsg = errorData.message || (errorData.errors ? errorData.errors.join(', ') : (errorData.error || errorMsg)); }
-                        catch (e) { console.warn("DEBUG WARN: 无法解析初始化错误的JSON响应体。"); }
-                        throw new Error(errorMsg);
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+                        throw new Error(errorData.message || `初始化失败 (状态: ${response.status})`);
                     }
 
-                    const initData = await initiateResponse.json();
-                    console.log("DEBUG: handleFileSelect - 初始化成功，返回数据:", initData);
-                    currentUploadId = initData.uploadId;
-                    serverFileNameForContract = initData.fileName;
-
-                    if (uploadStatusText) uploadStatusText.textContent = `准备就绪 (Upload ID: ${currentUploadId}), 开始上传分块...`;
-                    totalChunks = Math.ceil(currentFile.size / CHUNK_SIZE);
-                    console.log(`DEBUG: handleFileSelect - 总分块数计算为: ${totalChunks}`);
-                    await uploadAllChunks();
+                    const data = await response.json();
+                    fileEntry.uploadId = data.uploadId;
+                    fileEntry.serverFileName = data.fileName;
+                    updateFileStatusUI(fileEntry, 'uploading', '准备上传分块...');
+                    uploadAllChunksForFile(fileEntry);
 
                 } catch (error) {
-                    console.error('DEBUG ERROR: handleFileSelect - 上传预处理或初始化失败:', error);
-                    displayUploadError(error.message || '上传预处理失败，请检查网络或联系管理员。');
-                    if(attachmentFileInput) attachmentFileInput.value = '';
+                    console.error(`Error initiating upload for ${fileEntry.originalName}:`, error);
+                    updateFileStatusUI(fileEntry, 'error', `初始化失败: ${error.message}`);
+                    if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
                 }
             }
 
-            async function uploadAllChunks() {
-                console.log(`DEBUG: uploadAllChunks - 开始上传所有分块，总数: ${totalChunks}`);
-                uploadedChunksCount = 0;
-                chunksUploadedSuccessfully.clear();
+            async function uploadAllChunksForFile(fileEntry) {
+                fileEntry.status = 'uploading';
+                fileEntry.uploadedChunksCount = 0;
 
-                for (let i = 0; i < totalChunks; i++) {
-                    if (!isUploading) { console.warn(`DEBUG WARN: uploadAllChunks - 上传在分块 ${i} 前被中止。`); return; }
-                    console.log(`DEBUG: uploadAllChunks - 准备上传分块 ${i}`);
+                for (let i = 0; i < fileEntry.totalChunks; i++) {
+                    if (fileEntry.status !== 'uploading') {
+                        console.log(`Upload cancelled for ${fileEntry.originalName} before chunk ${i}`);
+                        return;
+                    }
                     const start = i * CHUNK_SIZE;
-                    const end = Math.min(start + CHUNK_SIZE, currentFile.size);
-                    const chunk = currentFile.slice(start, end);
+                    const end = Math.min(start + CHUNK_SIZE, fileEntry.size);
+                    const chunk = fileEntry.fileObject.slice(start, end);
 
                     try {
-                        await uploadSingleChunk(chunk, i);
-                        chunksUploadedSuccessfully.add(i);
-                        uploadedChunksCount++;
-                        updateProgressBar();
+                        await uploadSingleChunkForFile(fileEntry, chunk, i);
+                        fileEntry.uploadedChunksCount++;
+                        const progress = Math.round((fileEntry.uploadedChunksCount / fileEntry.totalChunks) * 100);
+                        updateFileProgressUI(fileEntry, progress);
                     } catch (error) {
-                        console.error(`DEBUG ERROR: uploadAllChunks - 分块 ${i} 上传失败:`, error);
-                        displayUploadError(`分块 ${i + 1} 上传失败: ${error.message}.`);
-                        if(attachmentFileInput) attachmentFileInput.value = '';
+                        console.error(`Error uploading chunk ${i} for ${fileEntry.originalName}:`, error);
+                        updateFileStatusUI(fileEntry, 'error', `分块 ${i + 1} 上传失败: ${error.message}`);
+                        if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
                         return;
                     }
                 }
 
-                if (uploadedChunksCount === totalChunks && isUploading) {
-                    console.log("DEBUG: uploadAllChunks - 所有分块据称已上传，准备进行最终确认。");
-                    await finalizeUploadProcess();
-                } else if (isUploading) {
-                    console.warn(`DEBUG WARN: uploadAllChunks - 循环结束但分块未全部完成 (已传 ${uploadedChunksCount}/${totalChunks})，且上传未中止。`);
-                    if(attachmentFileInput) attachmentFileInput.value = '';
+                if (fileEntry.uploadedChunksCount === fileEntry.totalChunks && fileEntry.status === 'uploading') {
+                    finalizeFileUpload(fileEntry);
                 }
             }
 
-            async function uploadSingleChunk(chunk, chunkNumber) {
-                console.log(`DEBUG: uploadSingleChunk - 正在上传分块 ${chunkNumber + 1}/${totalChunks}`);
-                const formData = new FormData();
-                formData.append('file', chunk, `${currentFile.name}.part${chunkNumber}`);
-                formData.append('chunkNumber', chunkNumber);
-                formData.append('totalChunks', totalChunks);
+            function uploadSingleChunkForFile(fileEntry, chunk, chunkNumber) {
+                return new Promise((resolve, reject) => {
+                    updateFileStatusUI(fileEntry, 'uploading', `正在上传分块 ${chunkNumber + 1}/${fileEntry.totalChunks}...`);
 
-                if (uploadStatusText) uploadStatusText.textContent = `上传中: ${currentFile.name} (分块 ${chunkNumber + 1}/${totalChunks})...`;
+                    const formData = new FormData();
+                    formData.append('file', chunk, `${fileEntry.originalName}.part${chunkNumber}`);
+                    formData.append('chunkNumber', chunkNumber);
+                    formData.append('totalChunks', fileEntry.totalChunks);
 
-                const response = await fetch('/api/attachments/upload-chunk', {
-                    method: 'POST',
-                    headers: { 'X-Upload-Id': currentUploadId },
-                    body: formData
+                    const xhr = new XMLHttpRequest();
+                    fileEntry.xhr = xhr; // Store XHR for potential abort
+
+                    xhr.open('POST', '/api/attachments/upload-chunk', true);
+                    xhr.setRequestHeader('X-Upload-Id', fileEntry.uploadId);
+                    // xhr.setRequestHeader('X-CSRF-TOKEN', csrfToken); // If using CSRF
+
+                    xhr.onload = function() {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve(xhr.responseText);
+                        } else {
+                            let errorMsg = `分块 ${chunkNumber + 1} 响应错误 (状态: ${xhr.status})。`;
+                            try {
+                                const errorData = JSON.parse(xhr.responseText);
+                                errorMsg = errorData.message || errorData.error || errorMsg;
+                            } catch (e) { /* ignore parse error, use status text */ errorMsg = xhr.statusText || errorMsg}
+                            reject(new Error(errorMsg));
+                        }
+                    };
+                    xhr.onerror = function() {
+                        reject(new Error(`网络错误导致分块 ${chunkNumber + 1} 上传失败。`));
+                    };
+                    xhr.onabort = function() {
+                        console.log(`Upload of chunk ${chunkNumber} for ${fileEntry.originalName} aborted.`);
+                        // Don't reject here, let the status check in uploadAllChunksForFile handle it
+                    };
+                    xhr.send(formData);
                 });
-                console.log(`DEBUG: uploadSingleChunk - 分块 ${chunkNumber} 的响应状态: ${response.status}`);
-
-                if (!response.ok) {
-                    let errorText = `分块 ${chunkNumber + 1} 响应错误 (状态: ${response.status})。`;
-                    try {
-                        const errorBody = await response.json();
-                        errorText = errorBody.message || (errorBody.errors ? errorBody.errors.join(', ') : (errorBody.error || errorText));
-                    } catch (e) {
-                        const plainTextError = await response.text().catch(() => '');
-                        if(plainTextError) errorText = plainTextError;
-                    }
-                    throw new Error(errorText);
-                }
             }
 
-            function updateProgressBar() {
-                const percentage = totalChunks > 0 ? Math.round((uploadedChunksCount / totalChunks) * 100) : 0;
-                console.log(`DEBUG: updateProgressBar - 进度 ${percentage}% (已完成 ${uploadedChunksCount}/${totalChunks} 块)`);
-
-                if (uploadProgressBar) { /* ... */ } // Visual update as before
-                if (uploadStatusText) { /* ... */ } // Visual update as before
-            }
-
-            async function finalizeUploadProcess() {
-                if (!isUploading) { console.warn("DEBUG WARN: finalizeUploadProcess - 上传已中止，不执行最终确认。"); return; }
-                console.log("DEBUG: finalizeUploadProcess - 准备发起 /api/attachments/finalize 请求。");
-                if (uploadStatusText) uploadStatusText.textContent = '正在合并文件，请稍候...';
+            async function finalizeFileUpload(fileEntry) {
+                updateFileStatusUI(fileEntry, 'finalizing', '正在合并文件...');
                 try {
-                    const finalizeResponse = await fetch(`/api/attachments/finalize/${currentUploadId}?originalFileName=${encodeURIComponent(currentFile.name)}`, {
+                    const response = await fetch(`/api/attachments/finalize/${fileEntry.uploadId}?originalFileName=${encodeURIComponent(fileEntry.originalName)}`, {
                         method: 'POST'
                     });
-                    console.log(`DEBUG: finalizeUploadProcess - /api/attachments/finalize 响应状态: ${finalizeResponse.status}`);
 
-                    if (!finalizeResponse.ok) {
-                        let errorMsg = `完成上传失败 (状态: ${finalizeResponse.status})。`;
-                        try { const errorData = await finalizeResponse.json(); errorMsg = errorData.error || errorData.message || errorMsg; }
-                        catch (e) { console.warn("DEBUG WARN: 无法解析完成上传错误的JSON响应体。"); }
-                        throw new Error(errorMsg);
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+                        throw new Error(errorData.error || errorData.message || `完成上传失败 (状态: ${response.status})`);
                     }
-
-                    const finalizeData = await finalizeResponse.json();
-                    console.log("DEBUG: finalizeUploadProcess - 上传成功完成，服务器返回:", finalizeData);
-
-                    if (uploadProgressBar) { /* Visual success update */ }
-                    if (uploadStatusText) uploadStatusText.textContent = `文件 "${currentFile.name}" 已成功上传。`;
-                    if (uploadedAttachmentServerNameInput) {
-                        uploadedAttachmentServerNameInput.value = finalizeData.fileName;
-                        console.log(`DEBUG: finalizeUploadProcess - 隐藏字段 'uploadedAttachmentServerName' 已设置为: ${finalizeData.fileName}`);
+                    const data = await response.json();
+                    fileEntry.serverFileName = data.fileName;
+                    updateFileStatusUI(fileEntry, 'completed', '上传成功！');
+                    if(fileEntry.uiElement) {
+                        fileEntry.uiElement.classList.remove('upload-error');
+                        fileEntry.uiElement.classList.add('upload-success');
+                        fileEntry.uiElement.querySelector('.preview-btn').style.display = 'inline-block';
+                        fileEntry.uiElement.querySelector('.file-progress').style.display = 'none';
                     }
-                    if (attachmentUploadResult) { /* Display success message */ }
-                    isUploading = false;
-
+                    prepareAttachmentsForSubmission(); // Update hidden inputs
                 } catch (error) {
-                    console.error('DEBUG ERROR: finalizeUploadProcess - 完成上传时发生错误:', error);
-                    displayUploadError(error.message || '完成上传失败，请检查网络或联系管理员。');
-                    if(attachmentFileInput) attachmentFileInput.value = '';
+                    console.error(`Error finalizing upload for ${fileEntry.originalName}:`, error);
+                    updateFileStatusUI(fileEntry, 'error', `完成上传失败: ${error.message}`);
+                    if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
                 }
             }
 
-            window.clearAttachmentSuccessMessage = function(event) {
-                if (event) event.stopPropagation();
-                if (attachmentUploadResult) attachmentUploadResult.innerHTML = '';
-                console.log("DEBUG: 附件成功消息已清除。");
+            function updateFileProgressUI(fileEntry, percent) {
+                if (fileEntry.uiElement) {
+                    const progressBar = fileEntry.uiElement.querySelector('.file-progress-bar');
+                    if (progressBar) {
+                        progressBar.style.width = `${percent}%`;
+                        progressBar.textContent = `${percent}%`;
+                    }
+                }
             }
+
+            function updateFileStatusUI(fileEntry, status, message) {
+                fileEntry.status = status; // Update internal status
+                if (fileEntry.uiElement) {
+                    const statusElement = fileEntry.uiElement.querySelector('.file-status');
+                    const progressBarDiv = fileEntry.uiElement.querySelector('.file-progress');
+                    const progressBar = fileEntry.uiElement.querySelector('.file-progress-bar');
+
+                    if (statusElement) {
+                        statusElement.textContent = message;
+                        statusElement.className = 'file-status d-block mt-1 ';
+                        if (status === 'error') {
+                            statusElement.classList.add('text-danger');
+                            if(progressBar) progressBar.classList.add('bg-danger');
+                        } else if (status === 'completed') {
+                            statusElement.classList.add('text-success');
+                            if(progressBarDiv) progressBarDiv.style.display = 'none';
+                        } else {
+                            statusElement.classList.add('text-muted');
+                            if(progressBar) progressBar.classList.remove('bg-danger', 'bg-success');
+                        }
+                    }
+                }
+            }
+
+            function handlePreviewFile(serverFileName) {
+                if (!serverFileName) return;
+                const previewUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+                window.open(previewUrl, '_blank');
+            }
+
+            async function handleDeleteFile(fileId) {
+                const fileIndex = uploadedFilesData.findIndex(f => f.id === fileId);
+                if (fileIndex === -1) return;
+
+                const fileEntry = uploadedFilesData[fileIndex];
+
+                // Abort XHR if uploading
+                if (fileEntry.xhr && (fileEntry.status === 'uploading' || fileEntry.status === 'initiating')) {
+                    fileEntry.xhr.abort();
+                }
+                fileEntry.status = 'cancelled'; // Mark as cancelled
+
+                if (fileEntry.uiElement) {
+                    fileEntry.uiElement.remove();
+                }
+
+                uploadedFilesData.splice(fileIndex, 1); // Remove from internal array first
+
+                // If file was fully uploaded and finalized, attempt to delete from server
+                if (fileEntry.serverFileName && fileEntry.uploadId && fileEntry.status !== 'pending' && fileEntry.status !== 'initiating') { // only delete if uploadId exists
+                    try {
+                        const response = await fetch(`/api/attachments/file/${encodeURIComponent(fileEntry.serverFileName)}`, {
+                            method: 'DELETE',
+                            headers: { 'X-Upload-Id': fileEntry.uploadId } // Good practice to send uploadId if available, though serverFileName is key
+                        });
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+                            throw new Error(errorData.message || `服务器删除失败 (状态: ${response.status})`);
+                        }
+                        console.log(`File ${fileEntry.serverFileName} (UploadID: ${fileEntry.uploadId}) deleted successfully from server.`);
+                        showAlertOnMainPage(`附件 "${fileEntry.originalName}" 已成功删除。`, 'info');
+                    } catch (error) {
+                        console.error(`Error deleting file ${fileEntry.serverFileName} from server:`, error);
+                        showAlertOnMainPage(`删除附件 "${fileEntry.originalName}" 失败: ${error.message}`, 'warning');
+                    }
+                }
+
+                prepareAttachmentsForSubmission();
+            }
+
+            function prepareAttachmentsForSubmission() {
+                if (hiddenAttachmentInputsContainer) {
+                    hiddenAttachmentInputsContainer.innerHTML = '';
+                    uploadedFilesData.forEach(fileEntry => {
+                        if (fileEntry.status === 'completed' && fileEntry.serverFileName) {
+                            const hiddenInput = document.createElement('input');
+                            hiddenInput.type = 'hidden';
+                            hiddenInput.name = 'attachmentServerFileNames';
+                            hiddenInput.value = fileEntry.serverFileName;
+                            hiddenAttachmentInputsContainer.appendChild(hiddenInput);
+                        }
+                    });
+                }
+            }
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const dm = 2;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+            }
+            // --- END: New Multi-File Resumable Upload Logic ---
 
             console.log("DEBUG: draft-contract.html 的内联脚本主要逻辑执行完毕。");
         });

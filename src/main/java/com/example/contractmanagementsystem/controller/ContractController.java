@@ -249,7 +249,7 @@ public class ContractController {
             Contract finalizedContract = contractService.finalizeContract(
                     contractId,
                     finalizationComments,
-                    contractDraftRequest.getAttachmentServerFileName(), // 传递服务器端文件名
+                    contractDraftRequest.getAttachmentServerFileNames(), // <--- 修改为此行
                     username
             );
 

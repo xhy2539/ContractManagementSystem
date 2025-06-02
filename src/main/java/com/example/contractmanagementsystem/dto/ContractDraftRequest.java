@@ -1,11 +1,13 @@
+// File: src/main/java/com/example/contractmanagementsystem/dto/ContractDraftRequest.java
 package com.example.contractmanagementsystem.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-// import jakarta.validation.constraints.Size; // 如果其他字段仍需要 Size
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
+import java.util.List; // 新增导入
+import java.util.ArrayList; // 新增导入
 
 public class ContractDraftRequest {
 
@@ -25,8 +27,8 @@ public class ContractDraftRequest {
 
     private String contractContent;
 
-    // 新增字段，用于存储通过断点续传成功后，服务器返回的实际存储文件名
-    private String attachmentServerFileName;
+    // 修改点：从 String 变为 List<String>
+    private List<String> attachmentServerFileNames = new ArrayList<>();
 
     // Getters and Setters
     public String getContractName() {
@@ -69,11 +71,12 @@ public class ContractDraftRequest {
         this.contractContent = contractContent;
     }
 
-    public String getAttachmentServerFileName() { // Getter for the new field
-        return attachmentServerFileName;
+    // 修改点：更新 Getter 和 Setter 以处理 List<String>
+    public List<String> getAttachmentServerFileNames() {
+        return attachmentServerFileNames;
     }
 
-    public void setAttachmentServerFileName(String attachmentServerFileName) { // Setter for the new field
-        this.attachmentServerFileName = attachmentServerFileName;
+    public void setAttachmentServerFileNames(List<String> attachmentServerFileNames) {
+        this.attachmentServerFileNames = attachmentServerFileNames;
     }
 }

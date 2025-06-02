@@ -43,20 +43,23 @@ public interface AttachmentService {
     String finalizeUpload(String uploadId, String originalFileName, String username) throws IOException;
 
     /**
-     * 查询上传状态，例如哪些分块已经上传。
-     * (这个方法可以根据需要实现，对于简单的断点续传，客户端可以通过尝试上传来判断)
-     * @param uploadId 唯一的上传ID
-     * @return 返回已上传分块的信息或其他状态信息
-     */
-    // Object getUploadStatus(String uploadId); // 示例，具体返回类型待定
-
-    /**
      * 根据文件名获取附件的完整路径。
-     * (此方法可以从 ContractService 迁移或在此处重新实现，专门用于附件)
      * @param filename 附件的文件名
      * @return 附件的Path对象
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果文件未找到
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果文件名无效
      */
     Path getAttachment(String filename);
+
+    /**
+     * 删除一个已上传（已合并完成）的附件文件。
+     * 这将从最终存储目录中删除文件，并清理相关的 FileUploadProgress 记录和临时分块。
+     *
+     * @param serverFileName 要删除的附件在服务器上的文件名。
+     * @param username       执行删除操作的用户名，用于权限验证和审计。
+     * @throws IOException 如果删除文件或目录时发生 I/O 错误。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果文件或上传记录未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果因业务逻辑无法删除（例如，文件名无效）。
+     */
+    void deleteUploadedFile(String serverFileName, String username) throws IOException; // 新增方法声明
 }
