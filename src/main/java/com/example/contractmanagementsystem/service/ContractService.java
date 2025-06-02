@@ -44,13 +44,15 @@ public interface ContractService {
     /**
      * 根据多种条件搜索和分页查询合同。
      *
+     * @param currentUsername   执行查询的当前用户名，如果非null且用户非管理员，则用于过滤“我的合同”。
+     * @param isAdmin           标记当前用户是否为管理员。
      * @param contractName   合同名称的模糊搜索关键字（可选）。
      * @param contractNumber 合同编号的模糊搜索关键字（可选）。
      * @param status         合同状态的精确匹配（可选，应为ContractStatus枚举的字符串表示）。
      * @param pageable       分页和排序信息。
      * @return 包含合同列表的分页结果。
      */
-    Page<Contract> searchContracts(String contractName, String contractNumber, String status, Pageable pageable);
+    Page<Contract> searchContracts(String currentUsername, boolean isAdmin, String contractName, String contractNumber, String status, Pageable pageable);
 
     /**
      * 查询指定用户、指定类型和指定状态的合同流程（如待会签、待审批、待签订等），并支持按合同名称搜索和分页。
@@ -129,7 +131,7 @@ public interface ContractService {
      * @return 验证通过的合同流程实体。
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录或用户未找到。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果流程类型或状态不匹配。
-     * @throws AccessDeniedException 如果当前用户不是该流程记录的指定操作员。
+     * @throws AccessDeniedException 如果当前用户不是该流程记录的指定操作员，无权操作。
      */
     ContractProcess getContractProcessByIdAndOperator(Long contractProcessId, String username, ContractProcessType expectedType, ContractProcessState expectedState) throws AccessDeniedException;
 

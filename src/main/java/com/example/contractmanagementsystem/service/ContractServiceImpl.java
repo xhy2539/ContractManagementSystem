@@ -18,11 +18,16 @@ import jakarta.persistence.criteria.Fetch;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Subquery;
+
+
 import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.beans.factory.annotation.Value; // Not used for upload paths here anymore
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -30,12 +35,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.util.CollectionUtils; // For checking empty collections
+import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
-// import java.nio.file.Files; // Not used directly here anymore
 import java.nio.file.Path;
-// import java.nio.file.Paths; // Not used directly here anymore
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -52,7 +55,7 @@ public class ContractServiceImpl implements ContractService {
     private final ContractProcessRepository contractProcessRepository;
     private final AuditLogService auditLogService;
     private final AttachmentService attachmentService;
-    private final ObjectMapper objectMapper; // Added ObjectMapper
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public ContractServiceImpl(ContractRepository contractRepository,
@@ -61,14 +64,14 @@ public class ContractServiceImpl implements ContractService {
                                ContractProcessRepository contractProcessRepository,
                                AuditLogService auditLogService,
                                AttachmentService attachmentService,
-                               ObjectMapper objectMapper) { // Injected ObjectMapper
+                               ObjectMapper objectMapper) {
         this.contractRepository = contractRepository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
         this.contractProcessRepository = contractProcessRepository;
         this.auditLogService = auditLogService;
         this.attachmentService = attachmentService;
-        this.objectMapper = objectMapper; // Initialize ObjectMapper
+        this.objectMapper = objectMapper;
     }
 
     @PostConstruct
@@ -99,7 +102,6 @@ public class ContractServiceImpl implements ContractService {
         contract.setContent(request.getContractContent());
         contract.setDrafter(drafter);
 
-        // Handle multiple attachments
         if (!CollectionUtils.isEmpty(request.getAttachmentServerFileNames())) {
             try {
                 String attachmentsJson = objectMapper.writeValueAsString(request.getAttachmentServerFileNames());
@@ -110,7 +112,7 @@ public class ContractServiceImpl implements ContractService {
                 throw new BusinessLogicException("处理附件信息时出错: " + e.getMessage());
             }
         } else {
-            contract.setAttachmentPath(null); // No attachments or an empty list means no attachments
+            contract.setAttachmentPath(null);
         }
 
         contract.setStatus(ContractStatus.PENDING_ASSIGNMENT);
@@ -135,7 +137,7 @@ public class ContractServiceImpl implements ContractService {
         String oldAttachmentPath = contract.getAttachmentPath();
         String newAttachmentsJson = null;
 
-        if (attachmentServerFileNames != null) { // Check if list is provided (could be empty)
+        if (attachmentServerFileNames != null) {
             if (!attachmentServerFileNames.isEmpty()) {
                 try {
                     newAttachmentsJson = objectMapper.writeValueAsString(attachmentServerFileNames);
@@ -143,12 +145,11 @@ public class ContractServiceImpl implements ContractService {
                     logger.error("序列化附件文件名列表为JSON时出错 (定稿合同ID: {}): {}", contractId, e.getMessage());
                     throw new BusinessLogicException("处理附件信息时出错: " + e.getMessage());
                 }
-            } else { // Empty list means remove all attachments
-                newAttachmentsJson = "[]"; // or null, depending on how you want to represent no attachments
+            } else {
+                newAttachmentsJson = "[]";
             }
-            contract.setAttachmentPath(newAttachmentsJson); // Set new or empty list
+            contract.setAttachmentPath(newAttachmentsJson);
 
-            // Logging changes
             if (oldAttachmentPath == null && newAttachmentsJson != null && !newAttachmentsJson.equals("[]")) {
                 logger.info("合同 {} 定稿时，新增附件: {}", contractId, newAttachmentsJson);
                 auditLogService.logAction(username, "ATTACHMENT_ADDED_ON_FINALIZE", "合同ID " + contractId + " 定稿时新增附件: " + newAttachmentsJson);
@@ -160,7 +161,6 @@ public class ContractServiceImpl implements ContractService {
                 auditLogService.logAction(username, "ATTACHMENTS_UPDATED_ON_FINALIZE", "合同ID " + contractId + " 定稿时附件由 " + oldAttachmentPath + " 更新为 " + newAttachmentsJson);
             }
         }
-        // If attachmentServerFileNames is null, it means no changes to attachments were intended from the DTO.
 
         contract.setStatus(ContractStatus.PENDING_APPROVAL);
         contract.setUpdatedAt(LocalDateTime.now());
@@ -199,11 +199,11 @@ public class ContractServiceImpl implements ContractService {
         process.setState(isApproved ? ContractProcessState.COMPLETED : ContractProcessState.REJECTED);
         process.setComments(comments);
         process.setProcessedAt(LocalDateTime.now());
-        process.setCompletedAt(LocalDateTime.now()); // Mark completion time
+        process.setCompletedAt(LocalDateTime.now());
         contractProcessRepository.save(process);
 
         Contract contract = process.getContract();
-        contract.setUpdatedAt(LocalDateTime.now()); // Update contract timestamp
+        contract.setUpdatedAt(LocalDateTime.now());
 
         String logActionType = isApproved ? "CONTRACT_COUNTERSIGN_COMPLETED" : "CONTRACT_COUNTERSIGN_REJECTED";
         String logDetails = "用户 " + username + (isApproved ? " 完成了" : " 拒绝了") + "对合同ID " +
@@ -211,16 +211,15 @@ public class ContractServiceImpl implements ContractService {
                 (StringUtils.hasText(comments) ? comments : "无");
 
         if (!isApproved) {
-            contract.setStatus(ContractStatus.REJECTED); // If any countersigner rejects, contract is rejected
+            contract.setStatus(ContractStatus.REJECTED);
             contractRepository.save(contract);
             auditLogService.logAction(username, logActionType, logDetails + " 合同状态变更为已拒绝。");
-            return; // No further checks needed if rejected
+            return;
         }
 
-        // Check if all countersigns for this contract are completed (and approved)
         List<ContractProcess> allCountersignProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.COUNTERSIGN);
         boolean allRelevantCountersignsApproved = allCountersignProcesses.stream()
-                .allMatch(p -> p.getState() == ContractProcessState.COMPLETED || p.getState() == ContractProcessState.APPROVED); // Or just COMPLETED if that's the only success state
+                .allMatch(p -> p.getState() == ContractProcessState.COMPLETED || p.getState() == ContractProcessState.APPROVED);
 
         if (allRelevantCountersignsApproved) {
             contract.setStatus(ContractStatus.PENDING_FINALIZATION);
@@ -228,7 +227,7 @@ public class ContractServiceImpl implements ContractService {
             auditLogService.logAction(username, "CONTRACT_ALL_COUNTERSIGNED", logDetails);
         } else {
             logDetails += " 尚有其他会签流程未完成或未全部通过。合同状态保持待会签。";
-            auditLogService.logAction(username, logActionType, logDetails); // Still log the individual action
+            auditLogService.logAction(username, logActionType, logDetails);
         }
         contractRepository.save(contract);
     }
@@ -236,7 +235,6 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     public Path getAttachmentPath(String filename) {
-        // This now directly calls the AttachmentService, which is specialized for this.
         return attachmentService.getAttachment(filename);
     }
 
@@ -246,7 +244,7 @@ public class ContractServiceImpl implements ContractService {
         List<Object[]> results = contractRepository.findContractCountByStatus();
         Map<String, Long> statistics = new HashMap<>();
         for (ContractStatus status : ContractStatus.values()) {
-            statistics.put(status.name(), 0L); // Initialize all statuses with 0 count
+            statistics.put(status.name(), 0L);
         }
         for (Object[] result : results) {
             if (result[0] instanceof ContractStatus && result[1] instanceof Long) {
@@ -260,9 +258,10 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<Contract> searchContracts(String contractName, String contractNumber, String status, Pageable pageable) {
-        Specification<Contract> spec = (root, query, criteriaBuilder) -> {
+    public Page<Contract> searchContracts(String currentUsername, boolean isAdmin, String contractName, String contractNumber, String status, Pageable pageable) {
+        Specification<Contract> spec = (Root<Contract> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> { // 明确 Root 类型
             List<Predicate> predicates = new ArrayList<>();
+
             if (StringUtils.hasText(contractName)) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("contractName")), "%" + contractName.toLowerCase().trim() + "%"));
             }
@@ -277,14 +276,45 @@ public class ContractServiceImpl implements ContractService {
                     logger.warn("搜索合同中提供了无效的状态值: {}。将忽略此状态条件。", status);
                 }
             }
+
+            if (!isAdmin && StringUtils.hasText(currentUsername)) {
+                User currentUser = userRepository.findByUsername(currentUsername)
+                        .orElse(null);
+
+                if (currentUser != null) {
+                    Predicate isDrafter = criteriaBuilder.equal(root.get("drafter"), currentUser);
+
+                    Subquery<Long> subquery = query.subquery(Long.class); // 子查询返回 Contract ID
+                    Root<ContractProcess> contractProcessRoot = subquery.from(ContractProcess.class);
+                    subquery.select(contractProcessRoot.get("contract").get("id"));
+
+                    Predicate subqueryPredicate = criteriaBuilder.and(
+                            // **核心修改：比较ID而不是整个实体**
+                            criteriaBuilder.equal(contractProcessRoot.get("contract").get("id"), root.get("id")),
+                            criteriaBuilder.equal(contractProcessRoot.get("operator"), currentUser)
+                    );
+                    subquery.where(subqueryPredicate);
+
+                    Predicate isInvolvedInProcess = criteriaBuilder.exists(subquery);
+
+                    predicates.add(criteriaBuilder.or(isDrafter, isInvolvedInProcess));
+                } else {
+                    logger.warn("为用户特定搜索提供了用户名 '{}'，但在数据库中未找到该用户。查询将不返回用户特定数据。", currentUsername);
+                    predicates.add(criteriaBuilder.disjunction());
+                }
+            }
+
             if (query.getResultType().equals(Contract.class)) {
                 root.fetch("customer", JoinType.LEFT);
                 root.fetch("drafter", JoinType.LEFT);
             }
 
+            query.distinct(true);
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
+
         Page<Contract> contractsPage = contractRepository.findAll(spec, pageable);
+
         contractsPage.getContent().forEach(contract -> {
             Hibernate.initialize(contract.getCustomer());
             User drafter = contract.getDrafter();
@@ -295,6 +325,8 @@ public class ContractServiceImpl implements ContractService {
         });
         return contractsPage;
     }
+
+
     @Override
     @Transactional(readOnly = true)
     public Page<ContractProcess> getPendingProcessesForUser(
@@ -343,6 +375,7 @@ public class ContractServiceImpl implements ContractService {
                 contractFetch.fetch("drafter", JoinType.LEFT);
             }
 
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
         Page<ContractProcess> resultPage = contractProcessRepository.findAll(spec, pageable);
@@ -357,7 +390,6 @@ public class ContractServiceImpl implements ContractService {
 
             Hibernate.initialize(process.getContract());
             if (process.getContract() != null) {
-                // 确保合同名称被加载
                 logger.debug("为任务ID {} 加载合同: {}, 名称: {}", process.getId(), process.getContract().getId(), process.getContract().getContractName());
                 Hibernate.initialize(process.getContract().getCustomer());
                 User drafter = process.getContract().getDrafter();
@@ -407,6 +439,7 @@ public class ContractServiceImpl implements ContractService {
                 Fetch<ContractProcess, Contract> contractFetch = root.fetch("contract", JoinType.LEFT);
                 contractFetch.fetch("customer", JoinType.LEFT);
                 contractFetch.fetch("drafter", JoinType.LEFT);
+                root.fetch("operator", JoinType.LEFT);
             }
             query.orderBy(cb.desc(root.get("createdAt")));
 
@@ -415,25 +448,25 @@ public class ContractServiceImpl implements ContractService {
 
         List<ContractProcess> tasks = contractProcessRepository.findAll(spec);
         tasks.forEach(task -> {
-            Hibernate.initialize(task.getContract());
             if (task.getContract() != null) {
-                // 确保合同名称被加载 (用于日志和可能的调试)
                 logger.info("仪表盘任务 - 合同ID: {}, 合同名称: {}", task.getContract().getId(), task.getContract().getContractName());
-                Hibernate.initialize(task.getContract().getCustomer());
-                User drafter = task.getContract().getDrafter();
-                if (drafter != null) {
-                    Hibernate.initialize(drafter.getRoles());
-                    drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
-                }
             }
             User operator = task.getOperator();
             if (operator != null) {
                 Hibernate.initialize(operator.getRoles());
                 operator.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
             }
+            if (task.getContract() != null && task.getContract().getDrafter() != null) {
+                User drafter = task.getContract().getDrafter();
+                Hibernate.initialize(drafter.getRoles());
+                drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+            }
+
         });
         return tasks;
     }
+
+
     @Override
     @Transactional(readOnly = true)
     public Contract getContractById(Long id) {
@@ -479,6 +512,7 @@ public class ContractServiceImpl implements ContractService {
         contractProcessRepository.save(process);
 
         contract.setUpdatedAt(LocalDateTime.now());
+
         String logActionType = approved ? "CONTRACT_APPROVED" : "CONTRACT_REJECTED_APPROVAL";
         String logDetails = "用户 " + username + (approved ? " 批准了" : " 拒绝了") + "合同ID " + contractId +
                 " (“" + contract.getContractName() + "”)的审批。审批意见: " +
@@ -588,6 +622,8 @@ public class ContractServiceImpl implements ContractService {
         }
         contractRepository.save(contract);
     }
+
+
     @Override
     @Transactional(readOnly = true)
     public Page<Contract> getContractsPendingFinalizationForUser(String username, String contractNameSearch, Pageable pageable) {
@@ -637,6 +673,8 @@ public class ContractServiceImpl implements ContractService {
         User currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("当前用户 '" + username + "' 不存在。"));
         if (!contract.getDrafter().equals(currentUser)) {
+            logger.warn("用户 '{}' 尝试定稿合同 ID {}，但该合同由 '{}' 起草。拒绝访问。",
+                    username, contractId, contract.getDrafter().getUsername());
             throw new AccessDeniedException("您 ("+username+") 不是此合同的起草人 ("+contract.getDrafter().getUsername()+")，无权定稿。");
         }
 
@@ -648,6 +686,8 @@ public class ContractServiceImpl implements ContractService {
         }
         return contract;
     }
+
+
     @Override
     @Transactional(readOnly = true)
     public long countActiveContracts() {
