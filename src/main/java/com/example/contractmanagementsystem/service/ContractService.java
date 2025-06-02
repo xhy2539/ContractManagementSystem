@@ -11,7 +11,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.List; // 新增导入
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -184,7 +184,6 @@ public interface ContractService {
      * @throws AccessDeniedException 如果当前用户无权定稿此合同。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不适合定稿，或发生其他业务校验失败。
      */
-    // 修改点：MultipartFile newAttachment 参数替换为 List<String> attachmentServerFileNames
     Contract finalizeContract(Long contractId, String finalizationComments, List<String> attachmentServerFileNames, String username) throws IOException, AccessDeniedException;
 
     // 新增会签处理方法声明 (如果之前没有)
@@ -204,5 +203,10 @@ public interface ContractService {
      * @return 即将到期的有效合同数量。
      */
     long countContractsExpiringSoon(int days);
-    // --- 结束新增 ---
+
+    /**
+     * Counts the number of contracts currently pending assignment.
+     * @return The count of contracts with status PENDING_ASSIGNMENT.
+     */
+    long countContractsPendingAssignment(); // <-- 新增方法声明
 }
