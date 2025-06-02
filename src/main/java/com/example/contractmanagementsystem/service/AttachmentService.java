@@ -2,6 +2,9 @@ package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.dto.attachment.FileUploadInitiateRequest;
 import com.example.contractmanagementsystem.dto.attachment.FileUploadInitiateResponse;
+import com.example.contractmanagementsystem.entity.FileUploadProgress; // 新增导入
+import com.example.contractmanagementsystem.exception.ResourceNotFoundException; // 新增导入
+import org.springframework.security.access.AccessDeniedException; // 新增导入
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -61,5 +64,17 @@ public interface AttachmentService {
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果文件或上传记录未找到。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果因业务逻辑无法删除（例如，文件名无效）。
      */
-    void deleteUploadedFile(String serverFileName, String username) throws IOException; // 新增方法声明
+    void deleteUploadedFile(String serverFileName, String username) throws IOException;
+
+    /**
+     * 获取指定上传ID的上传进度详情。
+     * 用于断点续传时，客户端查询服务器端已确认的上传状态。
+     *
+     * @param uploadId 上传ID。
+     * @param username 当前操作的用户名，用于权限验证。
+     * @return FileUploadProgress 实体，包含了上传的详细信息。
+     * @throws ResourceNotFoundException 如果指定uploadId的上传记录未找到。
+     * @throws AccessDeniedException 如果当前用户无权查看此上传记录的状态。
+     */
+    FileUploadProgress getUploadProgressDetails(String uploadId, String username) throws ResourceNotFoundException, AccessDeniedException; // 新增方法声明
 }

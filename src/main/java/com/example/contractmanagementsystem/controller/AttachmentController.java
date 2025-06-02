@@ -2,8 +2,7 @@ package com.example.contractmanagementsystem.controller;
 
 import com.example.contractmanagementsystem.dto.attachment.FileUploadInitiateRequest;
 import com.example.contractmanagementsystem.dto.attachment.FileUploadInitiateResponse;
-// ChunkUploadResponse is not directly used as a return type in current methods, can be removed if not planned for future
-// import com.example.contractmanagementsystem.dto.attachment.ChunkUploadResponse;
+import com.example.contractmanagementsystem.entity.FileUploadProgress; // 新增导入
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.service.AttachmentService;
@@ -13,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException; // 新增导入
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -22,7 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap; // Import HashMap
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.core.io.Resource;
@@ -154,7 +154,6 @@ public class AttachmentController {
                         .body(resource);
             } else {
                 logger.warn("请求下载的附件不存在或不可读: {}", filename);
-                // Prefer throwing ResourceNotFoundException for GlobalExceptionHandler to handle
                 throw new ResourceNotFoundException("无法读取文件: " + filename);
             }
         } catch (ResourceNotFoundException e) {
@@ -166,9 +165,8 @@ public class AttachmentController {
         }
     }
 
-    // 新增端点：删除已上传的附件
     @DeleteMapping("/file/{serverFileName:.+}")
-    @PreAuthorize("isAuthenticated()") // 确保用户已认证，具体权限可在服务层进一步检查
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> deleteAttachment(
             @PathVariable String serverFileName,
             Authentication authentication) {
@@ -197,6 +195,43 @@ public class AttachmentController {
         } catch (Exception e) {
             logger.error("用户 '{}' 删除附件 '{}' 时发生未知错误: {}", authentication.getName(), serverFileName, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "删除附件时发生未知错误。"));
+        }
+    }
+
+    // 新增端点：获取上传状态
+    @GetMapping("/status/{uploadId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getUploadStatus(@PathVariable String uploadId, Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            if (username == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "无法识别用户。"));
+            }
+
+            FileUploadProgress progress = attachmentService.getUploadProgressDetails(uploadId, username);
+
+            // 构建响应体
+            Map<String, Object> statusResponse = new HashMap<>();
+            statusResponse.put("uploadId", progress.getUploadId());
+            statusResponse.put("serverFileName", progress.getServerSideFileName());
+            statusResponse.put("originalFileName", progress.getOriginalFileName());
+            statusResponse.put("status", progress.getStatus());
+            statusResponse.put("uploadedChunks", progress.getUploadedChunks()); // Set<Integer>
+            statusResponse.put("totalChunks", progress.getTotalChunks());
+            statusResponse.put("totalSize", progress.getTotalSize());
+
+            return ResponseEntity.ok(statusResponse);
+
+        } catch (ResourceNotFoundException e) {
+            logger.warn("用户 '{}' 查询上传状态失败，UploadId '{}' 未找到: {}", authentication.getName(), uploadId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        } catch (AccessDeniedException e) {
+            logger.warn("用户 '{}' 无权访问 UploadId '{}' 的上传状态: {}", authentication.getName(), uploadId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("用户 '{}' 获取上传ID '{}' 的状态时发生错误: {}", authentication.getName(), uploadId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "获取上传状态时发生服务器内部错误。"));
         }
     }
 }

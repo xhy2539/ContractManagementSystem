@@ -6,13 +6,13 @@ import com.example.contractmanagementsystem.entity.FileUploadProgress;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.FileUploadProgressRepository;
-// AttachmentService is the interface, no need to import itself in impl.
-// import com.example.contractmanagementsystem.service.AttachmentService;
-// AuditLogService is already imported
+
+import org.hibernate.Hibernate; // 新增导入，用于某些场景下的显式初始化
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException; // 新增导入
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -26,7 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
-import java.util.Comparator; // For sorting paths before deletion
+import java.util.Comparator;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -115,13 +115,12 @@ public class AttachmentServiceImpl implements AttachmentService {
             throw new BusinessLogicException("此上传会话当前状态为 " + progress.getStatus() + "，不允许添加分块。");
         }
 
-        if (progress.getTotalChunks() == null || progress.getTotalChunks() == 0) { // Set totalChunks if not set or if client provides it
+        if (progress.getTotalChunks() == null || progress.getTotalChunks() == 0) {
             progress.setTotalChunks(totalChunks);
-        } else if (progress.getTotalChunks() != totalChunks && totalChunks > 0) { // Log inconsistency if client changes totalChunks
+        } else if (progress.getTotalChunks() != totalChunks && totalChunks > 0) {
             logger.warn("用户 '{}' 上传分块时提供的总块数 ({}) 与记录的总块数 ({}) 不一致 (uploadId: {})。将使用新值。", username, totalChunks, progress.getTotalChunks(), uploadId);
             progress.setTotalChunks(totalChunks);
         }
-
 
         Path chunkDir = this.tempUploadPath.resolve(progress.getTempFileDirectory());
         Files.createDirectories(chunkDir);
@@ -154,12 +153,10 @@ public class AttachmentServiceImpl implements AttachmentService {
             logger.warn("用户 '{}' 尝试完成非进行中状态的上传 (ID: {}, 状态: {})。", username, uploadId, progress.getStatus());
             throw new BusinessLogicException("此上传会话当前状态为 " + progress.getStatus() + "，无法完成。");
         }
-        // Make sure originalFileName in progress matches what client sent, or update if necessary (though serverSideFileName is king)
         if (clientProvidedOriginalFileName != null && !clientProvidedOriginalFileName.equals(progress.getOriginalFileName())) {
             logger.warn("用户 '{}' 完成上传时提供的原始文件名 '{}' 与记录中的 '{}' 不符 (uploadId: {})。将使用记录中的原始文件名。",
                     username, clientProvidedOriginalFileName, progress.getOriginalFileName(), uploadId);
         }
-
 
         if (!progress.areAllChunksUploaded()) {
             logger.warn("尝试完成未完成的上传: uploadId={}, 已上传 {}/{} 块 (用户: {})", uploadId, progress.getUploadedChunks().size(), progress.getTotalChunks(), username);
@@ -196,7 +193,7 @@ public class AttachmentServiceImpl implements AttachmentService {
         }
 
         try (Stream<Path> walk = Files.walk(chunkDir)) {
-            walk.sorted(Comparator.reverseOrder()) // Crucial for deleting directory contents first
+            walk.sorted(Comparator.reverseOrder())
                     .forEach(path -> {
                         try {
                             Files.delete(path);
@@ -251,10 +248,8 @@ public class AttachmentServiceImpl implements AttachmentService {
             throw new BusinessLogicException("非法的文件路径，无法删除。");
         }
 
-        // 尝试查找上传记录。理想情况下，应基于 serverFileName 和 username。
-        // 假设 FileUploadProgressRepository 已添加 findByServerSideFileNameAndUploaderUsername 和 findByServerSideFileName 方法
         FileUploadProgress progress = fileUploadProgressRepository.findByServerSideFileNameAndUploaderUsername(serverFileName, username)
-                .orElseGet(() -> fileUploadProgressRepository.findByServerSideFileName(serverFileName) // Fallback if not user-specific or for admin cleanup
+                .orElseGet(() -> fileUploadProgressRepository.findByServerSideFileName(serverFileName)
                         .orElse(null));
 
         boolean fileDeleted = false;
@@ -270,7 +265,6 @@ public class AttachmentServiceImpl implements AttachmentService {
             }
         } else {
             logger.warn("用户 '{}' 尝试删除的附件物理文件不存在: {}", username, serverFileName);
-            // 如果文件不存在，但有上传记录，我们仍然应该清理记录和临时块
         }
 
         if (progress != null) {
@@ -286,7 +280,6 @@ public class AttachmentServiceImpl implements AttachmentService {
                                     logger.debug("已删除临时文件/目录: {}", path);
                                 } catch (IOException e) {
                                     logger.warn("删除临时分块 {} 失败: {}", path, e.getMessage());
-                                    // 不向上抛出，继续尝试删除其他部分
                                 }
                             });
                     logger.info("临时分块目录 {} 内容已删除。", chunkDir);
@@ -303,14 +296,32 @@ public class AttachmentServiceImpl implements AttachmentService {
                 auditLogService.logAction(username, "ATTACHMENT_RECORD_DELETED", "删除附件上传记录: " + serverFileName + ", UploadId: " + progress.getUploadId());
             } catch (Exception e) {
                 logger.error("从数据库删除附件 '{}' (UploadId: {}) 的上传进度记录失败: {}", serverFileName, progress.getUploadId(), e.getMessage(), e);
-                // 即使记录删除失败，如果文件已删除，也算部分成功。
             }
         } else {
             logger.warn("未找到附件 '{}' 对应的上传进度记录。可能已被清理或从未完整记录。", serverFileName);
-            // 如果文件被删除了，但没有记录，也记录一下
             if (fileDeleted) {
                 auditLogService.logAction(username, "ATTACHMENT_FILE_DELETED_NO_RECORD", "删除了附件物理文件 " + serverFileName + "，但未找到其上传记录。");
             }
         }
+    }
+
+    // 新增方法实现
+    @Override
+    @Transactional(readOnly = true)
+    public FileUploadProgress getUploadProgressDetails(String uploadId, String username) throws ResourceNotFoundException, AccessDeniedException {
+        FileUploadProgress progress = fileUploadProgressRepository.findById(uploadId) // FileUploadProgress 的主键是 uploadId (String)
+                .orElseThrow(() -> new ResourceNotFoundException("上传ID '" + uploadId + "' 未找到。"));
+
+        // 验证操作用户是否为该上传的发起者
+        if (!progress.getUploaderUsername().equals(username)) {
+            // 此处可以根据业务逻辑决定是否允许非上传者（例如管理员）查看，
+            // 但对于前端恢复上传状态，通常只应允许原上传者。
+            logger.warn("用户 '{}' 尝试访问不属于自己的上传记录 (ID: {}, 属于: {})。", username, uploadId, progress.getUploaderUsername());
+            throw new AccessDeniedException("您无权查看此上传 (ID: " + uploadId + ") 的状态。");
+        }
+
+        // FileUploadProgress 中的 uploadedChunks 字段是 EAGER fetch，所以不需要显式初始化。
+        // 如果它是 LAZY，则需要： Hibernate.initialize(progress.getUploadedChunks());
+        return progress;
     }
 }

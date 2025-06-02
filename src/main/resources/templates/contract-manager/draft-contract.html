@@ -324,11 +324,12 @@
     </div>
 </section>
 
+
 <th:block layout:fragment="scripts">
     <script th:inline="javascript">
         /*<![CDATA[*/
         document.addEventListener('DOMContentLoaded', function () {
-            console.log("DEBUG: DOMContentLoaded 事件触发 - 脚本开始执行。");
+            console.log("DEBUG: DOMContentLoaded 事件触发 - 脚本开始执行 (v3 - resume prompt)。");
 
             // --- START: Existing Customer Selection and Bootstrap Validation Logic ---
             (function () {
@@ -344,8 +345,7 @@
                             let isFormValid = form.checkValidity();
 
                             if (form.id === 'draftContractForm') {
-                                // 在这里准备要提交的附件文件名
-                                prepareAttachmentsForSubmission();
+                                prepareAttachmentsForSubmission(); // Prepare hidden inputs for submission
 
                                 if (customerIdField && customerIdField.required && customerIdField.value === '') {
                                     if (customerIdClientFeedback) customerIdClientFeedback.style.display = 'block';
@@ -365,8 +365,8 @@
                         }, false);
                     });
             })();
-            console.log("DEBUG: Bootstrap 表单验证逻辑已初始化。");
-
+            // ... (所有客户选择和Bootstrap验证的JS代码保持不变，从上一个回答复制过来) ...
+            // 客户选择相关的常量声明
             const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
             const customerSelectModalEl = document.getElementById('customerSelectModal');
             const customerSelectModal = customerSelectModalEl ? new bootstrap.Modal(customerSelectModalEl) : null;
@@ -377,7 +377,8 @@
             const customerModalSpinner = document.getElementById('customerModalSpinner');
             const customerModalAlertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
             const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
-            const selectedCustomerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
+            // const selectedCustomerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback'); // 已在上面声明
+            const selectedCustomerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder'); // 已在上面声明
             const selectedCustomerDetailsCard = document.getElementById('selectedCustomerDetailsCard');
             const modalAddNewCustomerBtn = document.getElementById('modalAddNewCustomerBtn');
             const addCustomerFormModalEl = document.getElementById('addCustomerFormModal');
@@ -387,15 +388,12 @@
             const addCustomerModalAlertPlaceholderDraft = document.getElementById('addCustomerModalAlertPlaceholder_draft');
             const backToCustomerSelectModalBtn = document.getElementById('backToCustomerSelectModalBtn');
 
-            console.log("DEBUG: 客户选择模态框相关常量已声明。");
-
             let currentCustomerPage = 0;
             const CUSTOMER_PAGE_SIZE = 5;
             let customerSearchKeyword = '';
 
             if(openCustomerSelectModalBtn && customerSelectModal) {
                 openCustomerSelectModalBtn.addEventListener('click', function() {
-                    console.log("DEBUG: '选择客户' 按钮被点击。");
                     if(modalCustomerSearchInput) modalCustomerSearchInput.value = '';
                     customerSearchKeyword = '';
                     loadCustomersForModal(0);
@@ -418,10 +416,8 @@
             }
 
             function loadCustomersForModal(page, keyword = customerSearchKeyword) {
-                console.log(`DEBUG: loadCustomersForModal 调用 - page: ${page}, keyword: '${keyword}'`);
                 currentCustomerPage = page;
                 const searchUrl = `/customers/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${CUSTOMER_PAGE_SIZE}&sort=customerName,asc`;
-
                 if(customerModalSpinner) customerModalSpinner.style.display = 'block';
                 if(customerTableBody) customerTableBody.innerHTML = '';
                 if(customerModalAlertPlaceholder) customerModalAlertPlaceholder.innerHTML = '';
@@ -432,7 +428,6 @@
                         return response.json();
                     })
                     .then(pageData => {
-                        console.log("DEBUG: 客户数据已获取:", pageData);
                         if (pageData && pageData.content) {
                             renderCustomerTable(pageData.content);
                             renderCustomerPagination(pageData);
@@ -442,7 +437,7 @@
                         }
                     })
                     .catch(error => {
-                        console.error('DEBUG ERROR: 加载客户列表失败:', error);
+                        console.error('加载客户列表失败:', error);
                         if(customerTableBody) customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">加载客户数据失败: ${error.message}</td></tr>`;
                         renderCustomerPagination(null);
                         showAlertInModal('加载客户数据失败: ' + error.message, 'danger', customerModalAlertPlaceholder);
@@ -453,7 +448,7 @@
             }
 
             function renderCustomerTable(customers) {
-                if(!customerTableBody) { console.error("DEBUG ERROR: customerTableBody is null in renderCustomerTable."); return; }
+                if(!customerTableBody) return;
                 customerTableBody.innerHTML = '';
                 if (!customers || customers.length === 0) {
                     customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">未找到匹配的客户记录。</td></tr>`;
@@ -477,7 +472,6 @@
             }
 
             function selectCustomerForForm(customer) {
-                console.log("DEBUG: selectCustomerForForm - 选中的客户:", customer);
                 if (selectedCustomerIdInput) selectedCustomerIdInput.value = customer.id;
                 if (selectedCustomerInfoPlaceholder) {
                     selectedCustomerInfoPlaceholder.innerHTML = `<strong class="text-success">${customer.customerName}</strong> <small class="text-muted">(编号: ${customer.customerNumber || 'N/A'})</small>`;
@@ -602,18 +596,19 @@
             function createAndShowAlert(message, type, placeholderElement, duration = 7000) {
                 if (!placeholderElement) {
                     console.warn("Alert placeholder not found for message:", message);
-                    alert(message);
+                    alert(message); // Fallback
                     return;
                 }
                 const wrapper = document.createElement('div');
-                const alertId = 'alert-' + Date.now();
+                const alertId = 'alert-' + Date.now() + Math.random().toString(36).substring(2,7);
                 wrapper.innerHTML = `
                 <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
                     ${message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>`;
-                placeholderElement.innerHTML = ''; // Clear previous alerts in this specific placeholder
+                placeholderElement.innerHTML = '';
                 placeholderElement.append(wrapper.firstChild);
+
                 const newAlertElement = document.getElementById(alertId);
                 if (newAlertElement && window.bootstrap && bootstrap.Alert) {
                     const bsAlertInstance = new bootstrap.Alert(newAlertElement);
@@ -621,12 +616,12 @@
                         setTimeout(() => {
                             if (bootstrap.Alert.getInstance(newAlertElement)) {
                                 bsAlertInstance.close();
-                            } else if (newAlertElement.parentNode) { // Fallback if instance is gone
+                            } else if (newAlertElement.parentNode) {
                                 newAlertElement.parentNode.removeChild(newAlertElement);
                             }
                         }, duration);
                     }
-                } else if (newAlertElement && duration > 0) { // Fallback if bootstrap not fully loaded
+                } else if (newAlertElement && duration > 0) {
                     setTimeout(() => {
                         if(newAlertElement.parentNode) newAlertElement.parentNode.removeChild(newAlertElement);
                     }, duration);
@@ -634,14 +629,15 @@
             }
             // --- 客户选择模态框相关逻辑 END ---
 
-            // --- START: New Multi-File Resumable Upload Logic ---
+
+            // --- START: Multi-File Resumable Upload Logic (Enhanced for Page Refresh with Prompt) ---
             const attachmentFilesInput = document.getElementById('attachmentFilesInput');
             const fileListContainer = document.getElementById('fileListContainer');
             const hiddenAttachmentInputsContainer = document.getElementById('hiddenAttachmentInputsContainer');
-            const mainDraftForm = document.getElementById('draftContractForm'); // Re-declare for this scope, ensure ID is correct
+            const mainDraftForm = document.getElementById('draftContractForm');
 
             const CHUNK_SIZE = 1024 * 1024 * 2; // 2MB per chunk
-            let uploadedFilesData = []; // Array to store state of each file being uploaded
+            let uploadedFilesData = [];
 
             if (attachmentFilesInput) {
                 attachmentFilesInput.addEventListener('change', handleFileSelection);
@@ -650,56 +646,298 @@
                 showAlertOnMainPage('附件上传组件初始化失败，请联系管理员。', 'danger');
             }
 
-            if (mainDraftForm) { // Ensure mainDraftForm is not null before adding listener
+            if (mainDraftForm) {
                 mainDraftForm.addEventListener('reset', function() {
                     console.log("DEBUG: 主表单 'draftContractForm' 已重置 (multi-file logic).");
-                    if (attachmentFilesInput) attachmentFilesInput.value = ''; // Clear file input
-                    uploadedFilesData = []; // Clear internal state
-                    if (fileListContainer) fileListContainer.innerHTML = ''; // Clear UI list
-                    if (hiddenAttachmentInputsContainer) hiddenAttachmentInputsContainer.innerHTML = ''; // Clear hidden inputs
+                    if (attachmentFilesInput) attachmentFilesInput.value = '';
+                    uploadedFilesData.forEach(fileEntry => {
+                        if (fileEntry.clientFileId && (fileEntry.status !== 'completed' && fileEntry.status !== 'cancelled')) {
+                            removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        }
+                    });
+                    uploadedFilesData = [];
+                    if (fileListContainer) fileListContainer.innerHTML = '';
+                    if (hiddenAttachmentInputsContainer) hiddenAttachmentInputsContainer.innerHTML = '';
                 });
             }
 
+            function generateClientFileId(file) {
+                return `clientFile_${file.name}_${file.size}_${file.lastModified}`;
+            }
 
-            function handleFileSelection(event) {
+            function saveUploadStateToLocalStorage(clientFileId, state) {
+                try {
+                    localStorage.setItem("uploadState_" + clientFileId, JSON.stringify(state));
+                } catch (e) {
+                    console.warn("Failed to save state to localStorage (possibly full or disabled):", e);
+                }
+            }
+
+            function getUploadStateFromLocalStorage(clientFileId) {
+                try {
+                    const stateString = localStorage.getItem("uploadState_" + clientFileId);
+                    return stateString ? JSON.parse(stateString) : null;
+                } catch (e) {
+                    console.warn("Failed to parse state from localStorage:", e);
+                    return null;
+                }
+            }
+
+            function removeUploadStateFromLocalStorage(clientFileId) {
+                try {
+                    localStorage.removeItem("uploadState_" + clientFileId);
+                } catch (e) {
+                    console.warn("Failed to remove state from localStorage:", e);
+                }
+            }
+
+            async function fetchUploadStatusFromServer(uploadId) {
+                console.log(`Fetching server status for uploadId: ${uploadId}`);
+                try {
+                    const response = await fetch(`/api/attachments/status/${uploadId}`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            console.warn(`UploadId ${uploadId} not found on server.`);
+                            return null;
+                        }
+                        const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+                        throw new Error(errorData.message || `Failed to fetch status: ${response.status}`);
+                    }
+                    const statusData = await response.json();
+                    console.log(`Server status for ${uploadId}:`, statusData);
+                    return statusData;
+                } catch (error) {
+                    console.error(`Error fetching status for ${uploadId}:`, error);
+                    throw error;
+                }
+            }
+
+            async function handleFileSelection(event) {
                 const files = event.target.files;
                 if (!files.length) return;
 
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
-                    const fileId = `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-                    const fileEntry = {
-                        id: fileId,
-                        fileObject: file,
-                        originalName: file.name,
-                        size: file.size,
-                        status: 'pending', // pending, initiating, uploading, finalizing, completed, error, cancelled
-                        progress: 0,
-                        uploadId: null,
-                        serverFileName: null,
-                        errorMessage: null,
-                        uiElement: null,
-                        chunks: [],
-                        totalChunks: Math.ceil(file.size / CHUNK_SIZE),
-                        uploadedChunksCount: 0,
-                        xhr: null // To store XMLHttpRequest object for aborting
-                    };
-                    uploadedFilesData.push(fileEntry);
-                    addFileToUI(fileEntry);
-                    initiateFileUpload(fileEntry); // Automatically start upload
+                    const clientFileId = generateClientFileId(file);
+                    const uiFileId = `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+                    let existingFileEntry = uploadedFilesData.find(f => f.clientFileId === clientFileId && f.status !== 'completed' && f.status !== 'cancelled');
+                    if (existingFileEntry) {
+                        console.log(`File ${file.name} (clientFileId: ${clientFileId}) is already in the list with status: ${existingFileEntry.status}. Handling re-selection.`);
+                        if ((existingFileEntry.status === 'error' || existingFileEntry.status === 'pending_resume' || existingFileEntry.status === 'pending')
+                            && confirm(`文件 "${file.name}" 之前似乎未完成上传或出错。是否尝试继续或重新上传？\n- 确定: 继续/重试\n- 取消: 作为新文件上传 (如果已存在旧的将先移除)`)) {
+                            if (existingFileEntry.uploadId) {
+                                console.log(`Attempting to resume/retry upload for ${existingFileEntry.originalName} with uploadId ${existingFileEntry.uploadId}`);
+                                await tryToResumeUpload(existingFileEntry, file);
+                            } else {
+                                console.log(`No uploadId for errored/pending file ${existingFileEntry.originalName}, initiating new upload.`);
+                                if (existingFileEntry.uiElement) existingFileEntry.uiElement.remove();
+                                const idx = uploadedFilesData.findIndex(f => f.id === existingFileEntry.id);
+                                if (idx > -1) uploadedFilesData.splice(idx, 1);
+                                await initiateNewUploadProcess(file, uiFileId, clientFileId);
+                            }
+                        } else if (existingFileEntry.status === 'error' || existingFileEntry.status === 'pending_resume' || existingFileEntry.status === 'pending') {
+                            // User chose "Cancel" on the confirm dialog to re-upload as new
+                            console.log(`User chose to re-upload "${file.name}" as new, removing previous entry.`);
+                            if (existingFileEntry.uiElement) existingFileEntry.uiElement.remove();
+                            const idx = uploadedFilesData.findIndex(f => f.id === existingFileEntry.id);
+                            if (idx > -1) uploadedFilesData.splice(idx, 1);
+                            removeUploadStateFromLocalStorage(clientFileId);
+                            await initiateNewUploadProcess(file, uiFileId, clientFileId);
+                        }
+                        else {
+                            console.log(`File ${file.name} has status ${existingFileEntry.status}, no action on re-selection.`);
+                        }
+                        continue; // To next selected file
+                    }
+
+                    const storedState = getUploadStateFromLocalStorage(clientFileId);
+
+                    if (storedState && storedState.uploadId && storedState.status === 'in_progress') {
+                        console.log(`Found stored 'in_progress' state for ${file.name} (UploadID: ${storedState.uploadId}). Prompting user to resume.`);
+                        const resumedFileEntry = createBaseFileEntry(file, uiFileId, clientFileId);
+                        resumedFileEntry.uploadId = storedState.uploadId;
+                        resumedFileEntry.serverFileName = storedState.serverFileName;
+                        resumedFileEntry.totalChunks = storedState.totalChunks || Math.ceil(file.size / CHUNK_SIZE);
+
+                        uploadedFilesData.push(resumedFileEntry);
+                        addFileToUI(resumedFileEntry);
+                        updateFileStatusUI(resumedFileEntry, 'pending_resume', `检测到未完成。检查状态...`);
+                        await promptToResumeUpload(resumedFileEntry, file);
+                    } else {
+                        console.log(`No active stored state for ${file.name}. Starting new upload.`);
+                        if (storedState) {
+                            removeUploadStateFromLocalStorage(clientFileId);
+                        }
+                        await initiateNewUploadProcess(file, uiFileId, clientFileId);
+                    }
                 }
-                // Clear the file input so the same file can be selected again if removed and re-added
                 event.target.value = '';
             }
 
+            async function promptToResumeUpload(fileEntry, newFileObject) {
+                if (newFileObject) fileEntry.fileObject = newFileObject;
+
+                let serverProgressPercent = 0;
+                let serverTotalChunks = fileEntry.totalChunks;
+                let canResumeBasedOnServer = false;
+                let serverFileStatus = null;
+
+                try {
+                    const serverState = await fetchUploadStatusFromServer(fileEntry.uploadId);
+                    if (serverState) {
+                        serverFileStatus = serverState.status; // e.g., "IN_PROGRESS", "COMPLETED"
+                        if (serverState.status === 'IN_PROGRESS') {
+                            canResumeBasedOnServer = true;
+                            const confirmedChunksCount = serverState.uploadedChunks ? serverState.uploadedChunks.length : 0;
+                            serverTotalChunks = serverState.totalChunks || fileEntry.totalChunks;
+                            if (serverTotalChunks > 0) {
+                                serverProgressPercent = Math.round((confirmedChunksCount / serverTotalChunks) * 100);
+                            }
+                            updateFileProgressUI(fileEntry, serverProgressPercent);
+                            updateFileStatusUI(fileEntry, 'pending_resume', `检测到上次已上传 ${serverProgressPercent}%。`);
+                        } else if (serverState.status === 'COMPLETED') {
+                            updateFileStatusUI(fileEntry, 'completed', '此文件在服务器上已完成。');
+                            removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                            if(fileEntry.uiElement) {
+                                fileEntry.uiElement.classList.remove('upload-error'); // Ensure error class is removed
+                                fileEntry.uiElement.classList.add('upload-success');
+                                fileEntry.uiElement.querySelector('.preview-btn').style.display = 'inline-block';
+                                const progressDiv = fileEntry.uiElement.querySelector('.file-progress');
+                                if(progressDiv) progressDiv.style.display = 'none';
+                            }
+                            prepareAttachmentsForSubmission();
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Error fetching server status for ${fileEntry.uploadId} during prompt: ${error.message}.`);
+                    updateFileStatusUI(fileEntry, 'error', '获取服务器状态失败。');
+                    // Continue to ask if user wants to upload as new, as server state is unknown/error
+                }
+
+                if (!canResumeBasedOnServer && serverFileStatus !== 'COMPLETED') { // If not completed and cannot resume from server
+                    if (confirm(`文件 "${fileEntry.originalName}" 之前可能未成功上传或服务器状态未知 (${serverFileStatus || '无法获取'})。\n是否作为新文件重新上传？`)) {
+                        console.log(`User chose to re-upload ${fileEntry.originalName} as new.`);
+                        removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                        if (idx > -1) uploadedFilesData.splice(idx, 1);
+                        if (fileEntry.uiElement) fileEntry.uiElement.remove();
+                        await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+                    } else {
+                        console.log(`User chose not to re-upload ${fileEntry.originalName}. Removing from list.`);
+                        const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                        if (idx > -1) uploadedFilesData.splice(idx, 1);
+                        if (fileEntry.uiElement) fileEntry.uiElement.remove();
+                        removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        prepareAttachmentsForSubmission();
+                    }
+                    return;
+                }
+
+                // If canResumeBasedOnServer is true
+                const resumeMessage = `检测到文件 "${fileEntry.originalName}" 上次上传中断，已完成约 ${serverProgressPercent}%。您想继续上传吗？\n\n- 选择“确定”从断点处继续。\n- 选择“取消”将作为新文件重新上传。`;
+
+                if (confirm(resumeMessage)) {
+                    console.log(`User chose to resume upload for ${fileEntry.originalName}.`);
+                    await tryToResumeUpload(fileEntry, fileEntry.fileObject);
+                } else {
+                    console.log(`User chose NOT to resume for ${fileEntry.originalName}. Starting a new upload.`);
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                    const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                    if (idx > -1) uploadedFilesData.splice(idx, 1);
+                    if (fileEntry.uiElement) fileEntry.uiElement.remove();
+                    await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+                }
+            }
+
+            async function tryToResumeUpload(fileEntry, newFileObject) {
+                if(newFileObject) fileEntry.fileObject = newFileObject;
+
+                try {
+                    // Re-fetch server state to be absolutely sure before resuming
+                    const serverState = await fetchUploadStatusFromServer(fileEntry.uploadId);
+                    if (serverState && serverState.status === 'IN_PROGRESS') {
+                        fileEntry.confirmedUploadedChunks = new Set(serverState.uploadedChunks || []);
+                        fileEntry.uploadedChunksCount = fileEntry.confirmedUploadedChunks.size;
+                        fileEntry.totalChunks = serverState.totalChunks || fileEntry.totalChunks;
+                        fileEntry.serverFileName = serverState.serverFileName || fileEntry.serverFileName;
+
+                        const progressPercent = fileEntry.totalChunks > 0 ? Math.round((fileEntry.uploadedChunksCount / fileEntry.totalChunks) * 100) : 0;
+                        updateFileProgressUI(fileEntry, progressPercent);
+                        updateFileStatusUI(fileEntry, 'resuming', `正在续传 (${progressPercent}%)...`);
+
+                        saveUploadStateToLocalStorage(fileEntry.clientFileId, {
+                            uploadId: fileEntry.uploadId,
+                            serverFileName: fileEntry.serverFileName,
+                            originalName: fileEntry.originalName,
+                            totalSize: fileEntry.size,
+                            totalChunks: fileEntry.totalChunks,
+                            lastModified: fileEntry.fileObject.lastModified,
+                            status: 'in_progress'
+                        });
+
+                        uploadAllChunksForFile(fileEntry);
+                    } else { // Server state is not IN_PROGRESS (e.g., COMPLETED, FAILED, or null)
+                        console.log(`Server status for ${fileEntry.uploadId} is '${serverState ? serverState.status : 'unknown'}' during resume attempt. Not resuming, will start new upload if user agreed.`);
+                        removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                        if (idx > -1) uploadedFilesData.splice(idx, 1);
+                        if (fileEntry.uiElement) fileEntry.uiElement.remove();
+
+                        // Since promptToResume already asked, and if they chose to resume but server isn't resumable,
+                        // we should probably treat it as a new upload here.
+                        await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+                    }
+                } catch (error) {
+                    console.warn(`Failed to get server status for ${fileEntry.uploadId} to resume, starting new upload. Error:`, error);
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                    const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                    if (idx > -1) uploadedFilesData.splice(idx, 1);
+                    if (fileEntry.uiElement) fileEntry.uiElement.remove();
+
+                    await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+                }
+            }
+
+
+            function createBaseFileEntry(file, uiFileId, clientFileId) {
+                return {
+                    id: uiFileId,
+                    fileObject: file,
+                    originalName: file.name,
+                    size: file.size,
+                    status: 'pending',
+                    progress: 0,
+                    uploadId: null,
+                    serverFileName: null,
+                    clientFileId: clientFileId,
+                    errorMessage: null,
+                    uiElement: null,
+                    totalChunks: Math.ceil(file.size / CHUNK_SIZE),
+                    uploadedChunksCount: 0,
+                    confirmedUploadedChunks: new Set(),
+                    xhr: null
+                };
+            }
+
+            async function initiateNewUploadProcess(file, uiFileId, clientFileId) {
+                const newFileEntry = createBaseFileEntry(file, uiFileId, clientFileId);
+                uploadedFilesData.push(newFileEntry);
+                addFileToUI(newFileEntry); // This should get the uiElement
+                await initiateFileUpload(newFileEntry);
+            }
+
             function addFileToUI(fileEntry) {
+                const safeFileEntryId = CSS.escape(fileEntry.id);
+
                 const fileItemHTML = `
-                    <div class="file-list-item" id="${fileEntry.id}">
+                    <div class="file-list-item" id="${safeFileEntryId}">
                         <div class="file-info">
                             <span class="file-name" title="${fileEntry.originalName}">${fileEntry.originalName}</span>
                             <span class="file-size">(${formatFileSize(fileEntry.size)})</span>
-                            <div class="file-progress mt-1">
-                                <div class="file-progress-bar" style="width: 0%;">0%</div>
+                            <div class="file-progress mt-1" style="display: block;">
+                                <div class="file-progress-bar" style="width: ${fileEntry.progress || 0}%;">${fileEntry.progress || 0}%</div>
                             </div>
                             <small class="file-status text-muted d-block mt-1">等待上传...</small>
                         </div>
@@ -714,19 +952,54 @@
                     </div>
                 `;
                 fileListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
-                fileEntry.uiElement = document.getElementById(fileEntry.id);
+                fileEntry.uiElement = fileListContainer.querySelector(`#${safeFileEntryId}`);
 
-                fileEntry.uiElement.querySelector('.delete-btn').addEventListener('click', () => handleDeleteFile(fileEntry.id));
-                fileEntry.uiElement.querySelector('.preview-btn').addEventListener('click', () => {
-                    if (fileEntry.status === 'completed' && fileEntry.serverFileName) {
-                        handlePreviewFile(fileEntry.serverFileName);
+                if (!fileEntry.uiElement) {
+                    console.error(`FATAL: Could not find UI element for fileId ${safeFileEntryId} immediately after insertion.`);
+                    updateFileStatusUI(fileEntry, 'error', 'UI元素创建失败');
+                    return;
+                }
+
+                const deleteBtn = fileEntry.uiElement.querySelector('.delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', () => handleDeleteFile(fileEntry.id));
+                } else {
+                    console.error(`Delete button not found for fileId ${safeFileEntryId}`);
+                }
+
+                const previewBtn = fileEntry.uiElement.querySelector('.preview-btn');
+                if (previewBtn) {
+                    previewBtn.addEventListener('click', () => {
+                        if (fileEntry.status === 'completed' && fileEntry.serverFileName) {
+                            handlePreviewFile(fileEntry.serverFileName);
+                        }
+                    });
+                } else {
+                    console.error(`Preview button not found for fileId ${safeFileEntryId}`);
+                }
+
+                const progressDiv = fileEntry.uiElement.querySelector('.file-progress');
+                if (progressDiv) {
+                    if (fileEntry.status === 'pending' || fileEntry.status === 'initiating' || fileEntry.status === 'resuming' || fileEntry.status === 'uploading') {
+                        progressDiv.style.display = 'block';
+                    } else if (fileEntry.status === 'completed') {
+                        progressDiv.style.display = 'none';
                     }
-                });
+                }
+                if ((fileEntry.status === 'pending_resume' || fileEntry.status === 'resuming') && progressDiv && fileEntry.progress > 0) {
+                    progressDiv.style.display = 'block';
+                } else if (fileEntry.status === 'pending' && progressDiv) { // For newly added pending files, ensure progress is shown
+                    progressDiv.style.display = 'block';
+                }
             }
+
 
             async function initiateFileUpload(fileEntry) {
                 updateFileStatusUI(fileEntry, 'initiating', '正在初始化上传...');
-                if(fileEntry.uiElement) fileEntry.uiElement.querySelector('.file-progress').style.display = 'block';
+                if(fileEntry.uiElement && fileEntry.uiElement.querySelector('.file-progress')) {
+                    fileEntry.uiElement.querySelector('.file-progress').style.display = 'block';
+                }
+
 
                 try {
                     const requestBody = {
@@ -748,6 +1021,17 @@
                     const data = await response.json();
                     fileEntry.uploadId = data.uploadId;
                     fileEntry.serverFileName = data.fileName;
+
+                    saveUploadStateToLocalStorage(fileEntry.clientFileId, {
+                        uploadId: fileEntry.uploadId,
+                        serverFileName: fileEntry.serverFileName,
+                        originalName: fileEntry.originalName,
+                        totalSize: fileEntry.size,
+                        totalChunks: fileEntry.totalChunks,
+                        lastModified: fileEntry.fileObject.lastModified,
+                        status: 'in_progress'
+                    });
+
                     updateFileStatusUI(fileEntry, 'uploading', '准备上传分块...');
                     uploadAllChunksForFile(fileEntry);
 
@@ -755,31 +1039,48 @@
                     console.error(`Error initiating upload for ${fileEntry.originalName}:`, error);
                     updateFileStatusUI(fileEntry, 'error', `初始化失败: ${error.message}`);
                     if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
                 }
             }
 
             async function uploadAllChunksForFile(fileEntry) {
-                fileEntry.status = 'uploading';
-                fileEntry.uploadedChunksCount = 0;
+                if (fileEntry.status !== 'uploading' && fileEntry.status !== 'resuming') {
+                    updateFileStatusUI(fileEntry, fileEntry.status, `状态为 ${fileEntry.status}, 跳过上传分块。`);
+                    return;
+                }
+                // If resuming, status might be 'resuming', change to 'uploading' for the actual chunk process
+                updateFileStatusUI(fileEntry, 'uploading', `正在上传分块... (已确认: ${fileEntry.confirmedUploadedChunks.size}/${fileEntry.totalChunks})`);
 
                 for (let i = 0; i < fileEntry.totalChunks; i++) {
                     if (fileEntry.status !== 'uploading') {
-                        console.log(`Upload cancelled for ${fileEntry.originalName} before chunk ${i}`);
+                        console.log(`Upload stopped/cancelled for ${fileEntry.originalName} before chunk ${i}. Status: ${fileEntry.status}`);
                         return;
                     }
+
+                    if (fileEntry.confirmedUploadedChunks && fileEntry.confirmedUploadedChunks.has(i)) {
+                        console.log(`Skipping already confirmed chunk ${i} for ${fileEntry.originalName}`);
+                        continue;
+                    }
+
                     const start = i * CHUNK_SIZE;
                     const end = Math.min(start + CHUNK_SIZE, fileEntry.size);
                     const chunk = fileEntry.fileObject.slice(start, end);
 
                     try {
                         await uploadSingleChunkForFile(fileEntry, chunk, i);
-                        fileEntry.uploadedChunksCount++;
+                        fileEntry.confirmedUploadedChunks.add(i);
+                        fileEntry.uploadedChunksCount = fileEntry.confirmedUploadedChunks.size;
                         const progress = Math.round((fileEntry.uploadedChunksCount / fileEntry.totalChunks) * 100);
                         updateFileProgressUI(fileEntry, progress);
                     } catch (error) {
                         console.error(`Error uploading chunk ${i} for ${fileEntry.originalName}:`, error);
                         updateFileStatusUI(fileEntry, 'error', `分块 ${i + 1} 上传失败: ${error.message}`);
                         if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+                        const currentState = getUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        if (currentState) {
+                            currentState.status = 'error';
+                            saveUploadStateToLocalStorage(fileEntry.clientFileId, currentState);
+                        }
                         return;
                     }
                 }
@@ -792,18 +1093,16 @@
             function uploadSingleChunkForFile(fileEntry, chunk, chunkNumber) {
                 return new Promise((resolve, reject) => {
                     updateFileStatusUI(fileEntry, 'uploading', `正在上传分块 ${chunkNumber + 1}/${fileEntry.totalChunks}...`);
-
                     const formData = new FormData();
                     formData.append('file', chunk, `${fileEntry.originalName}.part${chunkNumber}`);
                     formData.append('chunkNumber', chunkNumber);
                     formData.append('totalChunks', fileEntry.totalChunks);
 
                     const xhr = new XMLHttpRequest();
-                    fileEntry.xhr = xhr; // Store XHR for potential abort
+                    fileEntry.xhr = xhr;
 
                     xhr.open('POST', '/api/attachments/upload-chunk', true);
                     xhr.setRequestHeader('X-Upload-Id', fileEntry.uploadId);
-                    // xhr.setRequestHeader('X-CSRF-TOKEN', csrfToken); // If using CSRF
 
                     xhr.onload = function() {
                         if (xhr.status >= 200 && xhr.status < 300) {
@@ -813,17 +1112,12 @@
                             try {
                                 const errorData = JSON.parse(xhr.responseText);
                                 errorMsg = errorData.message || errorData.error || errorMsg;
-                            } catch (e) { /* ignore parse error, use status text */ errorMsg = xhr.statusText || errorMsg}
+                            } catch (e) { errorMsg = xhr.statusText || errorMsg; }
                             reject(new Error(errorMsg));
                         }
                     };
-                    xhr.onerror = function() {
-                        reject(new Error(`网络错误导致分块 ${chunkNumber + 1} 上传失败。`));
-                    };
-                    xhr.onabort = function() {
-                        console.log(`Upload of chunk ${chunkNumber} for ${fileEntry.originalName} aborted.`);
-                        // Don't reject here, let the status check in uploadAllChunksForFile handle it
-                    };
+                    xhr.onerror = function() { reject(new Error(`网络错误导致分块 ${chunkNumber + 1} 上传失败。`)); };
+                    xhr.onabort = function() { /* Status check in uploadAllChunksForFile handles this */ };
                     xhr.send(formData);
                 });
             }
@@ -834,7 +1128,6 @@
                     const response = await fetch(`/api/attachments/finalize/${fileEntry.uploadId}?originalFileName=${encodeURIComponent(fileEntry.originalName)}`, {
                         method: 'POST'
                     });
-
                     if (!response.ok) {
                         const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
                         throw new Error(errorData.error || errorData.message || `完成上传失败 (状态: ${response.status})`);
@@ -846,13 +1139,20 @@
                         fileEntry.uiElement.classList.remove('upload-error');
                         fileEntry.uiElement.classList.add('upload-success');
                         fileEntry.uiElement.querySelector('.preview-btn').style.display = 'inline-block';
-                        fileEntry.uiElement.querySelector('.file-progress').style.display = 'none';
+                        const progressDiv = fileEntry.uiElement.querySelector('.file-progress');
+                        if(progressDiv) progressDiv.style.display = 'none';
                     }
-                    prepareAttachmentsForSubmission(); // Update hidden inputs
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                    prepareAttachmentsForSubmission();
                 } catch (error) {
                     console.error(`Error finalizing upload for ${fileEntry.originalName}:`, error);
                     updateFileStatusUI(fileEntry, 'error', `完成上传失败: ${error.message}`);
                     if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+                    const currentState = getUploadStateFromLocalStorage(fileEntry.clientFileId);
+                    if (currentState) {
+                        currentState.status = 'error';
+                        saveUploadStateToLocalStorage(fileEntry.clientFileId, currentState);
+                    }
                 }
             }
 
@@ -862,12 +1162,14 @@
                     if (progressBar) {
                         progressBar.style.width = `${percent}%`;
                         progressBar.textContent = `${percent}%`;
+                    } else {
+                        // console.warn(`Progress bar element not found for fileId ${fileEntry.id} in updateFileProgressUI`);
                     }
                 }
             }
 
             function updateFileStatusUI(fileEntry, status, message) {
-                fileEntry.status = status; // Update internal status
+                fileEntry.status = status;
                 if (fileEntry.uiElement) {
                     const statusElement = fileEntry.uiElement.querySelector('.file-status');
                     const progressBarDiv = fileEntry.uiElement.querySelector('.file-progress');
@@ -885,7 +1187,10 @@
                         } else {
                             statusElement.classList.add('text-muted');
                             if(progressBar) progressBar.classList.remove('bg-danger', 'bg-success');
+                            if(progressBarDiv) progressBarDiv.style.display = 'block';
                         }
+                    } else {
+                        // console.warn(`Status element not found for fileId ${fileEntry.id} in updateFileStatusUI`);
                     }
                 }
             }
@@ -899,40 +1204,37 @@
             async function handleDeleteFile(fileId) {
                 const fileIndex = uploadedFilesData.findIndex(f => f.id === fileId);
                 if (fileIndex === -1) return;
-
                 const fileEntry = uploadedFilesData[fileIndex];
 
-                // Abort XHR if uploading
-                if (fileEntry.xhr && (fileEntry.status === 'uploading' || fileEntry.status === 'initiating')) {
+                if (fileEntry.xhr && (fileEntry.status === 'uploading' || fileEntry.status === 'initiating' || fileEntry.status === 'resuming')) {
                     fileEntry.xhr.abort();
                 }
-                fileEntry.status = 'cancelled'; // Mark as cancelled
+                const oldStatus = fileEntry.status;
+                fileEntry.status = 'cancelled';
 
-                if (fileEntry.uiElement) {
-                    fileEntry.uiElement.remove();
+                if (fileEntry.uiElement) fileEntry.uiElement.remove();
+                uploadedFilesData.splice(fileIndex, 1);
+
+                if (fileEntry.clientFileId) {
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
                 }
 
-                uploadedFilesData.splice(fileIndex, 1); // Remove from internal array first
-
-                // If file was fully uploaded and finalized, attempt to delete from server
-                if (fileEntry.serverFileName && fileEntry.uploadId && fileEntry.status !== 'pending' && fileEntry.status !== 'initiating') { // only delete if uploadId exists
+                if (oldStatus === 'completed' && fileEntry.serverFileName) {
                     try {
                         const response = await fetch(`/api/attachments/file/${encodeURIComponent(fileEntry.serverFileName)}`, {
-                            method: 'DELETE',
-                            headers: { 'X-Upload-Id': fileEntry.uploadId } // Good practice to send uploadId if available, though serverFileName is key
+                            method: 'DELETE'
                         });
                         if (!response.ok) {
                             const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
                             throw new Error(errorData.message || `服务器删除失败 (状态: ${response.status})`);
                         }
-                        console.log(`File ${fileEntry.serverFileName} (UploadID: ${fileEntry.uploadId}) deleted successfully from server.`);
-                        showAlertOnMainPage(`附件 "${fileEntry.originalName}" 已成功删除。`, 'info');
+                        showAlertOnMainPage(`附件 "${fileEntry.originalName}" 已成功从服务器删除。`, 'info');
                     } catch (error) {
-                        console.error(`Error deleting file ${fileEntry.serverFileName} from server:`, error);
-                        showAlertOnMainPage(`删除附件 "${fileEntry.originalName}" 失败: ${error.message}`, 'warning');
+                        showAlertOnMainPage(`删除服务器附件 "${fileEntry.originalName}" 失败: ${error.message}`, 'warning');
                     }
+                } else if (fileEntry.uploadId && oldStatus !== 'pending' && oldStatus !== 'initiating') {
+                    console.log(`File ${fileEntry.originalName} (uploadId: ${fileEntry.uploadId}) was cancelled/deleted before completion.`);
                 }
-
                 prepareAttachmentsForSubmission();
             }
 
@@ -959,13 +1261,12 @@
                 const i = Math.floor(Math.log(bytes) / Math.log(k));
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
             }
-            // --- END: New Multi-File Resumable Upload Logic ---
+            // --- END: Multi-File Resumable Upload Logic ---
 
-            console.log("DEBUG: draft-contract.html 的内联脚本主要逻辑执行完毕。");
+            console.log("DEBUG: draft-contract.html 的内联脚本主要逻辑执行完毕 (v3 - resume prompt)。");
         });
         /*]]>*/
     </script>
 </th:block>
-
 </body>
 </html>
