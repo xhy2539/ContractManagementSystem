@@ -16,12 +16,12 @@
         </li>
 
         <th:block th:with="
-            maxVisiblePages=5,
-            currentPage=${page.number},
-            totalPages=${page.totalPages},
-            startPage=${T(java.lang.Math).max(0, currentPage - (maxVisiblePages / 2))},
-            endPage=${T(java.lang.Math).min(totalPages - 1, startPage + maxVisiblePages - 1)},
-            correctedStartPage=${T(java.lang.Math).max(0, endPage - maxVisiblePages + 1)}">
+    maxVisiblePages=5, /* int literal */
+    currentPage=${page.number}, /* page.getNumber() returns int */
+    totalPages=${page.totalPages}, /* page.getTotalPages() returns int */
+    startPage=${#numbers.max(0, #numbers.intValue(currentPage - (maxVisiblePages / 2)))},
+    endPage=${#numbers.min(#numbers.intValue(totalPages - 1), #numbers.intValue(startPage + maxVisiblePages - 1))},
+    correctedStartPage=${#numbers.max(0, #numbers.intValue(endPage - maxVisiblePages + 1))}">
 
             <li class="page-item" th:if="${correctedStartPage > 0}">
                 <a class="page-link" th:href="@{${baseUrl}(page=0, size=${page.size}, ${additionalParams})}">1</a>

@@ -9,13 +9,13 @@ import com.example.contractmanagementsystem.entity.ContractStatus;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.service.ContractService;
-import com.fasterxml.jackson.core.JsonProcessingException; // 用于解析附件JSON
-import com.fasterxml.jackson.core.type.TypeReference; // 用于解析附件JSON
-import com.fasterxml.jackson.databind.ObjectMapper; // 用于解析附件JSON
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.validation.Valid;
-import org.slf4j.Logger; // 添加 Logger
-import org.slf4j.LoggerFactory; // 添加 Logger
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,7 +24,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
+// import org.springframework.security.core.GrantedAuthority; // 未在此控制器中直接使用，可移除
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -38,20 +38,20 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
 import java.security.Principal;
-import java.util.ArrayList; // 确保导入 ArrayList
-import java.util.Collections;
+import java.util.ArrayList;
+// import java.util.Collections; // 未在此控制器中直接使用，可移除
 import java.util.List;
 
 @Controller
 @RequestMapping("/contract-manager")
 public class ContractController {
 
-    private static final Logger logger = LoggerFactory.getLogger(ContractController.class); // 添加 Logger 实例
+    private static final Logger logger = LoggerFactory.getLogger(ContractController.class);
     private final ContractService contractService;
-    private final ObjectMapper objectMapper; // 注入 ObjectMapper
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public ContractController(ContractService contractService, ObjectMapper objectMapper) { // 构造函数注入 ObjectMapper
+    public ContractController(ContractService contractService, ObjectMapper objectMapper) {
         this.contractService = contractService;
         this.objectMapper = objectMapper;
     }
@@ -103,7 +103,7 @@ public class ContractController {
         catch (Exception e) {
             model.addAttribute("errorMessage", "起草合同失败，发生未知系统错误。");
             model.addAttribute("contractDraftRequest", contractDraftRequest);
-            logger.error("起草合同未知错误", e); // 使用 logger 记录异常
+            logger.error("起草合同未知错误", e);
             return "contract-manager/draft-contract";
         }
     }
@@ -120,7 +120,7 @@ public class ContractController {
         Page<ContractProcess> pendingCountersigns = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.COUNTERSIGN, ContractProcessState.PENDING, contractNameSearch, pageable);
         model.addAttribute("pendingCountersigns", pendingCountersigns);
-        model.addAttribute("contractNameSearch", contractNameSearch);
+        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
         model.addAttribute("listTitle", "待会签合同");
         return "contract-manager/pending-countersign";
     }
@@ -178,12 +178,20 @@ public class ContractController {
         String username = principal.getName();
         Page<Contract> pendingFinalizationContracts = contractService.getContractsPendingFinalizationForUser(username, contractNameSearch, pageable);
         model.addAttribute("pendingFinalizationContracts", pendingFinalizationContracts);
-        model.addAttribute("contractNameSearch", contractNameSearch);
+
+        java.util.Map<String, Object> additionalParamsMap = new java.util.HashMap<>();
+        if (contractNameSearch != null && !contractNameSearch.isEmpty()) {
+            additionalParamsMap.put("contractNameSearch", contractNameSearch);
+        }
+        model.addAttribute("additionalParamsMap", additionalParamsMap); // 将Map传递给模板
+        // 为了向后兼容或如果其他地方仍然直接使用 contractNameSearch, 可以保留它
+        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
+
+
         model.addAttribute("listTitle", "待定稿合同");
         model.addAttribute("finalizeBaseUrl", "/contract-manager/finalize");
         return "contract-manager/pending-finalization";
     }
-
     @GetMapping("/finalize/{contractId}")
     @PreAuthorize("hasAuthority('CON_FINAL_VIEW') or hasAuthority('CON_FINAL_SUBMIT')")
     public String showFinalizeContractForm(@PathVariable Long contractId,
@@ -195,28 +203,34 @@ public class ContractController {
             Contract contract = contractService.getContractForFinalization(contractId, username);
             model.addAttribute("contract", contract);
 
-            // 获取并添加会签意见
             List<ContractProcess> countersignOpinions = contractService.getContractCountersignOpinions(contractId);
             model.addAttribute("countersignOpinions", countersignOpinions);
 
             ContractDraftRequest draftRequest = new ContractDraftRequest();
+            List<String> currentAttachmentFileNames = new ArrayList<>();
+
             if (contract != null) {
-                draftRequest.setUpdatedContent(contract.getContent()); // 预填当前合同内容
-                // 预填当前附件信息
-                if (contract.getAttachmentPath() != null && !contract.getAttachmentPath().equals("[]") && !contract.getAttachmentPath().equals("null")) {
+                draftRequest.setUpdatedContent(contract.getContent());
+
+                String attachmentPathJson = contract.getAttachmentPath();
+                if (attachmentPathJson != null && !attachmentPathJson.trim().isEmpty() &&
+                        !attachmentPathJson.equals("[]") && !attachmentPathJson.equalsIgnoreCase("null")) {
                     try {
-                        List<String> existingAttachments = objectMapper.readValue(contract.getAttachmentPath(), new TypeReference<List<String>>(){});
-                        draftRequest.setAttachmentServerFileNames(existingAttachments);
+                        currentAttachmentFileNames = objectMapper.readValue(attachmentPathJson, new TypeReference<List<String>>(){});
                     } catch (JsonProcessingException e) {
                         logger.warn("加载定稿表单时解析附件JSON失败 (Contract ID: {}): {}", contractId, e.getMessage());
-                        // 可以选择设置一个错误消息或让列表为空
-                        draftRequest.setAttachmentServerFileNames(new ArrayList<>());
                     }
-                } else {
-                    draftRequest.setAttachmentServerFileNames(new ArrayList<>());
                 }
             }
+            draftRequest.setAttachmentServerFileNames(new ArrayList<>(currentAttachmentFileNames));
             model.addAttribute("contractDraftRequest", draftRequest);
+            model.addAttribute("currentAttachmentFileNames", currentAttachmentFileNames);
+            try {
+                model.addAttribute("initialAttachmentsJson", objectMapper.writeValueAsString(currentAttachmentFileNames));
+            } catch (JsonProcessingException e) {
+                logger.warn("序列化初始附件列表到JSON时出错 (Contract ID: {}): {}", contractId, e.getMessage());
+                model.addAttribute("initialAttachmentsJson", "[]");
+            }
 
             return "contract-manager/finalize-contract";
         } catch (ResourceNotFoundException e) {
@@ -251,12 +265,29 @@ public class ContractController {
                 model.addAttribute("contract", contractToDisplay);
                 List<ContractProcess> countersignOpinions = contractService.getContractCountersignOpinions(contractId);
                 model.addAttribute("countersignOpinions", countersignOpinions);
+                List<String> currentAttachmentFileNames = new ArrayList<>();
+                if (contractToDisplay != null && contractToDisplay.getAttachmentPath() != null &&
+                        !contractToDisplay.getAttachmentPath().trim().isEmpty() &&
+                        !contractToDisplay.getAttachmentPath().equals("[]") &&
+                        !contractToDisplay.getAttachmentPath().equalsIgnoreCase("null")) {
+                    try {
+                        currentAttachmentFileNames = objectMapper.readValue(contractToDisplay.getAttachmentPath(), new TypeReference<List<String>>(){});
+                    } catch (JsonProcessingException e) {
+                        logger.warn("校验失败后重新加载附件JSON时出错 (Contract ID: {}): {}", contractId, e.getMessage());
+                    }
+                }
+                model.addAttribute("currentAttachmentFileNames", currentAttachmentFileNames);
+                try {
+                    model.addAttribute("initialAttachmentsJson", objectMapper.writeValueAsString(currentAttachmentFileNames));
+                } catch (JsonProcessingException e) {
+                    model.addAttribute("initialAttachmentsJson", "[]");
+                }
+
             } catch (Exception loadEx) {
                 redirectAttributes.addFlashAttribute("errorMessage", "表单校验失败，且重新加载合同信息时也发生错误：" + loadEx.getMessage());
                 return "redirect:/contract-manager/pending-finalization";
             }
             model.addAttribute("errorMessage", "表单提交无效，请检查输入。");
-            // contractDraftRequest已通过@ModelAttribute自动在模型中
             return "contract-manager/finalize-contract";
         }
 
@@ -290,7 +321,24 @@ public class ContractController {
                 model.addAttribute("contract", contractToDisplay);
                 List<ContractProcess> countersignOpinions = contractService.getContractCountersignOpinions(contractId);
                 model.addAttribute("countersignOpinions", countersignOpinions);
-                // model.addAttribute("contractDraftRequest", contractDraftRequest); // 已通过@ModelAttribute
+
+                List<String> currentAttachmentFileNames = new ArrayList<>();
+                if (contractToDisplay != null && contractToDisplay.getAttachmentPath() != null &&
+                        !contractToDisplay.getAttachmentPath().trim().isEmpty() &&
+                        !contractToDisplay.getAttachmentPath().equals("[]") &&
+                        !contractToDisplay.getAttachmentPath().equalsIgnoreCase("null")) {
+                    try {
+                        currentAttachmentFileNames = objectMapper.readValue(contractToDisplay.getAttachmentPath(), new TypeReference<List<String>>(){});
+                    } catch (JsonProcessingException jsonEx) {
+                        logger.warn("IO异常后重新加载附件JSON时出错 (Contract ID: {}): {}", contractId, jsonEx.getMessage());
+                    }
+                }
+                model.addAttribute("currentAttachmentFileNames", currentAttachmentFileNames);
+                try {
+                    model.addAttribute("initialAttachmentsJson", objectMapper.writeValueAsString(currentAttachmentFileNames));
+                } catch (JsonProcessingException jsonEx) {
+                    model.addAttribute("initialAttachmentsJson", "[]");
+                }
             } catch (Exception loadEx) {
                 redirectAttributes.addFlashAttribute("errorMessage", "附件处理失败，且重新加载合同信息以显示错误时也发生错误：" + loadEx.getMessage());
                 return "redirect:/contract-manager/pending-finalization";
@@ -303,7 +351,6 @@ public class ContractController {
         }
     }
 
-    // --- 待审批合同 ---
     @GetMapping("/pending-approval")
     @PreAuthorize("hasAuthority('CON_APPROVE_VIEW')")
     public String pendingApprovalContracts(
@@ -316,7 +363,7 @@ public class ContractController {
         Page<ContractProcess> pendingApprovals = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.APPROVAL, ContractProcessState.PENDING, contractNameSearch, pageable);
         model.addAttribute("pendingApprovals", pendingApprovals);
-        model.addAttribute("contractNameSearch", contractNameSearch);
+        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
         model.addAttribute("listTitle", "待审批合同");
         return "contract-manager/pending-approval";
     }
@@ -368,7 +415,6 @@ public class ContractController {
         }
     }
 
-    // --- 待签订合同 ---
     @GetMapping("/pending-signing")
     @PreAuthorize("hasAuthority('CON_SIGN_VIEW')")
     public String pendingSigningContracts(
@@ -381,7 +427,7 @@ public class ContractController {
         Page<ContractProcess> pendingSignings = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.SIGNING, ContractProcessState.PENDING, contractNameSearch, pageable);
         model.addAttribute("pendingSignings", pendingSignings);
-        model.addAttribute("contractNameSearch", contractNameSearch);
+        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
         model.addAttribute("listTitle", "待签订合同");
         return "contract-manager/pending-signing";
     }
@@ -440,10 +486,11 @@ public class ContractController {
         Page<Contract> contractsPage = contractService.searchContracts(currentUsername, isAdmin, contractName, contractNumber, status, pageable);
 
         model.addAttribute("contractsPage", contractsPage);
-        model.addAttribute("contractName", contractName);
-        model.addAttribute("contractNumber", contractNumber);
-        model.addAttribute("status", status);
+        model.addAttribute("contractName", contractName != null ? contractName : "");
+        model.addAttribute("contractNumber", contractNumber != null ? contractNumber : "");
+        model.addAttribute("status", status != null ? status : "");
         model.addAttribute("listTitle", "合同列表查询");
+        // 确保指向正确的模板，根据您的项目结构，这应该是 "reports/contract-search" 或 "contract-manager/view-all-contracts" 等
         return "reports/contract-search";
     }
 }
