@@ -82,15 +82,37 @@
             padding: 20px;
             color: #666;
         }
+        /* 分页样式 */
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .pagination a {
+            display: inline-block;
+            padding: 8px 16px;
+            text-decoration: none;
+            color: #007bff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 0 4px;
+        }
+        .pagination a.active {
+            background-color: #007bff;
+            color: white;
+            border: 1px solid #007bff;
+        }
+        .pagination a:hover:not(.active) {
+            background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>待审批合同</h1>
+    <h1 th:text="${listTitle}"></h1>
     <p>以下是需要您进行审批的合同列表。</p>
 
-    <form th:action="@{/contracts/pending-approval}" method="get" class="search-form">
+    <form th:action="@{/contract-manager/pending-approval}" method="get" class="search-form">
         <input type="text" name="contractNameSearch" th:value="${contractNameSearch}" placeholder="输入合同名称搜索..."/>
         <button type="submit">搜索</button>
     </form>
@@ -123,8 +145,8 @@
                 <td th:text="${#temporals.format(process.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
                 <td th:text="${process.state.description}"></td>
                 <td>
-                    <a th:href="@{/contracts/approval-details/{id}(id=${process.contract.id})}" class="btn-action">审批</a>
-                    <a th:href="@{/contracts/view/{id}(id=${process.contract.id})}" class="btn-view">查看</a>
+                    <a th:href="@{/contract-manager/approval-details/{id}(id=${process.contract.id})}" class="btn-action">审批</a>
+                    <a th:href="@{/contract-manager/view/{id}(id=${process.contract.id})}" class="btn-view">查看</a>
                     <span th:if="${process.contract.attachmentPath}">
                         <a th:href="@{'/attachments/' + ${process.contract.attachmentPath}}" target="_blank" class="btn-view">附件</a>
                     </span>
@@ -133,10 +155,9 @@
             </tbody>
         </table>
 
-        <!-- 分页控件 -->
         <div class="pagination" th:if="${pendingApprovals.totalPages > 1}">
             <span th:each="i : ${#numbers.sequence(0, pendingApprovals.totalPages - 1)}">
-                <a th:href="@{/contracts/pending-approval(page=${i}, contractNameSearch=${contractNameSearch})}"
+                <a th:href="@{/contract-manager/pending-approval(page=${i}, contractNameSearch=${contractNameSearch})}"
                    th:text="${i + 1}"
                    th:class="${i == pendingApprovals.number} ? 'active' : ''"></a>
             </span>
@@ -145,4 +166,4 @@
 </div>
 
 </body>
-</html> 
+</html>
