@@ -6,6 +6,7 @@ public class ContractAssignmentRequest {
     private List<Long> countersignUserIds; // 会签用户ID列表
     private List<Long> approvalUserIds;  // 审批用户ID列表
     private List<Long> signUserIds;      // 签订用户ID列表
+    private List<Long> finalizeUserIds;  // 新增：定稿用户ID列表
 
     // Getters
     public List<Long> getCountersignUserIds() {
@@ -31,5 +32,14 @@ public class ContractAssignmentRequest {
 
     public void setSignUserIds(List<Long> signUserIds) {
         this.signUserIds = signUserIds;
+    }
+
+    // 新增：finalizeUserIds 的 Getter 和 Setter
+    public List<Long> getFinalizeUserIds() {
+        return finalizeUserIds;
+    }
+
+    public void setFinalizeUserIds(List<Long> finalizeUserIds) {
+        this.finalizeUserIds = finalizeUserIds;
     }
 }
