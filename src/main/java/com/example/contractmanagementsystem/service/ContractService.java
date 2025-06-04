@@ -179,6 +179,7 @@ public interface ContractService {
      * @param contractId 要定稿的合同ID。
      * @param finalizationComments 用户在定稿时提交的意见或备注 (可选)。
      * @param attachmentServerFileNames 已上传的附件在服务器上的文件名列表 (可选, 如果有附件或替换附件)。
+     * @param updatedContent 用户在定稿时修改后的合同主要内容 (可选)。
      * @param username 执行定稿操作的用户名。
      * @return 已定稿并更新状态后的合同实体。
      * @throws IOException 如果（例如在服务层实现中仍有其他）I/O错误。
@@ -186,7 +187,7 @@ public interface ContractService {
      * @throws AccessDeniedException 如果当前用户无权定稿此合同。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不适合定稿，或发生其他业务校验失败。
      */
-    Contract finalizeContract(Long contractId, String finalizationComments, List<String> attachmentServerFileNames, String username) throws IOException, AccessDeniedException;
+    Contract finalizeContract(Long contractId, String finalizationComments, List<String> attachmentServerFileNames, String updatedContent, String username) throws IOException, AccessDeniedException;
 
     // 新增会签处理方法声明 (如果之前没有)
     void processCountersign(Long contractProcessId, String comments, String username, boolean isApproved) throws AccessDeniedException;
@@ -210,5 +211,12 @@ public interface ContractService {
      * Counts the number of contracts currently pending assignment.
      * @return The count of contracts with status PENDING_ASSIGNMENT.
      */
-    long countContractsPendingAssignment(); // <-- 新增方法声明
+    long countContractsPendingAssignment();
+
+    /**
+     * (可选) 获取指定合同的所有会签意见。
+     * @param contractId 合同ID。
+     * @return 与该合同关联的、类型为COUNTERSIGN的ContractProcess列表。
+     */
+     List<ContractProcess> getContractCountersignOpinions(Long contractId);
 }

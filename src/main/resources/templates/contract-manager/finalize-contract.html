@@ -10,17 +10,20 @@
         .contract-details-section {
             margin-bottom: 1.5rem; /* 卡片间距 */
         }
-        .contract-content-display {
+        .contract-content-display, .contract-content-edit textarea { /* 应用到显示和编辑区域 */
             background-color: #f8f9fa; /* 内容区域浅灰色背景 */
             border: 1px solid #e3e6ea; /* 边框颜色 */
             padding: 1rem 1.25rem;    /* 内边距 */
             border-radius: 0.375rem; /* 圆角 */
             min-height: 150px;       /* 最小高度 */
             white-space: pre-wrap;   /* 保留空白符和换行 */
-            font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; /* 等宽字体，适合显示代码或预格式化文本 */
+            font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; /* 等宽字体 */
             font-size: 0.9em;        /* 稍小字体 */
             line-height: 1.6;        /* 行高 */
             overflow-x: auto;        /* 内容过长时允许横向滚动 */
+        }
+        .contract-content-edit textarea { /* 特定于编辑文本域的样式 */
+            width: 100%; /* 确保文本域宽度正确 */
         }
         .attachment-link i {
             margin-right: 0.3rem; /* 图标与文字间距 */
@@ -32,20 +35,23 @@
         }
         .sticky-lg-top { /* 在大屏幕上，定稿操作卡片可以设置为吸顶 */
             top: calc(56px + 1.5rem); /* 导航栏高度 (56px) + 主内容区域上边距 (1.5rem) */
-            /* z-index: 1019;  确保在其他元素之上，如果需要 */
         }
         .dl-horizontal dt { /* 优化描述列表的显示 */
             font-weight: 500;
         }
+        .countersign-opinions-card .card-body {
+            max-height: 300px; /* 为会签意见区域设置最大高度和滚动条 */
+            overflow-y: auto;
+        }
     </style>
 </head>
-<body>
+<body th:data-initial-attachments="${initialAttachmentsJson ?: '[]'}">
 <section layout:fragment="content">
     <div class="container-fluid mt-3">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="mb-0">
                 <i class="bi bi-file-earmark-check-fill text-success me-2"></i>定稿合同:
-                <span th:if="${contract != null}" th:text="${contract.contractName}" class="text-primary"></span>
+                <span th:if="${contract != null}" th:text="${contract.contractName ?: '未知合同'}" class="text-primary"></span>
                 <span th:if="${contract == null}" class="text-muted">加载中...</span>
             </h1>
             <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-outline-secondary btn-sm">
@@ -69,105 +75,141 @@
             <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-primary btn-sm">返回列表</a>
         </div>
 
-        <div th:if="${contract != null}" class="row g-4"> <div class="col-lg-7 col-xl-8">
-            <div class="card shadow-sm contract-details-section">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>合同基本信息</h5>
-                </div>
-                <div class="card-body">
-                    <dl class="row dl-horizontal mb-0">
-                        <dt class="col-sm-4 col-md-3 text-muted">合同编号:</dt>
-                        <dd class="col-sm-8 col-md-9" th:text="${contract.contractNumber ?: '-'}"></dd>
-
-                        <dt class="col-sm-4 col-md-3 text-muted">合同名称:</dt>
-                        <dd class="col-sm-8 col-md-9" th:text="${contract.contractName ?: '-'}"></dd>
-
-                        <dt class="col-sm-4 col-md-3 text-muted">客户名称:</dt>
-                        <dd class="col-sm-8 col-md-9" th:text="${contract.customer?.customerName ?: '-'}"></dd>
-
-                        <dt class="col-sm-4 col-md-3 text-muted">起草人:</dt>
-                        <dd class="col-sm-8 col-md-9" th:text="${contract.drafter?.username ?: '-'}"></dd>
-
-                        <dt class="col-sm-4 col-md-3 text-muted">开始日期:</dt>
-                        <dd class="col-sm-8 col-md-9" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></dd>
-
-                        <dt class="col-sm-4 col-md-3 text-muted">结束日期:</dt>
-                        <dd class="col-sm-8 col-md-9" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></dd>
-
-                        <dt class="col-sm-4 col-md-3 text-muted">当前状态:</dt>
-                        <dd class="col-sm-8 col-md-9">
-                                <span th:if="${contract.status != null}"
-                                      th:text="${contract.status.description}"
-                                      class="status-badge"
-                                      th:classappend="'status-' + ${contract.status.name()}">待定稿</span>
-                            <span th:unless="${contract.status != null}">未知状态</span>
-                        </dd>
-                        <dt class="col-sm-4 col-md-3 text-muted">创建时间:</dt>
-                        <dd class="col-sm-8 col-md-9" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
-
-                        <dt class="col-sm-4 col-md-3 text-muted">最后更新:</dt>
-                        <dd class="col-sm-8 col-md-9" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
-                    </dl>
-                </div>
-            </div>
-
-            <div class="card shadow-sm contract-details-section">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="bi bi-file-earmark-text-fill me-2"></i>合同内容与附件</h5>
-                </div>
-                <div class="card-body">
-                    <h6>合同正文内容:</h6>
-                    <div class="contract-content-display mb-3">
-                        <pre th:text="${contract.content ?: '（无合同正文内容）'}"></pre>
-                    </div>
-                    <hr>
-                    <h6><i class="bi bi-paperclip"></i> 当前附件:</h6>
-                    <div th:if="${contract.attachmentPath}" class="mt-2">
-                        <a th:href="@{/attachments/{filename}(filename=${contract.attachmentPath})}"
-                           target="_blank" class="btn btn-outline-primary btn-sm attachment-link"
-                           th:title="'下载/查看当前附件: ' + ${contract.attachmentPath}">
-                            <i class="bi bi-download"></i>
-                            <span th:text="${#strings.abbreviate(contract.attachmentPath, 40)}">附件文件名</span>
-                        </a>
-                    </div>
-                    <div th:unless="${contract.attachmentPath}" class="text-muted small mt-2">
-                        （当前没有附件）
-                    </div>
-                </div>
-            </div>
-        </div> <div class="col-lg-5 col-xl-4">
-            <div class="card shadow-sm sticky-lg-top"> <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>执行定稿操作</h5>
-            </div>
-                <div class="card-body">
-                    <p class="small text-muted mb-3">
-                        请仔细审阅合同信息。一旦确认定稿，合同将进入后续的审批流程，通常定稿后的内容将不应再做大的修改。
-                    </p>
-                    <form th:action="@{/contract-manager/finalize/{contractId}(contractId=${contract.id})}" method="post" enctype="multipart/form-data" id="finalizeForm">
-                        <div class="mb-3">
-                            <label for="finalizationComments" class="form-label">定稿意见/备注:</label>
-                            <textarea class="form-control form-control-sm" id="finalizationComments" name="finalizationComments" rows="5" placeholder="（可选）输入您的定稿意见或重要备注..."></textarea>
+        <form th:if="${contract != null}" th:action="@{/contract-manager/finalize/{contractId}(contractId=${contract.id})}"
+              method="post" enctype="multipart/form-data" id="finalizeForm" th:object="${contractDraftRequest}">
+            <div class="row g-4">
+                <div class="col-lg-7 col-xl-8">
+                    <div class="card shadow-sm contract-details-section">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>合同基本信息</h5>
                         </div>
+                        <div class="card-body">
+                            <dl class="row dl-horizontal mb-0">
+                                <dt class="col-sm-4 col-md-3 text-muted">合同编号:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.contractNumber ?: '-'}"></dd>
 
-                        <div class="mb-3">
-                            <label for="newAttachment" class="form-label">替换或上传新附件:</label>
-                            <input type="file" class="form-control form-control-sm" id="newAttachment" name="newAttachment">
-                            <div class="form-text small text-muted">如果上传新附件，它将替换当前存在的附件（如有）。支持PDF、图片(JPEG, PNG, GIF, BMP)、Word文档(doc, docx)。</div>
-                        </div>
+                                <dt class="col-sm-4 col-md-3 text-muted">合同名称:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.contractName ?: '-'}"></dd>
 
-                        <div class="form-actions text-end mt-4">
-                            <button type="submit" class="btn btn-success btn-lg"
-                                    sec:authorize="hasAuthority('CON_FINAL_SUBMIT')"
-                                    onclick="return confirmFinalization();"> <i class="bi bi-check-circle-fill"></i> 确认定稿
-                            </button>
-                            <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-secondary ms-2">
-                                <i class="bi bi-x-circle"></i> 取消
-                            </a>
+                                <dt class="col-sm-4 col-md-3 text-muted">客户名称:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.customer?.customerName ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">起草人:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.drafter?.username ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">开始日期:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">结束日期:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">当前状态:</dt>
+                                <dd class="col-sm-8 col-md-9">
+                                    <span th:if="${contract.status != null}"
+                                          th:text="${contract.status.description}"
+                                          class="status-badge"
+                                          th:classappend="'status-' + ${contract.status.name()}">待定稿</span>
+                                    <span th:unless="${contract.status != null}" class="text-muted">未知状态</span>
+                                </dd>
+                                <dt class="col-sm-4 col-md-3 text-muted">创建时间:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">最后更新:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
+                            </dl>
                         </div>
-                    </form>
+                    </div>
+
+                    <div class="card shadow-sm contract-details-section countersign-opinions-card" th:if="${countersignOpinions != null and not #lists.isEmpty(countersignOpinions)}">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-chat-left-text-fill me-2 text-info"></i>会签意见汇总</h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item" th:each="opinion : ${countersignOpinions}">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1" th:text="${opinion.operatorUsername ?: '匿名用户'}"></h6>
+                                        <small class="text-muted" th:text="${opinion.processedAt != null ? #temporals.format(opinion.processedAt, 'yyyy-MM-dd HH:mm') : '未处理'}"></small>
+                                    </div>
+                                    <p class="mb-1" th:text="${opinion.comments ?: '(无具体意见)'}"></p>
+                                    <small th:text="${opinion.state?.description ?: '未知状态'}"
+                                           th:classappend="${(opinion.state?.name() == 'APPROVED' or opinion.state?.name() == 'COMPLETED') ? 'text-success fw-bold' : (opinion.state?.name() == 'REJECTED' ? 'text-danger fw-bold' : 'text-muted')}">
+                                    </small>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+
+                    <div class="card shadow-sm contract-details-section">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-file-earmark-text-fill me-2"></i>合同内容与附件</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>合同正文内容 (可编辑):</h6>
+                            <div class="contract-content-edit mb-3">
+                                <textarea class="form-control form-control-sm" id="updatedContent"
+                                          th:field="*{updatedContent}" rows="15"
+                                          placeholder="请在此处填写或修改合同的核心条款和内容..."></textarea>
+                            </div>
+                            <hr>
+                            <h6><i class="bi bi-paperclip"></i> 当前附件:</h6>
+                            <div th:if="${currentAttachmentFileNames != null and not #lists.isEmpty(currentAttachmentFileNames)}" class="mt-2">
+                                <div th:each="fileName : ${currentAttachmentFileNames}" class="d-inline-block me-2 mb-2">
+                                    <a th:href="@{/api/attachments/download/{filename}(filename=${fileName})}"
+                                       target="_blank" class="btn btn-outline-primary btn-sm attachment-link"
+                                       th:title="'下载/查看当前附件: ' + ${fileName}">
+                                        <i class="bi bi-download"></i>
+                                        <span th:text="${#strings.abbreviate(fileName, 40)}"></span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div th:unless="${currentAttachmentFileNames != null and not #lists.isEmpty(currentAttachmentFileNames)}" class="text-muted small mt-2">
+                                （当前没有附件）
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5 col-xl-4">
+                    <div class="card shadow-sm sticky-lg-top">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>执行定稿操作</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted mb-3">
+                                请仔细审阅合同信息。一旦确认定稿，合同将进入后续的审批流程，通常定稿后的内容将不应再做大的修改。
+                            </p>
+                            <div class="mb-3">
+                                <label for="finalizationComments" class="form-label">定稿意见/备注:</label>
+                                <textarea class="form-control form-control-sm" id="finalizationComments" name="finalizationComments" rows="5" placeholder="（可选）输入您的定稿意见或重要备注..."></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="newAttachment" class="form-label">替换或上传新附件:</label>
+                                <input type="file" class="form-control form-control-sm" id="newAttachment"> <div class="form-text small text-muted">如果上传新附件，它将替换当前存在的附件（如有）。支持PDF、图片(JPEG, PNG, GIF, BMP)、Word文档(doc, docx)。</div>
+                                <div id="fileListContainerFinalize" class="mt-2">
+                                </div>
+                                <div id="hiddenAttachmentInputsContainerFinalize">
+                                </div>
+                            </div>
+
+                            <div class="form-actions text-end mt-4">
+                                <button type="submit" class="btn btn-success btn-lg"
+                                        sec:authorize="hasAuthority('CON_FINAL_SUBMIT')"
+                                        onclick="return confirmFinalization();">
+                                    <i class="bi bi-check-circle-fill"></i> 确认定稿
+                                </button>
+                                <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-secondary ms-2">
+                                    <i class="bi bi-x-circle"></i> 取消
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div> </div> </div> </section>
+        </form>
+    </div>
+</section>
 
 <th:block layout:fragment="scripts">
     <script th:inline="javascript">
@@ -176,8 +218,57 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("合同定稿页面已加载。合同ID: [[${contract?.id}]]");
-            // 如果有更复杂的表单校验或交互，可以在此添加
+            /*<![CDATA[*/
+            const contractIdForJs = /*[[${contract?.id}]]*/ null;
+            console.log("合同定稿页面已加载。合同ID: " + contractIdForJs);
+
+            // 附件上传的JS逻辑需要在这里实现或引入。
+            // 它需要能够:
+            // 1. 监听 'newAttachment' 文件输入框。
+            // 2. 处理文件上传（可能分块）到后端的 /api/attachments/ 相关端点。
+            // 3. 成功上传后，将服务器返回的文件名动态添加到 'hiddenAttachmentInputsContainerFinalize' 中
+            //    作为 <input type="hidden" name="attachmentServerFileNames" value="serverFileName.ext">。
+            // 4. 在 'fileListContainerFinalize' 中显示上传进度和已上传的文件（带删除按钮）。
+            // 5. 当用户删除UI上的附件时，也要从 'hiddenAttachmentInputsContainerFinalize' 中移除对应的隐藏输入，
+            //    并可选地调用后端API删除服务器上的文件。
+
+            // 示例：从 data-* 属性加载初始附件并添加到JS管理的列表中
+            // (确保 ContractController 中已将 initialAttachmentsJson 添加到模型)
+            // const initialAttachmentsJson = document.body.dataset.initialAttachments;
+            // if (initialAttachmentsJson && initialAttachmentsJson !== '[]') {
+            //     try {
+            //         const initialServerFileNames = JSON.parse(initialAttachmentsJson);
+            //         initialServerFileNames.forEach(serverFileName => {
+            //             // 假设你有一个 attachmentHandler 对象或类似的东西
+            //             // attachmentHandler.addExistingFileToUI(serverFileName, 'fileListContainerFinalize', 'hiddenAttachmentInputsContainerFinalize');
+            //             console.log("预加载已有附件: " + serverFileName);
+            //             // 这里需要你的实际JS函数来创建UI和隐藏输入
+            //         });
+            //     } catch (e) {
+            //         console.error("解析初始附件JSON失败:", e);
+            //     }
+            // }
+            /*]]>*/
+
+            // --- START: 粘贴或引入你的附件处理JS逻辑 ---
+            // 例如，可以参考 draft-contract.js 中的附件处理逻辑，并进行适配
+            // 确保选择器（fileInputId, fileListContainerId, hiddenInputsContainerId）
+            // 指向本页面的元素ID: 'newAttachment', 'fileListContainerFinalize', 'hiddenAttachmentInputsContainerFinalize'
+
+            // 简化版的假设：你有一个全局的 attachmentHandler 对象
+            // if (typeof attachmentHandler !== 'undefined' && attachmentHandler.initialize) {
+            //     attachmentHandler.initialize({
+            //         fileInputId: 'newAttachment',
+            //         fileListContainerId: 'fileListContainerFinalize',
+            //         hiddenInputsContainerId: 'hiddenAttachmentInputsContainerFinalize',
+            //         formId: 'finalizeForm', // 主表单ID
+            //         // 如果有初始附件，通过JS变量或data属性传递给这里的 initialFiles
+            //         initialFiles: JSON.parse(document.body.dataset.initialAttachments || '[]')
+            //     });
+            // } else {
+            //     console.warn("Attachment Handler JS 未找到或未正确初始化。附件功能可能不完整。");
+            // }
+            // --- END: 附件处理JS逻辑 ---
         });
     </script>
 </th:block>
