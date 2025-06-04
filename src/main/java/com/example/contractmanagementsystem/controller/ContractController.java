@@ -286,6 +286,14 @@ public class ContractController {
 
         // 如果存在JSR-303/380验证错误
         if (bindingResult.hasErrors()) {
+            logger.warn("Contract finalization form validation failed for contractId: {}", contractId); // 添加警告日志
+            bindingResult.getAllErrors().forEach(error -> { // 遍历所有验证错误
+                if (error instanceof org.springframework.validation.FieldError fieldError) {
+                    logger.warn("Validation error in field '{}': {}", fieldError.getField(), fieldError.getDefaultMessage()); // 打印字段错误
+                } else {
+                    logger.warn("Validation error: {}", error.getDefaultMessage()); // 打印全局错误
+                }
+            });
             // 重新加载合同数据，以便在返回表单时显示完整信息和会签意见
             try {
                 Contract contractToDisplay = contractService.getContractForFinalization(contractId, principal.getName());

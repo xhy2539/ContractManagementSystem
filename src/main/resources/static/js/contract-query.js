@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'DRAFT': '起草',
         'PENDING_ASSIGNMENT': '待分配',
         'PENDING_COUNTERSIGN': '待会签',
+        'PENDING_FINALIZATION':'待定稿',
         'PENDING_APPROVAL': '待审批',
         'PENDING_SIGNING': '待签订',
         'ACTIVE': '有效',
