@@ -252,7 +252,42 @@ public class ContractServiceImpl implements ContractService {
             // 所有会签都通过后，合同状态进入待定稿
             contract.setStatus(ContractStatus.PENDING_FINALIZATION); //
             logDetails += " 所有会签均完成且通过，合同进入待定稿状态。";
+
             auditLogService.logAction(username, "CONTRACT_ALL_COUNTERSIGNED_TO_FINALIZE", logDetails); // 新增审计日志类型
+            User drafter = contract.getDrafter(); // 获取合同的起草人
+            if (drafter == null) {
+                // 如果起草人为空，这是一个数据不一致问题，需要处理
+                logger.error("合同 (ID: {}) 会签完成，但起草人为空，无法创建定稿任务。", contract.getId());
+                throw new BusinessLogicException("合同起草人信息缺失，无法推进定稿流程。");
+            }
+
+            // 检查是否已经存在未完成的定稿任务，避免重复创建
+            Optional<ContractProcess> existingFinalizeTask = contractProcessRepository
+                    .findByContractIdAndOperatorUsernameAndTypeAndState(
+                            contract.getId(),
+                            drafter.getUsername(),
+                            ContractProcessType.FINALIZE, // 定稿类型
+                            ContractProcessState.PENDING // 待处理状态
+                    );
+
+            if (existingFinalizeTask.isEmpty()) {
+                ContractProcess finalizeTask = new ContractProcess();
+                finalizeTask.setContract(contract);
+                finalizeTask.setContractNumber(contract.getContractNumber());
+                finalizeTask.setType(ContractProcessType.FINALIZE); // 设置为定稿类型
+                finalizeTask.setState(ContractProcessState.PENDING); // 设置为待处理状态
+                finalizeTask.setOperator(drafter); // 操作人是起草人
+                finalizeTask.setOperatorUsername(drafter.getUsername());
+                finalizeTask.setComments("等待起草人对合同内容进行最终定稿。"); // 默认备注
+                // createdAt 会自动设置，processedAt 和 completedAt 此时为 null
+
+                contractProcessRepository.save(finalizeTask);
+                auditLogService.logAction(drafter.getUsername(), "FINALIZE_TASK_CREATED",
+                        "为合同ID " + contract.getId() + " (“" + contract.getContractName() + "”) 创建了待定稿任务。");
+                logger.info("已为合同 {} (ID: {}) 创建定稿任务给起草人 {}。", contract.getContractName(), contract.getId(), drafter.getUsername());
+            } else {
+                logger.warn("合同 {} (ID: {}) 已存在待处理的定稿任务给起草人 {}，跳过创建。", contract.getContractName(), contract.getId(), drafter.getUsername());
+            }
         } else {
             // 如果还有其他会签是 PENDING，则合同状态保持不变
             logDetails += " 当前会签已通过，但尚有其他会签流程未完成。合同状态保持待会签。";

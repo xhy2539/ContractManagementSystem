@@ -5,9 +5,9 @@ import lombok.Getter;
 @Getter
 public enum ContractProcessType {
     COUNTERSIGN(0, "会签"),
-    APPROVAL(1, "审批"),
-    SIGNING(2, "签订"),
-    FINALIZE(3, "定稿");
+    FINALIZE(1, "定稿"),
+    APPROVAL(2, "审批"),
+    SIGNING(3, "签订");
 
     private final int code;
     private final String description;
