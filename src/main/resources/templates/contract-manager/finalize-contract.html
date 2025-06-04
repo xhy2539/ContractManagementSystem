@@ -254,12 +254,7 @@
 
 <th:block layout:fragment="scripts">
     <script th:inline="javascript">
-        /*<![CDATA[*/
-        // 导入 utils.js 中的 showAlert 函数
-        // 在 finalize-contract.html 中，因为是 Thymeleaf 布局碎片，
-        // utils.js 应该已经在 layout.html 中引入，因此可以直接使用 showAlert。
-        // 如果没有，需要在这里显式引入：
-        // <script th:src="@{/js/utils.js}"></script>
+
 
     function confirmFinalization() {
     // 在提交前确保附件信息是最新的，将已上传的附件文件名添加到隐藏字段中
@@ -295,10 +290,6 @@
     }
     };
     }
-
-    // === 开始 附件处理JS代码 (从 draft-contract.js 移植和适配) ===
-    // 注意：这里是直接将 draft-contract.js 的逻辑粘贴过来并修改ID
-    // 在实际项目中，最好将这部分JS提取到公共的 utils.js 或专门的 attachment-handler.js
 
     // --- 适配后的元素ID ---
     const attachmentFilesInput = document.getElementById('newAttachment'); // 修改ID
@@ -595,7 +586,7 @@
     fileEntry.totalChunks = serverState.totalChunks || fileEntry.totalChunks;
     fileEntry.serverFileName = serverState.serverFileName || fileEntry.serverFileName; // 更新服务器端文件名
 
-    const progressPercent = fileEntry.totalChunks > 0 ? Math.round((fileEntry.uploadedChunksCount / fileEntry.totalChunks) * 100) : 0;
+    const progressPercent = fileEntry.totalChunks > 0 ? Math.round((fileEntry.uploadedChunksCount / fileEntry.totalChunks) * 100):
     updateFileProgressUI(fileEntry, progressPercent);
     updateFileStatusUI(fileEntry, 'resuming', `正在续传 (${progressPercent}%)...`);
 
@@ -669,7 +660,7 @@
     const progressBarDisplay = (fileEntry.status === 'completed' && fileEntry.isExisting) || fileEntry.status === 'completed' ? 'none' : 'block';
     const previewButtonDisplay = fileEntry.status === 'completed' ? 'inline-block' : 'none';
 
-
+    // 修正后的 fileItemHTML 模板字符串
     const fileItemHTML = `
     <div class="file-list-item ${fileEntry.status === 'completed' ? 'upload-success' : ''}" id="${safeFileEntryId}">
         <div class="file-info">
@@ -688,8 +679,8 @@
                 <i class="bi bi-trash"></i>
             </button>
         </div>
-    </div>
-    `;
+    </div>`;
+
     fileListContainer.insertAdjacentHTML('beforeend', fileItemHTML); // 添加到文件列表容器
     fileEntry.uiElement = fileListContainer.querySelector(`#${safeFileEntryId}`); // 缓存 UI 元素引用
 
@@ -761,7 +752,8 @@
     updateFileStatusUI(fileEntry, fileEntry.status, `状态为 ${fileEntry.status}, 跳过上传分块。`);
     return;
     }
-    updateFileStatusUI(fileEntry, 'uploading', `正在上传分块... (已确认: ${fileEntry.confirmedUploadedChunks.size}/${fileEntry.totalChunks})`);
+    updateFileStatusUI(fileEntry, 'uploading', `正在上传分块... (已确认:
+    ${fileEntry.confirmedUploadedChunks.size}/${fileEntry.totalChunks})`);
 
     for (let i = 0; i < fileEntry.totalChunks; i++) {
     // 如果文件状态改变 (例如被取消)，则停止上传
@@ -841,7 +833,9 @@
     }
     updateFileStatusUI(fileEntry, 'finalizing', '正在合并文件...');
     try {
-    const response = await fetch(`/api/attachments/finalize/${fileEntry.uploadId}?originalFileName=${encodeURIComponent(fileEntry.originalName)}`, {
+    const response = await
+    fetch(`/api/attachments/finalize/${fileEntry.uploadId}?originalFileName=${encodeURIComponent(fileEntry.originalName)}`,
+    {
     method: 'POST'
     });
     if (!response.ok) {
@@ -932,7 +926,8 @@
     const fileEntry = uploadedFilesData[fileIndex];
 
     // 如果文件正在上传中，尝试中止 XHR 请求
-    if (fileEntry.xhr && (fileEntry.status === 'uploading' || fileEntry.status === 'initiating' || fileEntry.status === 'resuming')) {
+    if (fileEntry.xhr && (fileEntry.status === 'uploading' || fileEntry.status === 'initiating' || fileEntry.status ===
+    'resuming')) {
     fileEntry.xhr.abort();
     }
     const oldStatus = fileEntry.status;
@@ -1006,9 +1001,5 @@
     }, 7000); // 7 秒后自动关闭
     });
     });
-    /*]]>*/
     </script>
 </th:block>
-
-</body>
-</html>
