@@ -218,5 +218,5 @@ public interface ContractService {
      * @param contractId 合同ID。
      * @return 与该合同关联的、类型为COUNTERSIGN的ContractProcess列表。
      */
-     List<ContractProcess> getContractCountersignOpinions(Long contractId);
+    List<ContractProcess> getContractCountersignOpinions(Long contractId);
 }

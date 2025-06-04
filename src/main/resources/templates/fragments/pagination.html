@@ -19,9 +19,9 @@
     maxVisiblePages=5, /* int literal */
     currentPage=${page.number}, /* page.getNumber() returns int */
     totalPages=${page.totalPages}, /* page.getTotalPages() returns int */
-    startPage=${#numbers.max(0, #numbers.intValue(currentPage - (maxVisiblePages / 2)))},
+    startPage=${#numbers.max(T(java.lang.Integer).valueOf(0), #numbers.intValue(currentPage - (maxVisiblePages / 2)))},
     endPage=${#numbers.min(#numbers.intValue(totalPages - 1), #numbers.intValue(startPage + maxVisiblePages - 1))},
-    correctedStartPage=${#numbers.max(0, #numbers.intValue(endPage - maxVisiblePages + 1))}">
+    correctedStartPage=${#numbers.max(T(java.lang.Integer).valueOf(0), #numbers.intValue(endPage - maxVisiblePages + 1))}">
 
             <li class="page-item" th:if="${correctedStartPage > 0}">
                 <a class="page-link" th:href="@{${baseUrl}(page=0, size=${page.size}, ${additionalParams})}">1</a>
