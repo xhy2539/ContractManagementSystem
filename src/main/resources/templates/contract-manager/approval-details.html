@@ -79,22 +79,6 @@
             background-color: #6c757d;
             color: white;
         }
-        .success-message {
-            color: green;
-            background-color: #e6ffe6;
-            border: 1px solid green;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-        }
-        .error-message {
-            color: red;
-            background-color: #ffe6e6;
-            border: 1px solid red;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-        }
     </style>
 </head>
 <body>
@@ -102,21 +86,14 @@
 <div class="container">
     <h2>审批合同</h2>
 
-    <div th:if="${successMessage}" class="success-message">
-        <p th:text="${successMessage}"></p>
-    </div>
-    <div th:if="${errorMessage}" class="error-message">
-        <p th:text="${errorMessage}"></p>
-    </div>
-
     <div class="contract-info">
         <p><strong>合同编号：</strong><span th:text="${contract.contractNumber}"></span></p>
         <p><strong>合同名称：</strong><span th:text="${contract.contractName}"></span></p>
         <p><strong>客户名称：</strong><span th:text="${contract.customer.customerName}"></span></p>
         <p><strong>起草人：</strong><span th:text="${contract.drafter.username}"></span></p>
-        <p><strong>起草日期：</strong><span th:text="${#temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm')}"></span></p>
-        <p><strong>开始日期：</strong><span th:text="${#temporals.format(contract.startDate, 'yyyy-MM-dd')}"></span></p>
-        <p><strong>结束日期：</strong><span th:text="${#temporals.format(contract.endDate, 'yyyy-MM-dd')}"></span></p>
+        <p><strong>起草日期：：</strong><span th:text="${#temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm')}"></span></p>
+        <p><strong>开始日期：：</strong><span th:text="${#temporals.format(contract.startDate, 'yyyy-MM-dd')}"></span></p>
+        <p><strong>结束日期：：</strong><span th:text="${#temporals.format(contract.endDate, 'yyyy-MM-dd')}"></span></p>
     </div>
 
     <div class="contract-content">
@@ -124,7 +101,7 @@
         <p th:text="${contract.content}"></p>
     </div>
 
-    <form th:action="@{/contracts/approve/{id}(id=${contract.id})}" method="post" class="approval-form">
+    <form th:action="@{/contract-manager/approve/{id}(id=${contract.id})}" method="post" class="approval-form">
         <div class="approval-options">
             <h3>审批决定</h3>
             <div class="radio-group">
@@ -144,10 +121,29 @@
 
         <div class="btn-group">
             <button type="submit" class="btn btn-approve">提交审批</button>
-            <a th:href="@{/contracts/pending-approval}" class="btn btn-cancel">返回</a>
+            <a th:href="@{/dashboard}" class="btn btn-cancel">返回</a>
         </div>
     </form>
+
+    <script th:inline="javascript">
+        var successMessage = /*[[${successMessage} ?: '']]*/ ''; // 如果为空，则为''
+        var errorMessage = /*[[${errorMessage} ?: '']]*/ '';     // 如果为空，则为''
+
+        // 页面加载完成后执行
+        window.onload = function() {
+            if (successMessage && successMessage !== '') { // 检查非空字符串
+                alert(successMessage);
+                // 移除 URL 中的 Flash Attribute 参数，避免刷新后再次弹窗
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else if (errorMessage && errorMessage !== '') { // 检查非空字符串
+                alert(errorMessage);
+                // 移除 URL 中的 Flash Attribute 参数
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        };
+    </script>
+
 </div>
 
 </body>
-</html> 
+</html>
