@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>起草合同</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
+    <style>
+        /* CSS样式保持不变 */
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            padding: 20px;
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input[type="text"],
+        input[type="date"],
+        textarea,
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .required {
+            color: red;
+        }
+        .success-message {
+            color: green;
+            background-color: #e6ffe6;
+            border: 1px solid green;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .error-message {
+            color: red;
+            background-color: #ffe6e6;
+            border: 1px solid red;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>起草合同</h2>
+
+    <div th:if="${successMessage}" class="success-message">
+        <p th:text="${successMessage}"></p>
+    </div>
+    <div th:if="${errorMessage}" class="error-message">
+        <p th:text="${errorMessage}"></p>
+    </div>
+    <div th:if="${#fields.hasErrors('contractDraftRequest.*')}" class="error-message">
+        <p>请检查您的输入：</p>
+        <ul>
+            <li th:each="err : ${#fields.errors('contractDraftRequest.*')}" th:text="${err}"></li>
+        </ul>
+    </div>
+
+    <form th:action="@{/contracts/draft}" method="post" enctype="multipart/form-data" th:object="${contractDraftRequest}">
+        <label for="contractName">合同名称 <span class="required">*</span></label>
+        <input type="text" id="contractName" name="contractName" th:field="*{contractName}" required>
+        <div th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}" class="error-message"></div>
+
+        <label for="customerNumber">客户编号 <span class="required">*</span></label>
+        <input type="text" id="customerNumber" name="customerNumber" th:field="*{customerNumber}" required>
+        <div th:if="${#fields.hasErrors('customerNumber')}" th:errors="*{customerNumber}" class="error-message"></div>
+
+        <label for="customerName">客户名称 <span class="required">*</span></label>
+        <input type="text" id="customerName" name="customerName" th:field="*{customerName}" required>
+        <div th:if="${#fields.hasErrors('customerName')}" th:errors="*{customerName}" class="error-message"></div>
+        <label for="startDate">开始时间 <span class="required">*</span></label>
+        <input type="date" id="startDate" name="startDate" th:field="*{startDate}" required>
+        <div th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}" class="error-message"></div>
+
+        <label for="endDate">结束时间 <span class="required">*</span></label>
+        <input type="date" id="endDate" name="endDate" th:field="*{endDate}" required>
+        <div th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}" class="error-message"></div>
+
+        <label for="contractContent">合同内容</label>
+        <textarea id="contractContent" name="contractContent" rows="5" th:field="*{contractContent}"></textarea>
+        <div th:if="${#fields.hasErrors('contractContent')}" th:errors="*{contractContent}" class="error-message"></div>
+
+        <label for="attachment">合同附件 (可选，支持 doc, jpg, jpeg, png, bmp, gif)</label>
+        <input type="file" id="attachment" name="attachment">
+        <div th:if="${attachmentError}" class="error-message">
+            <p th:text="${attachmentError}"></p>
+        </div>
+
+        <button type="submit">提交</button>
+        <button type="reset">重置</button>
+    </form>
+</div>
+
+</body>
+</html>
