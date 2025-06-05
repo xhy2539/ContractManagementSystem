@@ -44,4 +44,14 @@ public interface ContractProcessRepository extends JpaRepository<ContractProcess
             ContractProcessState state,
             String operatorUsername
     );
+
+    /**
+     * 根据合同查找所有处理记录，按创建时间倒序排序
+     */
+    List<ContractProcess> findByContractOrderByCreatedAtDesc(Contract contract);
+
+    /**
+     * 查找指定合同的所有处理记录
+     */
+    List<ContractProcess> findByContract(Contract contract);
 }

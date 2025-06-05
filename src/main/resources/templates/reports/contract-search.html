@@ -268,11 +268,8 @@
         }
 
         function viewContract(contractId) {
-            // 根据您的系统，合同详情页的URL可能不同
-            // 例如，可能是 /contracts/{id} 或 /contract-manager/view/{id}
-            // 假设是 /contracts/view/{id}
             if (contractId) {
-                window.location.href = `/contracts/view/${contractId}`;
+                window.location.href = `/contracts/${contractId}/detail`;
             } else {
                 console.error("无效的合同ID: ", contractId);
                 alert("无法查看详情：合同ID无效。");

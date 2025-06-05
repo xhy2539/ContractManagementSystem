@@ -28,6 +28,20 @@
             color: #333;
             font-size: 1.2em;
         }
+        .status-summary {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .status-item {
+            display: inline-block;
+            margin: 5px 10px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background-color: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -35,6 +49,11 @@
     <div class="container mt-4">
         <h1 class="mb-4">合同状态统计</h1>
         
+        <div class="status-summary">
+            <h5 class="mb-3">统计概览</h5>
+            <div id="statusSummary"></div>
+        </div>
+
         <div class="row">
             <div class="col-md-6">
                 <div class="stats-card">
@@ -72,11 +91,19 @@
             'TERMINATED': '终止'
         };
 
-        // 图表颜色
-        const colors = [
-            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0'
-        ];
+        // 图表颜色 - 使用更易区分的颜色
+        const colors = {
+            'COMPLETED': '#28a745',    // 完成 - 绿色
+            'PENDING_SIGNING': '#17a2b8', // 待签订 - 青色
+            'PENDING_ASSIGNMENT': '#6610f2', // 待分配 - 紫色
+            'DRAFT': '#ffc107',        // 起草 - 黄色
+            'EXPIRED': '#dc3545',      // 过期 - 红色
+            'ACTIVE': '#007bff',       // 有效 - 蓝色
+            'PENDING_COUNTERSIGN': '#fd7e14', // 待会签 - 橙色
+            'PENDING_APPROVAL': '#20c997', // 待审批 - 青绿色
+            'PENDING_FINALIZATION': '#e83e8c', // 待定稿 - 粉色
+            'TERMINATED': '#6c757d'    // 终止 - 灰色
+        };
 
         // 加载数据并绘制图表
         async function loadAndDrawCharts() {
@@ -84,8 +111,33 @@
                 const response = await fetch('/reports/api/contract-status-data');
                 const data = await response.json();
                 
-                const labels = Object.keys(data).map(key => statusLabels[key]);
-                const values = Object.values(data);
+                // 过滤掉数量为0的状态
+                const filteredData = Object.entries(data).reduce((acc, [key, value]) => {
+                    if (value > 0) {
+                        acc[key] = value;
+                    }
+                    return acc;
+                }, {});
+
+                const labels = Object.keys(filteredData).map(key => statusLabels[key]);
+                const values = Object.values(filteredData);
+                const backgroundColors = Object.keys(filteredData).map(key => colors[key]);
+
+                // 计算总数并显示统计概览
+                const total = values.reduce((a, b) => a + b, 0);
+                const summaryHtml = `
+                    <div class="mb-2">合同总数：<strong>${total}</strong> 份</div>
+                    <div>
+                        ${Object.entries(filteredData)
+                            .map(([key, value]) => 
+                                `<div class="status-item">
+                                    <span style="color: ${colors[key]}">${statusLabels[key]}</span>: 
+                                    <strong>${value}</strong> 份
+                                </div>`
+                            ).join('')}
+                    </div>
+                `;
+                document.getElementById('statusSummary').innerHTML = summaryHtml;
 
                 // 绘制饼图
                 new Chart(document.getElementById('pieChart'), {
@@ -94,7 +146,7 @@
                         labels: labels,
                         datasets: [{
                             data: values,
-                            backgroundColor: colors,
+                            backgroundColor: backgroundColors,
                             hoverOffset: 4
                         }]
                     },
@@ -103,7 +155,21 @@
                         maintainAspectRatio: false,
                         plugins: {
                             legend: {
-                                position: 'right'
+                                position: 'right',
+                                labels: {
+                                    generateLabels: function(chart) {
+                                        const data = chart.data;
+                                        if (data.labels.length && data.datasets.length) {
+                                            return data.labels.map((label, i) => ({
+                                                text: `${label} (${data.datasets[0].data[i]})`,
+                                                fillStyle: data.datasets[0].backgroundColor[i],
+                                                hidden: isNaN(data.datasets[0].data[i]),
+                                                index: i
+                                            }));
+                                        }
+                                        return [];
+                                    }
+                                }
                             }
                         }
                     }
@@ -117,8 +183,8 @@
                         datasets: [{
                             label: '合同数量',
                             data: values,
-                            backgroundColor: colors,
-                            borderColor: colors,
+                            backgroundColor: backgroundColors,
+                            borderColor: backgroundColors,
                             borderWidth: 1
                         }]
                     },
