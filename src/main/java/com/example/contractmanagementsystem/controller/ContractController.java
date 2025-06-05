@@ -45,7 +45,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Controller
-@RequestMapping("/contract-manager")
+@RequestMapping({"/contract-manager", "/contracts"})
 public class ContractController {
 
     private static final Logger logger = LoggerFactory.getLogger(ContractController.class);
@@ -88,7 +88,7 @@ public class ContractController {
             String username = principal.getName();
             Contract draftedContract = contractService.draftContract(contractDraftRequest, username);
             // 使用 Flash Attributes 在重定向后传递成功消息
-            redirectAttributes.addFlashAttribute("successMessage", "合同 “" + draftedContract.getContractName() + "” (编号: " + draftedContract.getContractNumber() + ") 已成功起草，等待分配！");
+            redirectAttributes.addFlashAttribute("successMessage", "合同 " + draftedContract.getContractName() + " (编号: " + draftedContract.getContractNumber() + ") 已成功起草，等待分配！");
             // 重定向回起草页面或某个成功页面
             return "redirect:/contract-manager/draft-contract";
         } catch (BusinessLogicException e) {
@@ -392,7 +392,7 @@ public class ContractController {
                     username
             );
 
-            redirectAttributes.addFlashAttribute("successMessage", "合同 “" + finalizedContract.getContractName() + "” (ID: " + contractId + ") 已成功定稿，并进入下一审批流程。");
+            redirectAttributes.addFlashAttribute("successMessage", "合同 " + finalizedContract.getContractName() + " (ID: " + contractId + ") 已成功定稿，并进入下一审批流程。");
             return "redirect:/contract-manager/pending-finalization";
         } catch (BusinessLogicException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "定稿失败: " + e.getMessage());
@@ -473,7 +473,7 @@ public class ContractController {
 
             // 提示信息，如果合同状态不是标准的待审批状态
             if (contract.getStatus() != ContractStatus.PENDING_APPROVAL && contract.getStatus() != ContractStatus.REJECTED ) {
-                model.addAttribute("infoMessage", "提示：此合同当前状态为 “" + contract.getStatus().getDescription() + "”，可能并非处于标准的待审批环节。");
+                model.addAttribute("infoMessage", "提示：此合同当前状态为 " + contract.getStatus().getDescription() + "，可能并非处于标准的待审批环节。");
             }
             model.addAttribute("contract", contract);
             return "contract-manager/approval-details";
@@ -588,5 +588,32 @@ public class ContractController {
         model.addAttribute("listTitle", "合同列表查询");
         // 确保指向正确的模板，根据您的项目结构，这应该是 "reports/contract-search" 或 "contract-manager/view-all-contracts" 等
         return "reports/contract-search"; // 重用报告模块的查询页面
+    }
+
+    @GetMapping("/{contractId}/detail")
+    @PreAuthorize("hasAuthority('CON_VIEW_MY') or hasRole('ROLE_ADMIN')")
+    public String viewContractDetail(
+            @PathVariable Long contractId,
+            Model model,
+            Principal principal,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Contract contract = contractService.getContractById(contractId);
+            List<ContractProcess> contractProcesses = contractService.getContractProcessHistory(contractId);
+            
+            // 按创建时间倒序排序处理记录
+            contractProcesses.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+            
+            model.addAttribute("contract", contract);
+            model.addAttribute("contractProcesses", contractProcesses);
+            
+            return "contracts/detail";
+        } catch (ResourceNotFoundException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "无法找到指定的合同：" + e.getMessage());
+            return "redirect:/reports/contract-search";
+        } catch (AccessDeniedException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "您没有权限查看此合同");
+            return "redirect:/reports/contract-search";
+        }
     }
 }

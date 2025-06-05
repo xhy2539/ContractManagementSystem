@@ -44,7 +44,7 @@ public interface ContractService {
     /**
      * 根据多种条件搜索和分页查询合同。
      *
-     * @param currentUsername   执行查询的当前用户名，如果非null且用户非管理员，则用于过滤“我的合同”。
+     * @param currentUsername   执行查询的当前用户名，如果非null且用户非管理员，则用于过滤"我的合同"。
      * @param isAdmin           标记当前用户是否为管理员。
      * @param contractName   合同名称的模糊搜索关键字（可选）。
      * @param contractNumber 合同编号的模糊搜索关键字（可选）。
@@ -268,6 +268,11 @@ public interface ContractService {
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果业务逻辑校验失败。
      */
 
-
+    /**
+     * 获取合同的所有处理历史记录
+     * @param contractId 合同ID
+     * @return 合同处理历史记录列表
+     */
+    List<ContractProcess> getContractProcessHistory(Long contractId);
 
 }
