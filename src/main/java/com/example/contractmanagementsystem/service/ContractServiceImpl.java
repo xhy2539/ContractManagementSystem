@@ -32,6 +32,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -825,4 +826,75 @@ public class ContractServiceImpl implements ContractService {
     public long countContractsPendingAssignment() {
         return contractRepository.countByStatus(ContractStatus.PENDING_ASSIGNMENT); //
     }
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ContractProcess> getPendingCountersignContracts(String username, String contractNameSearch, Pageable pageable) {
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("用户未找到: " + username));
+
+        Specification<ContractProcess> spec = (root, query, cb) -> {
+            // 防止重复 Join，如果已经通过 Fetch Join 获取了，就不需要再次 Join
+            if (query.getResultType() != Long.class && query.getResultType() != String.class) { // 避免在count查询时fetch
+                // 确保急切加载 Contract 和 Contract.customer 和 Contract.drafter
+                root.fetch("contract", JoinType.INNER)
+                        .fetch("customer", JoinType.LEFT) // 客户信息
+                        .fetch("drafter", JoinType.LEFT); // 起草人信息
+            }
+
+
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("operator"), currentUser));
+            predicates.add(cb.equal(root.get("type"), ContractProcessType.COUNTERSIGN));
+            predicates.add(cb.equal(root.get("state"), ContractProcessState.PENDING));
+
+            if (StringUtils.hasText(contractNameSearch)) {
+                // 通过 Contract 的 contractName 进行模糊查询
+                predicates.add(cb.like(cb.lower(root.get("contract").get("contractName")),
+                        "%" + contractNameSearch.toLowerCase() + "%"));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // findAll 方法支持 Specification 和 Pageable
+        return contractProcessRepository.findAll(spec, pageable);
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ContractProcess> getContractProcessDetails(Long contractId, String username, ContractProcessType type, ContractProcessState state) {
+        return contractProcessRepository.findByContractIdAndOperatorUsernameAndTypeAndState(
+                contractId, username, type, state
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContractProcess> getAllContractProcessesByContractAndType(Contract contract, ContractProcessType type) {
+        List<ContractProcess> processes = contractProcessRepository.findByContractAndType(contract, type);
+        // 为了避免 N+1 问题，可能需要手动初始化一些懒加载的关联实体（如果它们在前端页面上被访问到）
+        // 例如：Hibernate.initialize(process.getOperator());
+        // 或者在Repository中使用FETCH JOIN
+        // 在 ContractProcessRepository 中添加类似 @Query("SELECT cp FROM ContractProcess cp JOIN FETCH cp.contract c JOIN FETCH cp.operator o WHERE cp.contract = :contract AND cp.type = :type")
+        // 如果您在ContractProcessRepository中已经有Fetch Join，那么这里不需要额外处理
+        processes.forEach(process -> Hibernate.initialize(process.getOperator())); // 确保操作人信息被加载
+        return processes.stream()
+                .sorted(Comparator.comparing(ContractProcess::getCreatedAt)) // 按创建时间排序
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canUserCountersignContract(Long contractId, String username) {
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("用户未找到: " + username));
+
+        // 检查是否存在当前用户作为操作者，且合同处于待会签状态的会签流程
+        Optional<ContractProcess> processOpt = contractProcessRepository.findByContractIdAndOperatorUsernameAndTypeAndState(
+                contractId, username, ContractProcessType.COUNTERSIGN, ContractProcessState.PENDING
+        );
+        return processOpt.isPresent();
+    }
+
 }

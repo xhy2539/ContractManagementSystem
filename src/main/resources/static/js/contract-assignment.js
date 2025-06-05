@@ -14,20 +14,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const availableSigningUsersSelect = document.getElementById('availableSigningUsers');
     const assignedSigningUsersSelect = document.getElementById('assignedSigningUsers');
 
-    // 新增定稿人员的DOM引用
-    const availableFinalizeUsersSelect = document.getElementById('availableFinalizeUsers');
-    const assignedFinalizeUsersSelect = document.getElementById('assignedFinalizeUsers');
-
     const addCountersignUserBtn = document.getElementById('addCountersignUserBtn');
     const removeCountersignUserBtn = document.getElementById('removeCountersignUserBtn');
     const addApprovalUserBtn = document.getElementById('addApprovalUserBtn');
     const removeApprovalUserBtn = document.getElementById('removeApprovalUserBtn');
     const addSigningUserBtn = document.getElementById('addSigningUserBtn');
     const removeSigningUserBtn = document.getElementById('removeSigningUserBtn');
-
-    // 新增定稿人员的按钮DOM引用
-    const addFinalizeUserBtn = document.getElementById('addFinalizeUserBtn');
-    const removeFinalizeUserBtn = document.getElementById('removeFinalizeUserBtn');
 
     const submitAssignmentBtn = document.getElementById('submitAssignmentBtn');
     const cancelAssignmentBtn = document.getElementById('cancelAssignmentBtn');
@@ -70,10 +62,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (removeApprovalUserBtn) removeApprovalUserBtn.addEventListener('click', () => moveOptions(assignedApprovalUsersSelect, availableApprovalUsersSelect));
         if (addSigningUserBtn) addSigningUserBtn.addEventListener('click', () => moveOptions(availableSigningUsersSelect, assignedSigningUsersSelect));
         if (removeSigningUserBtn) removeSigningUserBtn.addEventListener('click', () => moveOptions(assignedSigningUsersSelect, availableSigningUsersSelect));
-        // 新增定稿人员按钮的事件监听
-        if (addFinalizeUserBtn) addFinalizeUserBtn.addEventListener('click', () => moveOptions(availableFinalizeUsersSelect, assignedFinalizeUsersSelect));
-        if (removeFinalizeUserBtn) removeFinalizeUserBtn.addEventListener('click', () => moveOptions(assignedFinalizeUsersSelect, availableFinalizeUsersSelect));
-
 
         if (submitAssignmentBtn) {
             submitAssignmentBtn.addEventListener('click', handleSubmitAssignment);
@@ -204,16 +192,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function repopulateUserSelectionLists(assignedIdsByType = { countersign: new Set(), approval: new Set(), signing: new Set(), finalize: new Set() }) { // 增加 finalize
+    function repopulateUserSelectionLists(assignedIdsByType = { countersign: new Set(), approval: new Set(), signing: new Set() }) {
         populateUserSelect(availableCountersignUsersSelect, allUsers, assignedIdsByType.countersign);
         populateUserSelect(assignedCountersignUsersSelect, allUsers, assignedIdsByType.countersign);
         populateUserSelect(availableApprovalUsersSelect, allUsers, assignedIdsByType.approval);
         populateUserSelect(assignedApprovalUsersSelect, allUsers, assignedIdsByType.approval);
         populateUserSelect(availableSigningUsersSelect, allUsers, assignedIdsByType.signing);
         populateUserSelect(assignedSigningUsersSelect, allUsers, assignedIdsByType.signing);
-        // 新增定稿人员的选择列表填充
-        populateUserSelect(availableFinalizeUsersSelect, allUsers, assignedIdsByType.finalize);
-        populateUserSelect(assignedFinalizeUsersSelect, allUsers, assignedIdsByType.finalize);
     }
 
     function resetAssignmentPanel() {
@@ -226,8 +211,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         [availableCountersignUsersSelect, assignedCountersignUsersSelect,
             availableApprovalUsersSelect, assignedApprovalUsersSelect,
-            availableSigningUsersSelect, assignedSigningUsersSelect,
-            availableFinalizeUsersSelect, assignedFinalizeUsersSelect].forEach(sel => sel.innerHTML = ''); // 增加定稿人员列表的清空
+            availableSigningUsersSelect, assignedSigningUsersSelect].forEach(sel => sel.innerHTML = '');
         assignmentPanel.style.display = 'none';
         noContractSelectedPanel.style.display = 'block';
     }
@@ -271,17 +255,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const countersignUserIds = Array.from(assignedCountersignUsersSelect.options).map(opt => parseInt(opt.value));
         const approvalUserIds = Array.from(assignedApprovalUsersSelect.options).map(opt => parseInt(opt.value));
         const signUserIds = Array.from(assignedSigningUsersSelect.options).map(opt => parseInt(opt.value));
-        const finalizeUserIds = Array.from(assignedFinalizeUsersSelect.options).map(opt => parseInt(opt.value)); // 获取定稿人员ID
 
-        if (countersignUserIds.length === 0 && approvalUserIds.length === 0 && signUserIds.length === 0 && finalizeUserIds.length === 0) { // 增加对定稿人员的检查
-            showAlert('请至少为合同分配一种类型的处理人员（会签、审批、签订或定稿）。', 'warning', globalAlertContainerId);
+        if (countersignUserIds.length === 0 && approvalUserIds.length === 0 && signUserIds.length === 0) {
+            showAlert('请至少为合同分配一种类型的处理人员（会签、审批或签订）。', 'warning', globalAlertContainerId);
             return;
         }
         const assignmentData = {
             countersignUserIds,
             approvalUserIds,
-            signUserIds,
-            finalizeUserIds // 包含定稿人员ID
+            signUserIds
         };
         toggleLoading(true, submitAssignmentBtn);
         try {

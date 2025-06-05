@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>待会签合同</title>
-    <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
     <style>
         body {
             font-family: sans-serif;
@@ -182,7 +182,7 @@
                 <td th:text="${#temporals.format(process.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
                 <td th:text="${process.state.description}"></td>
                 <td>
-                     <a th:href="@{/contract-manager/countersign-form/{id}(id=${process.contract.id})}" class="btn-action">会签</a>
+                    <a th:href="@{/contracts/countersign-details/{id}(id=${process.contract.id})}" class="btn-action">会签</a>
                     <span th:if="${process.contract.attachmentPath}">
                         <a th:href="@{'/attachments/' + ${process.contract.attachmentPath}}" target="_blank" class="btn-view-attachment">查看附件</a>
                     </span>
