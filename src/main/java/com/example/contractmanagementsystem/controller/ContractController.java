@@ -170,76 +170,11 @@ public class ContractController {
         } catch (BusinessLogicException | ResourceNotFoundException | AccessDeniedException e) {
             // 如果发生业务逻辑、资源未找到或权限异常，重定向回会签详情页并显示错误
             redirectAttributes.addFlashAttribute("errorMessage", "会签操作失败: " + e.getMessage());
-            return "redirect:/contract-manager/countersign-form/" + contractProcessId;
+            return "redirect:/contract-manager/countersign/" + contractProcessId;
         } catch (Exception e) {
             // 捕获其他未知异常
             redirectAttributes.addFlashAttribute("errorMessage", "会签过程中发生未知系统错误。");
             logger.error("处理会签提交未知错误", e);
-            return "redirect:/contract-manager/pending-countersign";
-        }
-    }
-    @GetMapping("/countersign-form/{contractId}") // 路径变量使用 contractId
-    @PreAuthorize("hasAuthority('CON_CSIGN_VIEW')or hasAuthority('CON_CSIGN_SUBMIT')")
-    public String showCountersignForm(
-            @PathVariable Long contractId, // 获取合同ID
-            Authentication authentication,
-            Model model,
-            RedirectAttributes redirectAttributes) {
-
-        String currentUsername = authentication.getName();
-        try {
-            // 1. 获取合同详情
-            Contract contract = contractService.getContractById(contractId);
-
-            // 2. 获取当前用户对应的待会签流程记录
-            Optional<ContractProcess> currentProcessOpt = contractService.getContractProcessDetails(
-                    contractId, currentUsername, ContractProcessType.COUNTERSIGN, ContractProcessState.PENDING
-            );
-
-            if (currentProcessOpt.isEmpty()) {
-                redirectAttributes.addFlashAttribute("errorMessage", "未找到您需要会签的该合同流程，或您已完成会签。");
-                return "redirect:/contract-manager/pending-countersign";
-            }
-            ContractProcess currentProcess = currentProcessOpt.get();
-
-
-            // 3. 验证当前用户是否可以会签此合同
-            if (!contractService.canUserCountersignContract(contract.getId(), currentUsername)) {
-                redirectAttributes.addFlashAttribute("errorMessage", "您无权会签此合同或该合同不处于待会签状态。");
-                return "redirect:/contract-manager/pending-countersign";
-            }
-
-            // 4. 获取所有会签意见（已完成和待完成的）
-            List<ContractProcess> allCountersignProcesses = contractService.getAllContractProcessesByContractAndType(contract, ContractProcessType.COUNTERSIGN);
-
-            // 5. 解析附件路径 (如果存在)
-            List<String> attachmentPaths = Collections.emptyList();
-            if (contract.getAttachmentPath() != null && !contract.getAttachmentPath().isEmpty()) {
-                try {
-                    attachmentPaths = objectMapper.readValue(contract.getAttachmentPath(), new TypeReference<List<String>>() {});
-                } catch (JsonProcessingException e) {
-                    logger.error("Error parsing attachment paths for contract ID {}: {}", contractId, e.getMessage());
-                    model.addAttribute("errorMessage", "解析附件信息失败。");
-                }
-            }
-
-
-            model.addAttribute("contract", contract);
-            model.addAttribute("currentProcess", currentProcess); // 传递当前待处理的流程实例
-            model.addAttribute("allCountersignProcesses", allCountersignProcesses); // 传递所有会签意见
-            model.addAttribute("attachmentPaths", attachmentPaths);
-            model.addAttribute("listTitle", "合同会签"); // 页面标题
-
-            return "contract-manager/countersign-form"; // 返回新的会签表单页面
-        } catch (ResourceNotFoundException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-            return "redirect:/contract-manager/pending-countersign";
-        } catch (AccessDeniedException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "访问被拒绝: " + e.getMessage());
-            return "redirect:/contract-manager/pending-countersign";
-        } catch (Exception e) {
-            logger.error("Error showing countersign form for contract ID {}: {}", contractId, e.getMessage(), e);
-            redirectAttributes.addFlashAttribute("errorMessage", "加载会签表单时发生未知错误。");
             return "redirect:/contract-manager/pending-countersign";
         }
     }

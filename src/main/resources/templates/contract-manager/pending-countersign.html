@@ -180,13 +180,9 @@
                 <td th:text="${process.contract.customer.customerName}"></td>
                 <td th:text="${process.contract.drafter.username}"></td>
                 <td th:text="${#temporals.format(process.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
-                <td th:text="${process.contract.status.description}"></td>
+                <td th:text="${process.state.description}"></td>
                 <td>
-<<<<<<< Updated upstream
                     <a th:href="@{/contracts/countersign-details/{id}(id=${process.contract.id})}" class="btn-action">会签</a>
-=======
-                     <a th:href="@{/contract-manager/countersign-form/{id}(id=${process.contract.id})}" class="btn-action">会签</a>
->>>>>>> Stashed changes
                     <span th:if="${process.contract.attachmentPath}">
                         <a th:href="@{'/attachments/' + ${process.contract.attachmentPath}}" target="_blank" class="btn-view-attachment">查看附件</a>
                     </span>
