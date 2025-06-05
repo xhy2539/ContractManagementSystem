@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-
+import java.util.Optional;
 /**
  * 合同管理业务接口。
  * 定义合同起草、查询、状态统计、定稿等核心业务操作。
@@ -219,4 +219,55 @@ public interface ContractService {
      * @return 与该合同关联的、类型为COUNTERSIGN的ContractProcess列表。
      */
     List<ContractProcess> getContractCountersignOpinions(Long contractId);
+    /**
+     * 获取当前用户待会签的合同列表。
+     * @param username 当前用户的用户名。
+     * @param contractNameSearch 合同名称搜索关键词（可选）。
+     * @param pageable 分页参数。
+     * @return 待会签合同流程的Page。
+     */
+    Page<ContractProcess> getPendingCountersignContracts(String username, String contractNameSearch, Pageable pageable);
+
+    /**
+     * 获取特定合同流程的详细信息。
+     * @param contractId 合同ID。
+     * @param username 操作用户。
+     * @param type 流程类型。
+     * @param state 流程状态。
+     * @return 匹配的合同流程Optional，如果不存在则为empty。
+     */
+    Optional<ContractProcess> getContractProcessDetails(Long contractId, String username, ContractProcessType type, ContractProcessState state);
+
+
+    /**
+     * 获取指定合同和指定类型的所有合同流程记录。
+     * 用于在详情页展示所有会签意见。
+     * @param contract 合同实体。
+     * @param type 流程类型（例如COUNTERSIGN）。
+     * @return 该合同和类型的所有流程记录列表。
+     */
+    List<ContractProcess> getAllContractProcessesByContractAndType(Contract contract, ContractProcessType type);
+
+
+    /**
+     * 判断当前用户是否可以会签指定合同。
+     * @param contractId 合同ID。
+     * @param username 用户名。
+     * @return 如果用户可以会签则为 true，否则为 false。
+     */
+    boolean canUserCountersignContract(Long contractId, String username);
+
+    /**
+     * 处理会签操作。
+     * @param contractProcessId 会签流程记录ID。
+     * @param comments 会签意见。
+     * @param username 操作用户。
+     * @param isApproved 是否批准（true为批准，false为拒绝）。
+     * @throws AccessDeniedException 如果用户无权操作。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录不存在。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果业务逻辑校验失败。
+     */
+
+
+
 }

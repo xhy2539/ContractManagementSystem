@@ -45,7 +45,7 @@ public class ContractAssignmentController {
     }
 
     /**
-     * 为指定合同分配处理人员（会签、审批、签订，定稿）。
+     * 为指定合同分配处理人员（会签、审批、签订）。
      * 需要 'CON_ASSIGN_DO' 权限。
      * @param contractId 要分配人员的合同ID。
      * @param request 包含各类处理人员ID列表的请求体。
@@ -62,8 +62,7 @@ public class ContractAssignmentController {
                 contractId,
                 request.getCountersignUserIds(),
                 request.getApprovalUserIds(),
-                request.getSignUserIds(),
-                request.getFinalizeUserIds() // 新增传递定稿人员ID
+                request.getSignUserIds()
         );
         return ResponseEntity.ok().build(); // 返回成功响应
     }
