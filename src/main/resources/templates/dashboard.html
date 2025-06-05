@@ -128,7 +128,7 @@
                                 </div>
                             </div>
                             <th:block th:switch="${task.type.name()}">
-                                <a th:case="'COUNTERSIGN'" th:href="@{/contract-manager/countersign-form/{id}(id=${task.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                <a th:case="'COUNTERSIGN'" th:href="@{/contract-manager/countersign-form/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
                                     去处理 <i class="bi bi-arrow-right-short"></i>
                                 </a>
                                 <a th:case="'APPROVAL'" th:href="@{/contract-manager/approval-details/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">

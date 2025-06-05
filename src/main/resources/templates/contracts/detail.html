@@ -6,23 +6,27 @@
 <head>
     <meta charset="UTF-8">
     <title>合同详情</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style layout:fragment="inline-css">
         .contract-detail-card {
             background-color: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
-            padding: 20px;
+            padding: 25px;
         }
         .section-title {
             color: #333;
             border-bottom: 2px solid #f0f0f0;
             padding-bottom: 10px;
             margin-bottom: 20px;
+            font-size: 1.5rem;
         }
         .detail-row {
             display: flex;
             margin-bottom: 15px;
+            font-size: 1.05rem;
         }
         .detail-label {
             width: 120px;
@@ -37,73 +41,80 @@
             border: 1px solid #eee;
             border-radius: 4px;
             padding: 15px;
-            margin: 10px 0;
+            margin-top: 10px;
             white-space: pre-wrap;
+            min-height: 150px;
         }
         .status-badge {
             display: inline-block;
-            padding: 4px 8px;
+            padding: 5px 10px;
             border-radius: 4px;
             font-size: 0.9em;
             font-weight: 500;
+            color: #fff;
         }
         .status-DRAFT { background-color: #ffc107; color: #000; }
-        .status-PENDING_ASSIGNMENT { background-color: #6610f2; color: #fff; }
-        .status-PENDING_COUNTERSIGN { background-color: #fd7e14; color: #fff; }
-        .status-PENDING_FINALIZATION { background-color: #e83e8c; color: #fff; }
-        .status-PENDING_APPROVAL { background-color: #20c997; color: #fff; }
-        .status-PENDING_SIGNING { background-color: #17a2b8; color: #fff; }
-        .status-ACTIVE { background-color: #007bff; color: #fff; }
-        .status-COMPLETED { background-color: #28a745; color: #fff; }
-        .status-EXPIRED { background-color: #dc3545; color: #fff; }
-        .status-TERMINATED { background-color: #6c757d; color: #fff; }
+        .status-PENDING_ASSIGNMENT { background-color: #6610f2; }
+        .status-PENDING_COUNTERSIGN { background-color: #fd7e14; }
+        .status-PENDING_FINALIZATION { background-color: #e83e8c; }
+        .status-PENDING_APPROVAL { background-color: #20c997; }
+        .status-PENDING_SIGNING { background-color: #17a2b8; }
+        .status-ACTIVE { background-color: #007bff; }
+        .status-COMPLETED { background-color: #28a745; }
+        .status-EXPIRED { background-color: #dc3545; }
+        .status-TERMINATED { background-color: #6c757d; }
         .attachment-section {
             margin-top: 20px;
             padding-top: 20px;
             border-top: 1px solid #eee;
         }
         .btn-download {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
             padding: 6px 12px;
-            background-color: #007bff;
+            background-color: #0d6efd;
             color: white;
             text-decoration: none;
             border-radius: 4px;
             transition: background-color 0.2s;
+            margin-bottom: 8px;
         }
         .btn-download:hover {
-            background-color: #0056b3;
+            background-color: #0a58ca;
             text-decoration: none;
             color: white;
         }
-        .process-history {
-            margin-top: 20px;
+        .btn-download .bi {
+            margin-right: 6px;
         }
         .timeline {
             position: relative;
             padding: 20px 0;
+            list-style: none;
         }
         .timeline-item {
             padding-left: 30px;
             position: relative;
-            margin-bottom: 15px;
+            margin-bottom: 25px;
         }
         .timeline-item::before {
             content: '';
             position: absolute;
             left: 0;
-            top: 0;
+            top: 5px;
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background-color: #007bff;
+            background-color: #0d6efd;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #0d6efd;
         }
         .timeline-item::after {
             content: '';
             position: absolute;
             left: 5px;
-            top: 12px;
-            bottom: -27px;
+            top: 17px;
+            bottom: -25px;
             width: 2px;
             background-color: #e9ecef;
         }
@@ -111,14 +122,15 @@
             display: none;
         }
         .timeline-date {
-            color: #666;
+            color: #6c757d;
             font-size: 0.9em;
             margin-bottom: 5px;
         }
         .timeline-content {
             background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 4px;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
         }
     </style>
 </head>
@@ -136,87 +148,85 @@
             <h2 class="section-title">基本信息</h2>
             <div class="detail-row">
                 <span class="detail-label">合同编号：</span>
-                <span class="detail-value" th:text="${contract.contractNumber}">-</span>
+                <span class="detail-value" th:text="${contract.contractNumber ?: '-'}"></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">合同名称：</span>
-                <span class="detail-value" th:text="${contract.contractName}">-</span>
+                <span class="detail-value" th:text="${contract.contractName ?: '-'}"></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">客户名称：</span>
-                <span class="detail-value" th:text="${contract.customer != null ? contract.customer.customerName : '-'}">-</span>
+                <span class="detail-value" th:text="${contract.customer?.customerName ?: '-'}"></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">合同状态：</span>
                 <span class="detail-value">
-                    <span th:if="${contract.status != null}"
+                    <span th:if="${contract.status}"
                           th:text="${contract.status.description}"
                           class="status-badge"
-                          th:classappend="'status-' + ${contract.status.name()}">-</span>
+                          th:classappend="'status-' + ${contract.status.name()}"></span>
+                    <span th:unless="${contract.status}">-</span>
                 </span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">起草人：</span>
-                <span class="detail-value" th:text="${contract.drafter != null ? contract.drafter.username : '-'}">-</span>
+                <span class="detail-value" th:text="${contract.drafter?.username ?: '-'}"></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">签订日期：</span>
-                <span class="detail-value" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}">-</span>
+                <span class="detail-value" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">到期日期：</span>
-                <span class="detail-value" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}">-</span>
+                <span class="detail-value" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">创建时间：</span>
-                <span class="detail-value" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm:ss') : '-'}">-</span>
+                <span class="detail-value" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></span>
             </div>
             <div class="detail-row">
                 <span class="detail-label">最后更新：</span>
-                <span class="detail-value" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm:ss') : '-'}">-</span>
+                <span class="detail-value" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></span>
             </div>
         </div>
 
         <div class="contract-detail-card">
             <h2 class="section-title">合同内容</h2>
-            <div class="contract-content" th:text="${contract.content}">
-                暂无内容
-            </div>
+            <div class="contract-content" th:text="${contract.content ?: '暂无内容'}"></div>
         </div>
 
-        <div class="contract-detail-card" th:if="${contract.attachmentPath != null}">
+        <div class="contract-detail-card" th:if="${attachmentPaths != null and not attachmentPaths.isEmpty()}">
             <h2 class="section-title">附件</h2>
             <div class="attachment-section">
-                <a th:href="@{'/attachments/' + ${contract.attachmentPath}}"
-                   class="btn-download"
-                   target="_blank">
-                    <i class="bi bi-download"></i> 下载附件
-                </a>
+                <div th:each="path : ${attachmentPaths}">
+                    <a th:href="@{/api/attachments/download/{filename}(filename=${path})}"
+                       class="btn-download"
+                       target="_blank">
+                        <i class="bi bi-download"></i>
+                        <span th:text="${path}"></span>
+                    </a>
+                </div>
             </div>
         </div>
 
         <div class="contract-detail-card" th:if="${!#lists.isEmpty(contractProcesses)}">
             <h2 class="section-title">处理记录</h2>
-            <div class="process-history">
-                <div class="timeline">
-                    <div class="timeline-item" th:each="process : ${contractProcesses}">
-                        <div class="timeline-date" th:text="${#temporals.format(process.createdAt, 'yyyy-MM-dd HH:mm:ss')}">
-                            2023-01-01 12:00:00
+            <ul class="timeline">
+                <li class="timeline-item" th:each="process : ${contractProcesses}">
+                    <div class="timeline-date" th:text="${#temporals.format(process.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></div>
+                    <div class="timeline-content">
+                        <strong th:text="${process.type.description + ' - ' + process.state.description}">处理类型 - 状态</strong>
+                        <div th:if="${process.operator != null}">
+                            处理人：<span th:text="${process.operator.username}"></span>
                         </div>
-                        <div class="timeline-content">
-                            <strong th:text="${process.type.description + ' - ' + process.state.description}">处理类型 - 状态</strong>
-                            <div th:if="${process.operator != null}">
-                                处理人：<span th:text="${process.operator.username}">操作人</span>
-                            </div>
-                            <div th:if="${process.comments != null && !process.comments.isEmpty()}">
-                                处理意见：<span th:text="${process.comments}">处理意见</span>
-                            </div>
+                        <div th:if="${process.comments != null and !process.comments.isEmpty()}">
+                            处理意见：<span th:text="${process.comments}"></span>
                         </div>
                     </div>
-                </div>
-            </div>
+                </li>
+            </ul>
         </div>
     </div>
 </section>
 </body>
-</html> 
+</html>

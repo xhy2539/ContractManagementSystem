@@ -15,8 +15,6 @@ import java.util.Optional;
 @Repository
 public interface ContractProcessRepository extends JpaRepository<ContractProcess, Long>, JpaSpecificationExecutor<ContractProcess> {
 
-    // --- 你原有方法（保持不变） ---
-    List<ContractProcess> findByContract(Contract contract);
 
     List<ContractProcess> findByContractAndType(Contract contract, ContractProcessType type);
 

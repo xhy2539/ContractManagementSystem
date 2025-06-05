@@ -600,14 +600,29 @@ public class ContractController {
         try {
             Contract contract = contractService.getContractById(contractId);
             List<ContractProcess> contractProcesses = contractService.getContractProcessHistory(contractId);
-            
+
             // 按创建时间倒序排序处理记录
             contractProcesses.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
-            
+
             model.addAttribute("contract", contract);
             model.addAttribute("contractProcesses", contractProcesses);
-            
-            return "contracts/detail";
+
+            // --- 开始添加的代码 ---
+            List<String> attachmentPaths = new ArrayList<>();
+            if (contract.getAttachmentPath() != null && !contract.getAttachmentPath().trim().isEmpty()) {
+                try {
+                    // 使用 ObjectMapper 解析JSON字符串为List<String>
+                    attachmentPaths = objectMapper.readValue(contract.getAttachmentPath(), new TypeReference<List<String>>() {});
+                } catch (JsonProcessingException e) {
+                    logger.error("解析附件路径失败，合同ID {}: {}", contractId, e.getMessage());
+                    model.addAttribute("errorMessage", "附件信息解析失败。");
+                }
+            }
+            // 将解析后的列表添加到模型中
+            model.addAttribute("attachmentPaths", attachmentPaths);
+
+
+            return "contracts/detail"; // 确保返回的是这个模板
         } catch (ResourceNotFoundException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "无法找到指定的合同：" + e.getMessage());
             return "redirect:/reports/contract-search";

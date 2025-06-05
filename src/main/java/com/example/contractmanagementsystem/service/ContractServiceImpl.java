@@ -201,7 +201,7 @@ public class ContractServiceImpl implements ContractService {
         Contract savedContract = contractRepository.save(contract);
 
         // 7. 记录审计日志
-        String details = "合同ID " + contractId + " (" + contract.getContractName() + ") 已被用户 " + username + " 定稿，状态变更为"待审批"。";
+        String details = "合同ID " + contractId + " (" + contract.getContractName() + ") 已被用户 " + username + " 定稿，状态变更为待审批。";
         if (StringUtils.hasText(finalizationComments)) {
             details += " 定稿意见: " + finalizationComments + "。";
         }
@@ -574,7 +574,7 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = getContractById(contractId); //
 
         if (contract.getStatus() != ContractStatus.PENDING_APPROVAL) { //
-            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，不能进行审批。必须处于"待审批"状态。");
+            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，不能进行审批。必须处于待审批状态。");
         }
 
         // 2. 查找特定用户在指定合同上的待处理审批任务
@@ -674,7 +674,7 @@ public class ContractServiceImpl implements ContractService {
 
         Contract contract = process.getContract();
         if (contract.getStatus() != ContractStatus.PENDING_SIGNING) { //
-            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，不能进行签订。必须处于"待签订"状态。");
+            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，不能进行签订。必须处于待签订状态。");
         }
 
         // 2. 更新当前签订流程的状态
@@ -755,7 +755,7 @@ public class ContractServiceImpl implements ContractService {
         // 业务逻辑检查：合同必须处于待定稿状态
         if (contract.getStatus() != ContractStatus.PENDING_FINALIZATION) { //
             throw new BusinessLogicException("合同当前状态为" + contract.getStatus().getDescription() +
-                    "，无法进行定稿操作。必须处于"待定稿"状态。");
+                    "，无法进行定稿操作。必须处于待定稿状态。");
         }
 
         User currentUser = userRepository.findByUsername(username)
