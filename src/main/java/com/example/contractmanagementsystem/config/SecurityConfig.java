@@ -48,7 +48,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/", "/register", "/api/auth/register", "/login", "/perform_login", "/css/**", "/js/**", "/error/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
-                        .requestMatchers("/api/attachments/**").authenticated() // <--- 可选的显式添加
+                        .requestMatchers("/api/attachments/**").authenticated()
+                        .requestMatchers("/api/attachments/**").authenticated()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/system/**").authenticated()
                         .anyRequest().authenticated()
