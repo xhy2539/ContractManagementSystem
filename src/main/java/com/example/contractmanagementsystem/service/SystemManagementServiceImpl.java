@@ -5,7 +5,9 @@ import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.DuplicateResourceException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.*;
-import org.hibernate.Hibernate; // <--- 确保导入 Hibernate
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,12 +17,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.persistence.criteria.Predicate;
+import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -63,27 +63,74 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             }
             return authentication.getName(); // Fallback
         }
-        return "SYSTEM_UNKNOWN"; // Or throw an exception if an authenticated user is strictly required
+        return "SYSTEM_UNKNOWN";
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<Contract> getContractsPendingAssignment(Pageable pageable, String contractNameSearch, String contractNumberSearch) {
-        return contractRepository.findContractsForAssignmentWithFilters(
-                List.of(ContractStatus.DRAFT),
-                contractNameSearch,
-                contractNumberSearch,
-                pageable
-        );
+        Specification<Contract> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            // 筛选状态为 PENDING_ASSIGNMENT 的合同
+            predicates.add(cb.equal(root.get("status"), ContractStatus.PENDING_ASSIGNMENT));
+
+            if (StringUtils.hasText(contractNameSearch)) {
+                predicates.add(cb.like(cb.lower(root.get("contractName")), "%" + contractNameSearch.toLowerCase().trim() + "%"));
+            }
+            if (StringUtils.hasText(contractNumberSearch)) {
+                predicates.add(cb.like(cb.lower(root.get("contractNumber")), "%" + contractNumberSearch.toLowerCase().trim() + "%"));
+            }
+
+            // 确保只在查询实体时进行fetch, 以避免影响count查询
+            if (query.getResultType().equals(Contract.class)) {
+                root.fetch("customer", JoinType.LEFT);
+                root.fetch("drafter", JoinType.LEFT); // 预加载起草人
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<Contract> contractsPage = contractRepository.findAll(spec, pageable);
+
+        // 显式初始化懒加载的集合，确保在序列化为JSON时数据可用
+        contractsPage.getContent().forEach(contract -> {
+            Hibernate.initialize(contract.getCustomer());
+            User drafter = contract.getDrafter();
+            if (drafter != null) {
+                Hibernate.initialize(drafter); // 虽然fetch了，但显式初始化更保险
+                Set<Role> roles = drafter.getRoles();
+                Hibernate.initialize(roles); // 初始化 drafter 的角色集合
+                if (roles != null) {
+                    for (Role role : roles) {
+                        Hibernate.initialize(role.getFunctionalities()); // *** 核心修改：初始化每个角色的功能集合 ***
+                    }
+                }
+            }
+        });
+        return contractsPage;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Contract> getContractsPendingAssignment() {
-        return contractRepository.findAll().stream()
-                .filter(contract -> ContractStatus.DRAFT.equals(contract.getStatus()) &&
-                        contractProcessRepository.findByContract(contract).isEmpty())
-                .collect(Collectors.toList());
+        Specification<Contract> spec = (root, query, cb) ->
+                cb.and(
+                        cb.equal(root.get("status"), ContractStatus.PENDING_ASSIGNMENT)
+                );
+        List<Contract> contracts = contractRepository.findAll(spec);
+        contracts.forEach(contract -> {
+            Hibernate.initialize(contract.getCustomer());
+            User drafter = contract.getDrafter();
+            if (drafter != null) {
+                Hibernate.initialize(drafter);
+                Set<Role> roles = drafter.getRoles();
+                Hibernate.initialize(roles);
+                if (roles != null) {
+                    for (Role role : roles) {
+                        Hibernate.initialize(role.getFunctionalities()); // *** 核心修改：初始化每个角色的功能集合 ***
+                    }
+                }
+            }
+        });
+        return contracts;
     }
 
 
@@ -93,102 +140,111 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         Contract contract = contractRepository.findById(contractId)
                 .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
 
-        boolean countersignersProvided = countersignUserIds != null && !countersignUserIds.isEmpty();
-        boolean approversProvided = approvalUserIds != null && !approvalUserIds.isEmpty();
-        boolean signersProvided = signUserIds != null && !signUserIds.isEmpty();
-
-        if (!countersignersProvided && !approversProvided && !signersProvided) {
-            throw new BusinessLogicException("必须至少为合同分配一种类型的处理人员（会签、审批或签订）。");
+        if (contract.getStatus() != ContractStatus.PENDING_ASSIGNMENT) {
+            throw new BusinessLogicException("合同 " + contract.getContractNumber() + " 当前状态为 " +
+                    contract.getStatus().getDescription() + "，不能进行人员分配。必须处于“待分配”状态。");
         }
 
-        boolean personnelAssigned = false;
-
-        if (countersignersProvided) {
-            for (Long userId : countersignUserIds) {
-                User user = userRepository.findById(userId)
-                        .orElseThrow(() -> new ResourceNotFoundException("分配会签：用户未找到，ID: " + userId));
-                ContractProcess cp = new ContractProcess();
-                cp.setContract(contract);
-                cp.setContractNumber(contract.getContractNumber());
-                cp.setOperator(user);
-                cp.setOperatorUsername(user.getUsername());
-                cp.setType(ContractProcessType.COUNTERSIGN);
-                cp.setState(ContractProcessState.PENDING);
-                contractProcessRepository.save(cp);
-            }
-            personnelAssigned = true;
+        if (countersignUserIds == null || countersignUserIds.isEmpty()) {
+            throw new BusinessLogicException("必须至少指定一名会签人员。");
+        }
+        if (approvalUserIds == null || approvalUserIds.isEmpty()) {
+            throw new BusinessLogicException("必须至少指定一名审批人员。");
+        }
+        if (signUserIds == null || signUserIds.isEmpty()) {
+            throw new BusinessLogicException("必须至少指定一名签订人员。");
         }
 
-        if (approversProvided) {
-            for (Long userId : approvalUserIds) {
-                User user = userRepository.findById(userId)
-                        .orElseThrow(() -> new ResourceNotFoundException("分配审批：用户未找到，ID: " + userId));
-                ContractProcess cp = new ContractProcess();
-                cp.setContract(contract);
-                cp.setContractNumber(contract.getContractNumber());
-                cp.setOperator(user);
-                cp.setOperatorUsername(user.getUsername());
-                cp.setType(ContractProcessType.APPROVAL);
-                cp.setState(ContractProcessState.PENDING);
-                contractProcessRepository.save(cp);
-            }
-            personnelAssigned = true;
+        for (Long userId : countersignUserIds) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("分配会签：用户未找到，ID: " + userId));
+            ContractProcess cp = new ContractProcess();
+            cp.setContract(contract);
+            cp.setContractNumber(contract.getContractNumber());
+            cp.setOperator(user);
+            cp.setOperatorUsername(user.getUsername());
+            cp.setType(ContractProcessType.COUNTERSIGN);
+            cp.setState(ContractProcessState.PENDING);
+            contractProcessRepository.save(cp);
         }
 
-        if (signersProvided) {
-            for (Long userId : signUserIds) {
-                User user = userRepository.findById(userId)
-                        .orElseThrow(() -> new ResourceNotFoundException("分配签订：用户未找到，ID: " + userId));
-                ContractProcess cp = new ContractProcess();
-                cp.setContract(contract);
-                cp.setContractNumber(contract.getContractNumber());
-                cp.setOperator(user);
-                cp.setOperatorUsername(user.getUsername());
-                cp.setType(ContractProcessType.SIGNING);
-                cp.setState(ContractProcessState.PENDING);
-                contractProcessRepository.save(cp);
-            }
-            personnelAssigned = true;
+        for (Long userId : approvalUserIds) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("分配审批：用户未找到，ID: " + userId));
+            ContractProcess cp = new ContractProcess();
+            cp.setContract(contract);
+            cp.setContractNumber(contract.getContractNumber());
+            cp.setOperator(user);
+            cp.setOperatorUsername(user.getUsername());
+            cp.setType(ContractProcessType.APPROVAL);
+            cp.setState(ContractProcessState.PENDING);
+            contractProcessRepository.save(cp);
         }
 
-        if (personnelAssigned) {
-            if (countersignersProvided) {
-                contract.setStatus(ContractStatus.PENDING_COUNTERSIGN);
-            } else if (approversProvided) {
-                contract.setStatus(ContractStatus.PENDING_APPROVAL);
-            } else if (signersProvided) {
-                contract.setStatus(ContractStatus.PENDING_SIGNING);
-            }
-            contractRepository.save(contract);
-            auditLogService.logAction(getCurrentUsername(), "ASSIGN_CONTRACT_PERSONNEL", "为合同 ID: " + contract.getId() + " (" + contract.getContractName() + ") 分配处理人员");
-            return true;
+        for (Long userId : signUserIds) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("分配签订：用户未找到，ID: " + userId));
+            ContractProcess cp = new ContractProcess();
+            cp.setContract(contract);
+            cp.setContractNumber(contract.getContractNumber());
+            cp.setOperator(user);
+            cp.setOperatorUsername(user.getUsername());
+            cp.setType(ContractProcessType.SIGNING);
+            cp.setState(ContractProcessState.PENDING);
+            contractProcessRepository.save(cp);
         }
-        return false;
+
+        contract.setStatus(ContractStatus.PENDING_COUNTERSIGN);
+        contract.setUpdatedAt(LocalDateTime.now());
+        contractRepository.save(contract);
+
+
+
+        User drafter = contract.getDrafter();
+        if (drafter == null) {
+            throw new BusinessLogicException("合同起草人信息缺失，无法推进定稿流程。");
+        }
+
+// 检查是否已经存在未完成的定稿任务，避免重复创建 (尽管此时不应存在)
+        Optional<ContractProcess> existingFinalizeTask = contractProcessRepository
+                .findByContractIdAndOperatorUsernameAndTypeAndState(
+                        contract.getId(),
+                        drafter.getUsername(),
+                        ContractProcessType.FINALIZE,
+                        ContractProcessState.PENDING
+                );
+
+        if (existingFinalizeTask.isEmpty()) {
+            ContractProcess finalizeTask = new ContractProcess();
+            finalizeTask.setContract(contract);
+            finalizeTask.setContractNumber(contract.getContractNumber());
+            finalizeTask.setType(ContractProcessType.FINALIZE);
+            finalizeTask.setState(ContractProcessState.PENDING); // 关键：设置为 PENDING
+            finalizeTask.setOperator(drafter);
+            finalizeTask.setOperatorUsername(drafter.getUsername());
+            finalizeTask.setComments("请对合同内容进行最终定稿。"); // 可选的默认备注
+
+            contractProcessRepository.save(finalizeTask);
+            auditLogService.logAction(drafter.getUsername(), "FINALIZE_TASK_CREATED",
+                    "为合同 ID: " + contract.getId() + " (“" + contract.getContractName() + "”) 创建了待定稿任务。");
+        }
+        auditLogService.logAction(getCurrentUsername(), "ASSIGN_CONTRACT_PERSONNEL_STRICT",
+                "为合同 ID: " + contract.getId() + " (" + contract.getContractName() + ") 分配了会签、审批及签订人员，合同进入待会签状态。");
+        return true;
     }
 
+    // --- 用户管理 ---
     @Override
     @Transactional
     public User createUser(User user, Set<String> roleNames) {
         if (userRepository.existsByUsername(user.getUsername())) {
             throw new DuplicateResourceException("用户名 '" + user.getUsername() + "' 已存在");
         }
-
-        // 如果采用方案二（邮箱必填），则 UserCreationRequestDTO 层面已经用 @NotBlank 校验，
-        // 此处 user.getEmail() 理论上不会是空字符串或仅空格。
-        // 如果 email 仍然可能为空字符串（例如，DTO没有@NotBlank），则需要处理：
-        /*
-        if (user.getEmail() != null && user.getEmail().trim().isEmpty()) {
-            user.setEmail(null); // 将空字符串转换为 null，以避免唯一约束问题（如果 email 可选）
-        }
-        */
-
-        // 确保只有在 email 非 null 且非空时才检查其唯一性
         if (user.getEmail() != null && !user.getEmail().trim().isEmpty() && userRepository.existsByEmail(user.getEmail())) {
             throw new DuplicateResourceException("邮箱 '" + user.getEmail() + "' 已存在");
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // user.setEnabled(true); // User 实体中 enabled 默认为 true
 
         Set<Role> roles = new HashSet<>();
         if (roleNames != null && !roleNames.isEmpty()) {
@@ -201,13 +257,10 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         user.setRoles(roles);
         User savedUser = userRepository.save(user);
 
-        // 初始化懒加载的集合以避免 LazyInitializationException
+        // 初始化新创建用户的角色及其功能，以便返回给前端时完整
         if (savedUser.getRoles() != null) {
-            savedUser.getRoles().forEach(role -> {
-                Hibernate.initialize(role.getFunctionalities()); // 初始化每个角色的功能列表
-            });
+            savedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
-
         auditLogService.logAction(getCurrentUsername(), "CREATE_USER", "创建用户: " + savedUser.getUsername());
         return savedUser;
     }
@@ -217,7 +270,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public User findUserByUsername(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("用户 '" + username + "' 未找到"));
-        if (user != null && user.getRoles() != null) { // 防御性检查并初始化
+        if (user.getRoles() != null) {
             user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         return user;
@@ -258,12 +311,20 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             if (email != null && !email.isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("email")), "%" + email.toLowerCase() + "%"));
             }
+            // 确保在查询用户列表时，也预加载角色和功能，以避免序列化问题
+            if (query.getResultType().equals(User.class)) {
+                // root.fetch("roles", JoinType.LEFT); // Fetch roles
+                // 如果需要更深层次的fetch (roles -> functionalities), 可能需要更复杂的Join或EntityGraph
+                // 但对于当前问题，在forEach中显式初始化更直接
+            }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
         Page<User> usersPage = userRepository.findAll(spec, pageable);
         usersPage.getContent().forEach(user -> {
             if (user.getRoles() != null) {
-                user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+                user.getRoles().forEach(role -> {
+                    Hibernate.initialize(role.getFunctionalities()); // 确保角色的功能被初始化
+                });
             }
         });
         return usersPage;
@@ -288,14 +349,12 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (userDetailsToUpdate.isEnabled() != existingUser.isEnabled()) {
             existingUser.setEnabled(userDetailsToUpdate.isEnabled());
         }
-
         if (userDetailsToUpdate.getRealName() != null) {
             existingUser.setRealName(userDetailsToUpdate.getRealName());
         }
 
         User updatedUser = userRepository.save(existingUser);
-        // 初始化懒加载的集合
-        if (updatedUser.getRoles() != null) {
+        if (updatedUser.getRoles() != null) { // 初始化返回的User对象的角色和功能
             updatedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         auditLogService.logAction(getCurrentUsername(), "UPDATE_USER_INFO", "更新用户信息: " + updatedUser.getUsername());
@@ -312,7 +371,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         if (pendingProcessesCount > 0) {
             throw new BusinessLogicException("无法删除用户 " + user.getUsername() + "，该用户参与了 " + pendingProcessesCount + " 个未完成的合同流程。");
         }
-
         long draftedContractsCount = contractRepository.countByDrafter(user);
         if (draftedContractsCount > 0) {
             throw new BusinessLogicException("无法删除用户 " + user.getUsername() + "，该用户是 " + draftedContractsCount + " 个合同的起草人。请先处理这些合同。");
@@ -321,6 +379,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         auditLogService.logAction(getCurrentUsername(), "DELETE_USER", "删除用户: " + user.getUsername() + " (ID: " + userId + ")");
     }
 
+    // --- 角色管理 ---
     @Override
     @Transactional
     public Role createRoleWithFunctionalityNums(Role role, Set<String> functionalityNums) {
@@ -338,13 +397,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
         role.setFunctionalities(functionalities);
         Role savedRole = roleRepository.save(role);
-        // 初始化懒加载集合 (虽然 Role 本身被返回，但如果 Role 内部的 Functionality 还有懒加载的集合，也需要考虑)
-        // 在这个场景下，Functionality 是简单对象，所以 Hibernate.initialize(savedRole.getFunctionalities()); 就足够了。
-        // 但为了保持一致性，如果 Functionality 有更深层次的懒加载，需要递归初始化。
-        // 此处假设 Functionality 本身没有需要进一步初始化的懒加载集合。
-        if (savedRole.getFunctionalities() != null) {
-            Hibernate.initialize(savedRole.getFunctionalities());
-        }
+        Hibernate.initialize(savedRole.getFunctionalities()); // 初始化返回的Role对象的功能
         auditLogService.logAction(getCurrentUsername(), "CREATE_ROLE", "创建角色: " + savedRole.getName() + " 并分配功能编号: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
         return savedRole;
     }
@@ -378,9 +431,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         existingRole.setFunctionalities(newFunctionalities);
 
         Role updatedRole = roleRepository.save(existingRole);
-        if (updatedRole.getFunctionalities() != null) {
-            Hibernate.initialize(updatedRole.getFunctionalities());
-        }
+        Hibernate.initialize(updatedRole.getFunctionalities()); // 初始化返回的Role对象的功能
         auditLogService.logAction(getCurrentUsername(), "UPDATE_ROLE", "更新角色: " + updatedRole.getName() + " 并更新功能编号为: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
         return updatedRole;
     }
@@ -390,9 +441,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     @Transactional(readOnly = true)
     public List<Role> getAllRoles() {
         List<Role> roles = roleRepository.findAll();
-        roles.forEach(role -> {
-            if (role.getFunctionalities() != null) Hibernate.initialize(role.getFunctionalities());
-        });
+        roles.forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         return roles;
     }
 
@@ -400,9 +449,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     @Transactional(readOnly = true)
     public Page<Role> getAllRoles(Pageable pageable) {
         Page<Role> rolesPage = roleRepository.findAll(pageable);
-        rolesPage.getContent().forEach(role -> {
-            if (role.getFunctionalities() != null) Hibernate.initialize(role.getFunctionalities());
-        });
+        rolesPage.getContent().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         return rolesPage;
     }
 
@@ -418,12 +465,14 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), "%" + description.toLowerCase() + "%"));
             }
             query.distinct(true);
+            // 同样，为角色列表查询预加载功能
+            if (query.getResultType().equals(Role.class)) {
+                // root.fetch("functionalities", JoinType.LEFT); // 如果用fetch
+            }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
         Page<Role> rolesPage = roleRepository.findAll(spec, pageable);
-        rolesPage.getContent().forEach(role -> {
-            if (role.getFunctionalities() != null) Hibernate.initialize(role.getFunctionalities());
-        });
+        rolesPage.getContent().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         return rolesPage;
     }
 
@@ -432,9 +481,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public Role findRoleByName(String roleName) {
         Role role = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new ResourceNotFoundException("角色 '" + roleName + "' 未找到"));
-        if (role != null && role.getFunctionalities() != null) {
-            Hibernate.initialize(role.getFunctionalities());
-        }
+        Hibernate.initialize(role.getFunctionalities());
         return role;
     }
 
@@ -443,9 +490,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public Role findRoleById(Integer roleId) {
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new ResourceNotFoundException("角色未找到，ID: " + roleId));
-        if (role != null && role.getFunctionalities() != null) {
-            Hibernate.initialize(role.getFunctionalities());
-        }
+        Hibernate.initialize(role.getFunctionalities());
         return role;
     }
 
@@ -464,6 +509,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         auditLogService.logAction(getCurrentUsername(), "DELETE_ROLE", "删除角色: " + role.getName() + " (ID: " + roleId + ")");
     }
 
+    // --- 功能操作管理 ---
     @Override
     @Transactional
     public Functionality createFunctionality(Functionality functionality) {
@@ -573,6 +619,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         auditLogService.logAction(getCurrentUsername(), "DELETE_FUNCTIONALITY", "删除功能: " + func.getName() + " (ID: " + id + ")");
     }
 
+    // --- 分配权限 (给用户分配角色) ---
     @Override
     @Transactional
     public User assignRolesToUser(Long userId, Set<String> roleNames) {
@@ -590,8 +637,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         user.setRoles(newRoles);
         User updatedUser = userRepository.save(user);
 
-        // 初始化懒加载的集合
-        if (updatedUser != null && updatedUser.getRoles() != null) {
+        if (updatedUser.getRoles() != null) { // 初始化返回的User对象的角色和功能
             updatedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         auditLogService.logAction(getCurrentUsername(), "ASSIGN_ROLES_TO_USER", "为用户 '" + updatedUser.getUsername() + "' 分配角色: " + (roleNames != null ? String.join(", ", roleNames) : "无"));

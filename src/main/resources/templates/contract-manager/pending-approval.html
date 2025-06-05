@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>待审批合同</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .search-form {
+            margin-bottom: 20px;
+        }
+        .search-form input[type="text"] {
+            padding: 8px;
+            width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .search-form button {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-form button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .btn-action {
+            padding: 6px 12px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-right: 5px;
+        }
+        .btn-view {
+            padding: 6px 12px;
+            background-color: #17a2b8;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .btn-action:hover, .btn-view:hover {
+            opacity: 0.9;
+        }
+        .no-records {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        /* 分页样式 */
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .pagination a {
+            display: inline-block;
+            padding: 8px 16px;
+            text-decoration: none;
+            color: #007bff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 0 4px;
+        }
+        .pagination a.active {
+            background-color: #007bff;
+            color: white;
+            border: 1px solid #007bff;
+        }
+        .pagination a:hover:not(.active) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 th:text="${listTitle}"></h1>
+    <p>以下是需要您进行审批的合同列表。</p>
+
+    <form th:action="@{/contract-manager/pending-approval}" method="get" class="search-form">
+        <input type="text" name="contractNameSearch" th:value="${contractNameSearch}" placeholder="输入合同名称搜索..."/>
+        <button type="submit">搜索</button>
+    </form>
+
+    <div th:if="${pendingApprovals.isEmpty()}" class="no-records">
+        <p>没有待审批的合同。</p>
+    </div>
+
+    <div th:unless="${pendingApprovals.isEmpty()}">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>合同编号</th>
+                <th>合同名称</th>
+                <th>客户名称</th>
+                <th>起草人</th>
+                <th>起草日期</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="process : ${pendingApprovals.content}">
+                <td th:text="${process.contract.id}"></td>
+                <td th:text="${process.contract.contractNumber}"></td>
+                <td th:text="${process.contract.contractName}"></td>
+                <td th:text="${process.contract.customer.customerName}"></td>
+                <td th:text="${process.contract.drafter.username}"></td>
+                <td th:text="${#temporals.format(process.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+                <td th:text="${process.state.description}"></td>
+                <td>
+                    <a th:href="@{/contract-manager/approval-details/{id}(id=${process.contract.id})}" class="btn-action">审批</a>
+                    <a th:href="@{/contract-manager/view/{id}(id=${process.contract.id})}" class="btn-view">查看</a>
+                    <span th:if="${process.contract.attachmentPath}">
+                        <a th:href="@{'/attachments/' + ${process.contract.attachmentPath}}" target="_blank" class="btn-view">附件</a>
+                    </span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="pagination" th:if="${pendingApprovals.totalPages > 1}">
+            <span th:each="i : ${#numbers.sequence(0, pendingApprovals.totalPages - 1)}">
+                <a th:href="@{/contract-manager/pending-approval(page=${i}, contractNameSearch=${contractNameSearch})}"
+                   th:text="${i + 1}"
+                   th:class="${i == pendingApprovals.number} ? 'active' : ''"></a>
+            </span>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

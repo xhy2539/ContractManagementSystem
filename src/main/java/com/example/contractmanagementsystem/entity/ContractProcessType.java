@@ -1,7 +1,11 @@
 package com.example.contractmanagementsystem.entity;
 
+import lombok.Getter;
+
+@Getter
 public enum ContractProcessType {
-    COUNTERSIGN(1, "会签"),
+    COUNTERSIGN(0, "会签"),
+    FINALIZE(1, "定稿"),
     APPROVAL(2, "审批"),
     SIGNING(3, "签订");
 
@@ -11,14 +15,6 @@ public enum ContractProcessType {
     ContractProcessType(int code, String description) {
         this.code = code;
         this.description = description;
-    }
-
-    public int getCode() {
-        return code;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     public static ContractProcessType fromCode(int code) {

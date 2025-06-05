@@ -1,143 +1,257 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>合同管理系统 - 仪表盘</title>
-    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 0;
-            background-color: #f4f4f4;
-            color: #333;
+    <title>仪表盘</title>
+    <style layout:fragment="inline-css">
+        .dashboard-card {
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: transform .2s ease-in-out;
         }
-        .navbar {
-            background-color: #333;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .dashboard-card:hover {
+            transform: translateY(-5px);
         }
-        .navbar .brand {
-            font-size: 1.5em;
+        .dashboard-card .card-header {
+            background-color: #e9ecef; /* 卡片头部浅色背景 */
+            font-weight: 500;
+            border-bottom: 1px solid rgba(0,0,0,.125);
         }
-        .navbar .user-info {
-            font-size: 0.9em;
-        }
-        .navbar a {
-            color: white;
+        .dashboard-card .list-group-item a,
+        .dashboard-card .list-group-item .badge a { /* 确保徽章内的链接也有样式 */
             text-decoration: none;
-            margin-left: 15px;
+            color: #0d6efd; /* Bootstrap 主色蓝 */
         }
-        .container {
-            padding: 20px;
-            max-width: 1200px;
-            margin: 20px auto;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1, h2 {
-            color: #333;
-        }
-        .module-section ul {
-            list-style: none;
-            padding: 0;
-        }
-        .module-section li {
-            margin-bottom: 10px;
-        }
-        .module-section li a {
-            text-decoration: none;
-            color: #007bff;
-            font-size: 1.1em;
-        }
-        .module-section li a:hover {
+        .dashboard-card .list-group-item a:hover,
+        .dashboard-card .list-group-item .badge a:hover { /* 确保徽章内的链接悬停样式 */
+            color: #0a58ca; /* 悬停时深蓝色 */
             text-decoration: underline;
         }
-        .logout-form button {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1em;
+        .dashboard-card .list-group-item i.action-icon { /* 待办事项列表中图标的特定类 */
+            margin-right: 0.75rem; /* 图标与文字间距增大 */
+            width: 1.5em; /* 图标宽度略微增大 */
+            font-size: 1.1rem; /* 图标大小略微增大 */
         }
-        .logout-form button:hover {
-            background-color: #c82333;
+        .dashboard-card .card-header i { /* 卡片头部图标 */
+            margin-right: 0.5rem;
         }
+        .welcome-message {
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            background-color: #cfe2ff; /* 淡蓝色背景 */
+            border-radius: 0.375rem;
+            border: 1px solid #b6d4fe;
+        }
+        .welcome-message h1 {
+            color: #07408c;
+        }
+        .pending-tasks-header { /* 待处理任务卡片头部的特定样式 */
+            background-color: #fff3cd; /* Bootstrap 警告色（浅黄） */
+            color: #664d03; /* Bootstrap 警告色对应深色文字 */
+            border-color: #ffecb5;
+        }
+        .pending-tasks-header i { /* 待处理任务卡片头部图标颜色 */
+            color: #ffc107; /* Bootstrap 警告色 */
+        }
+        .list-group-item .task-details { /* 任务详情文字样式 */
+            font-size: 0.85em;
+            color: #6c757d; /* Bootstrap 次要文字颜色 */
+        }
+        .btn-process-task { /* “去处理”按钮样式 */
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        /* 为统计数字徽章内的链接去除下划线，除非悬停 */
+        .stats-badge-link {
+            text-decoration: none !important;
+        }
+        .stats-badge-link:hover {
+            text-decoration: underline !important;
+        }
+
     </style>
 </head>
 <body>
 
-<div class="navbar">
-    <div class="brand">合同管理系统</div>
-    <div class="user-info">
-        欢迎, <span sec:authentication="name">用户</span>!
-        <a th:href="@{/profile}" class="btn btn-outline-light btn-sm" title="个人设置">
-            <i class="bi bi-person-gear"></i> 个人设置
-        </a>
-        <a th:href="@{/perform_logout}" onclick="document.getElementById('logout-form-inline').submit(); return false;" class="btn btn-outline-light btn-sm ms-2">
-            <i class="bi bi-box-arrow-right"></i> 注销
-        </a>
-        <form id="logout-form-inline" th:action="@{/perform_logout}" method="post" style="display: none;">
-        </form>
+<section layout:fragment="content">
+    <div class="container-fluid mt-4">
+
+        <div class="welcome-message text-center">
+            <h1 class="display-5">欢迎, <span sec:authentication="name" class="fw-bold">用户</span>!</h1>
+            <p class="lead">欢迎使用合同管理系统。</p>
+        </div>
+
+        <div class="card dashboard-card"
+             th:if="${(pendingTasks != null && not #lists.isEmpty(pendingTasks)) || (adminPendingAssignmentCount != null && adminPendingAssignmentCount > 0)}">
+            <div class="card-header pending-tasks-header">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>待处理事项</strong>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center"
+                        sec:authorize="hasRole('ROLE_ADMIN')"
+                        th:if="${adminPendingAssignmentCount != null && adminPendingAssignmentCount > 0}">
+                        <div>
+                            <i class="bi bi-person-plus-fill text-danger action-icon"></i>
+                            <strong>您有 <span th:text="${adminPendingAssignmentCount}" class="fw-bold text-danger">0</span> 份合同等待分配处理人员。</strong>
+                        </div>
+                        <a th:href="@{/admin/contract-assignments}" class="btn btn-sm btn-outline-danger btn-process-task">
+                            去分配 <i class="bi bi-arrow-right-short"></i>
+                        </a>
+                    </li>
+
+                    <th:block th:if="${pendingTasks != null && not #lists.isEmpty(pendingTasks)}">
+                        <li class="list-group-item" th:if="${adminPendingAssignmentCount != null && adminPendingAssignmentCount > 0 && not #lists.isEmpty(pendingTasks)}">
+                            <hr class="my-1"> </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center" th:each="task : ${pendingTasks}">
+                            <div>
+                                <i th:classappend="${task.type.name() == 'COUNTERSIGN' ? 'bi-person-check-fill text-info action-icon' :
+                                                   (task.type.name() == 'APPROVAL' ? 'bi-clipboard-check-fill text-success action-icon' :
+                                                   (task.type.name() == 'SIGNING' ? 'bi-pen-fill text-primary action-icon' :
+                                                   (task.type.name() == 'FINALIZE' ? 'bi-file-earmark-check-fill text-warning action-icon' : 'bi-question-circle-fill action-icon')))}"></i>
+                                <strong><span th:text="${task.contract?.contractName ?: '未知合同'}">合同名称</span></strong> -
+                                <span th:switch="${task.type.name()}">
+                                    <span th:case="'COUNTERSIGN'">需要您会签</span>
+                                    <span th:case="'APPROVAL'">需要您审批</span>
+                                    <span th:case="'SIGNING'">需要您签订</span>
+                                    <span th:case="'FINALIZE'">需要您定稿</span>
+                                    <span th:case="*">待处理 (<span th:text="${task.type?.description ?: task.type.name()}">类型</span>)</span>
+                                </span>
+                                <div class="task-details mt-1">
+                                    合同编号: <span th:text="${task.contract?.contractNumber ?: 'N/A'}"></span> |
+                                    起草人: <span th:text="${task.contract?.drafter?.username ?: 'N/A'}"></span> |
+                                    流程创建时间: <span th:text="${task.createdAt != null ? #temporals.format(task.createdAt, 'yyyy-MM-dd HH:mm') : 'N/A'}"></span>
+                                </div>
+                            </div>
+                            <th:block th:switch="${task.type.name()}">
+                                <a th:case="'COUNTERSIGN'" th:href="@{/contract-manager/countersign/{id}(id=${task.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                    去处理 <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                                <a th:case="'APPROVAL'" th:href="@{/contract-manager/approval-details/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                    去处理 <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                                <a th:case="'SIGNING'" th:href="@{/contract-manager/sign/{id}(id=${task.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                    去处理 <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                                <a th:case="'FINALIZE'" th:href="@{/contract-manager/finalize/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                    去处理 <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                                <a th:case="*" href="#" class="btn btn-sm btn-outline-secondary btn-process-task disabled" title="未知任务类型，无法直接处理">
+                                    查看 <i class="bi bi-info-circle"></i>
+                                </a>
+                            </th:block>
+                        </li>
+                    </th:block>
+                </ul>
+            </div>
+        </div>
+
+        <div th:if="${(pendingTasks == null || #lists.isEmpty(pendingTasks)) && (adminPendingAssignmentCount == null || adminPendingAssignmentCount == 0)}" class="alert alert-info">
+            <i class="bi bi-check-circle-fill me-2"></i>您当前没有待处理事项。
+        </div>
+
+        <hr class="my-4" th:if="${(pendingTasks != null && not #lists.isEmpty(pendingTasks)) || (adminPendingAssignmentCount != null && adminPendingAssignmentCount > 0)}">
+
+
+        <h2 class="mb-3" th:if="${#authorization.expression('isAuthenticated()')}">快速访问</h2>
+        <div class="row">
+            <div class="col-lg-6 col-xl-4" sec:authorize="hasRole('ROLE_ADMIN')">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <i class="bi bi-gear-fill me-2"></i>系统管理
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><a th:href="@{/admin/users}"><i class="bi bi-people-fill"></i>用户管理</a></li>
+                        <li class="list-group-item"><a th:href="@{/admin/roles}"><i class="bi bi-shield-lock-fill"></i>角色管理</a></li>
+                        <li class="list-group-item"><a th:href="@{/admin/functionalities}"><i class="bi bi-gear-wide-connected"></i>功能管理</a></li>
+                        <li class="list-group-item"><a th:href="@{/admin/contract-assignments}"><i class="bi bi-person-lines-fill"></i>合同分配</a></li>
+                        <li class="list-group-item"><a th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i>审计日志管理</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-lg-6 col-xl-4" sec:authorize="isAuthenticated()">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <i class="bi bi-file-earmark-text-fill me-2"></i>合同管理
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_DRAFT_NEW')"><a th:href="@{/contract-manager/draft-contract}"><i class="bi bi-file-earmark-plus-fill"></i>起草合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_CSIGN_VIEW')"><a th:href="@{/contract-manager/pending-countersign}"><i class="bi bi-person-check-fill"></i>待会签合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_FINAL_VIEW')"><a th:href="@{/contract-manager/pending-finalization}"><i class="bi bi-file-earmark-check-fill"></i>待定稿合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_APPROVE_VIEW')"><a th:href="@{/contract-manager/pending-approval}"><i class="bi bi-clipboard-check-fill"></i>待审批合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_SIGN_VIEW')"><a th:href="@{/contract-manager/pending-signing}"><i class="bi bi-pen-fill"></i>待签订合同</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_VIEW_MY') or hasRole('ROLE_ADMIN')">
+                            <a th:href="@{/contract-manager/view-all}"><i class="bi bi-folder-fill"></i>我的合同查询</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-lg-6 col-xl-4" sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_DATA_MANAGER', 'ROLE_CUSTOMER_MANAGER')">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <i class="bi bi-database-fill-gear me-2"></i>基础数据管理
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item" sec:authorize="hasAuthority('CUSTOMER_VIEW_LIST') or hasRole('ROLE_ADMIN')">
+                            <a th:href="@{/customers}"><i class="bi bi-person-badge-fill"></i>客户信息管理</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-lg-6 col-xl-4" sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_CONTRACT_OPERATOR', 'ROLE_REPORTER')">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <i class="bi bi-search me-2"></i>查询统计
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item" sec:authorize="hasAuthority('QUERY_CONTRACT_INFO') or hasRole('ROLE_ADMIN')">
+                            <a th:href="@{/reports/contract-search}"><i class="bi bi-file-text-fill"></i>合同综合查询</a>
+                        </li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('REPORT_STATUS_VIEW') or hasRole('ROLE_ADMIN')">
+                            <a th:href="@{/reports/contract-status}"><i class="bi bi-pie-chart-fill"></i>合同状态统计</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="col-lg-6 col-xl-4" sec:authorize="isAuthenticated()">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <i class="bi bi-bar-chart-line-fill me-2"></i>系统概览
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            有效合同总数
+                            <span class="badge bg-primary rounded-pill">
+                                <a th:href="@{/contract-manager/view-all(status='ACTIVE')}"
+                                   class="stats-badge-link text-white"
+                                   title="点击查看所有有效合同"
+                                   th:text="${systemStats?.activeContractsCount != null ? systemStats.activeContractsCount : 'N/A'}">0</a>
+                            </span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            即将到期合同 (30天内)
+                            <span class="badge bg-warning rounded-pill">
+                                <a th:href="@{/contract-manager/view-all(expiringSoon='true', status='ACTIVE')}"
+                                   class="stats-badge-link text-dark"
+                                   title="点击查看即将到期的有效合同"
+                                   th:text="${systemStats?.expiringSoonCount != null ? systemStats.expiringSoonCount : 'N/A'}">0</a>
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
     </div>
-</div>
+</section>
 
-<div class="container">
-    <h1>仪表盘</h1>
-    <p>欢迎使用合同管理系统。请选择您要操作的模块。</p>
-
-    <div sec:authorize="hasRole('ROLE_ADMIN')" class="module-section">
-        <h2>系统管理</h2>
-        <ul>
-            <li><a th:href="@{/admin/users}">用户管理</a></li>
-            <li><a th:href="@{/admin/roles}">角色管理</a></li>
-            <li><a th:href="@{/admin/functionalities}">功能管理</a></li>
-            <li><a th:href="@{/admin/contract-assignments}">合同分配</a></li>
-            <li><a th:href="@{/admin/audit-logs}">审计日志管理</a></li>
-        </ul>
-    </div>
-
-    <div sec:authorize="isAuthenticated()" class="module-section">
-        <h2>合同管理</h2>
-        <ul>
-            <li><a th:href="@{/contracts/draft}">起草合同</a></li>
-            <li><a th:href="@{/contracts/pending-countersign}">待会签合同</a></li>
-            <li><a th:href="@{/contracts/pending-approval}">待审批合同</a></li>
-            <li><a th:href="@{/contracts/pending-signing}">待签订合同</a></li>
-            <li><a th:href="@{/contracts/view-all}">查看我的合同</a></li>
-        </ul>
-    </div>
-
-    <div sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_DATA_MANAGER')" class="module-section">
-        <h2>基础数据管理</h2>
-        <ul>
-            <li><a th:href="@{/customers}">客户信息管理</a></li>
-        </ul>
-    </div>
-
-    <div sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_CONTRACT_OPERATOR')" class="module-section">
-        <h2>查询统计</h2>
-        <ul>
-            <li><a th:href="@{/reports/contract-status}">合同状态统计</a></li>
-            <li><a th:href="@{/reports/contract-search}">合同查询</a></li>
-        </ul>
-    </div>
-
-    <hr>
-    <form th:action="@{/perform_logout}" method="post" class="logout-form">
-        <button type="submit">安全注销</button>
-    </form>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

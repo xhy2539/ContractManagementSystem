@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>定稿合同 - <span th:text="${contract?.contractName ?: '合同详情'}"></span></title>
+    <style layout:fragment="inline-css">
+        /* ... (CSS样式保持不变) ... */
+        .contract-details-section {
+            margin-bottom: 1.5rem;
+        }
+        .contract-content-display, .contract-content-edit textarea {
+            background-color: #f8f9fa;
+            border: 1px solid #e3e6ea;
+            padding: 1rem 1.25rem;
+            border-radius: 0.375rem;
+            min-height: 150px;
+            white-space: pre-wrap;
+            font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+        .contract-content-edit textarea {
+            width: 100%;
+        }
+        .attachment-link i {
+            margin-right: 0.3rem;
+        }
+        .form-actions {
+            border-top: 1px solid #e9ecef;
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .sticky-lg-top {
+            top: calc(56px + 1.5rem);
+        }
+        .dl-horizontal dt {
+            font-weight: 500;
+        }
+        .countersign-opinions-card .card-body {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        /* 从 draft-contract.html 复制过来的附件列表样式 */
+        .file-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            background-color: #f8f9fa;
+        }
+        .file-info {
+            flex-grow: 1;
+            margin-right: 1rem;
+            overflow: hidden;
+        }
+        .file-name {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+        .file-size, .file-status {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+        .file-actions button {
+            margin-left: 0.5rem;
+        }
+        .file-progress {
+            height: 10px;
+            margin-top: 0.25rem;
+            background-color: #e9ecef;
+            border-radius: .25rem;
+            overflow: hidden;
+        }
+        .file-progress-bar {
+            background-color: #0d6efd;
+            height: 100%;
+            transition: width 0.2s ease-in-out;
+            color: white;
+            font-size: 0.7em;
+            line-height:10px;
+            text-align: center;
+        }
+        .file-list-item.upload-error {
+            border-left: 5px solid var(--bs-danger);
+            background-color: #fbe9e7;
+        }
+        .file-list-item.upload-success {
+            border-left: 5px solid var(--bs-success);
+            background-color: #e8f5e9;
+        }
+    </style>
+</head>
+<body th:data-initial-attachments="${initialAttachmentsJson ?: '[]'}">
+<section layout:fragment="content">
+    <div class="container-fluid mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">
+                <i class="bi bi-file-earmark-check-fill text-success me-2"></i>定稿合同:
+                <span th:if="${contract != null}" th:text="${contract.contractName ?: '未知合同'}" class="text-primary"></span>
+                <span th:if="${contract == null}" class="text-muted">加载中...</span>
+            </h1>
+            <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left-circle"></i> 返回待定稿列表
+            </a>
+        </div>
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i><span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div th:if="${contract == null}" class="alert alert-warning text-center py-4" role="alert">
+            <h5 class="alert-heading"><i class="bi bi-exclamation-octagon-fill me-2"></i>无法加载合同信息</h5>
+            <p class="mb-0">未能加载合同详细信息，或您没有权限访问此合同进行定稿操作。</p>
+            <hr>
+            <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-primary btn-sm">返回列表</a>
+        </div>
+
+
+        <form th:if="${contract != null}" th:action="@{/contract-manager/finalize/{contractId}(contractId=${contract.id})}"
+              method="post" enctype="multipart/form-data" id="finalizeForm" th:object="${contractDraftRequest}">
+            <div id="hiddenAttachmentInputsContainerFinalize"></div>
+            <input type="hidden" name="contractName" th:value="${contract.contractName}" />
+            <input type="hidden" name="selectedCustomerId" th:value="${contract.customer?.id}" />
+            <input type="hidden" name="startDate" th:value="${contract.startDate}" />
+            <input type="hidden" name="endDate" th:value="${contract.endDate}" />
+
+            <div class="row g-4">
+                <div class="col-lg-7 col-xl-8">
+                    <div class="card shadow-sm contract-details-section">
+
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>合同基本信息</h5>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row dl-horizontal mb-0">
+                                <dt class="col-sm-4 col-md-3 text-muted">合同编号:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.contractNumber ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">合同名称:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.contractName ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">客户名称:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.customer?.customerName ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">起草人:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.drafter?.username ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">开始日期:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">结束日期:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">当前状态:</dt>
+                                <dd class="col-sm-8 col-md-9">
+                                    <span th:if="${contract.status != null}"
+                                          th:text="${contract.status.description}"
+                                          class="status-badge"
+                                          th:classappend="'status-' + ${contract.status.name()}">待定稿</span>
+                                    <span th:unless="${contract.status != null}" class="text-muted">未知状态</span>
+                                </dd>
+                                <dt class="col-sm-4 col-md-3 text-muted">创建时间:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">最后更新:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm contract-details-section countersign-opinions-card" th:if="${countersignOpinions != null and not #lists.isEmpty(countersignOpinions)}">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-chat-left-text-fill me-2 text-info"></i>会签意见汇总</h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item" th:each="opinion : ${countersignOpinions}">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1" th:text="${opinion.operatorUsername ?: '匿名用户'}"></h6>
+                                        <small class="text-muted" th:text="${opinion.processedAt != null ? #temporals.format(opinion.processedAt, 'yyyy-MM-dd HH:mm') : '未处理'}"></small>
+                                    </div>
+                                    <p class="mb-1" th:text="${opinion.comments ?: '(无具体意见)'}"></p>
+                                    <small th:text="${opinion.state?.description ?: '未知状态'}"
+                                           th:classappend="${(opinion.state?.name() == 'APPROVED' or opinion.state?.name() == 'COMPLETED') ? 'text-success fw-bold' : (opinion.state?.name() == 'REJECTED' ? 'text-danger fw-bold' : 'text-muted')}">
+                                    </small>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm contract-details-section">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-file-earmark-text-fill me-2"></i>合同内容与附件</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>合同正文内容 (可编辑):</h6>
+                            <div class="contract-content-edit mb-3">
+                                <textarea class="form-control form-control-sm" id="updatedContent"
+                                          th:field="*{updatedContent}" rows="15"
+                                          placeholder="请在此处填写或修改合同的核心条款和内容..."></textarea>
+                            </div>
+                            <hr>
+                            <div class="mb-3">
+                                <label for="newAttachment" class="form-label">替换或上传新附件:</label>
+                                <input type="file" class="form-control form-control-sm" id="newAttachment" multiple>
+                                <div class="form-text small text-muted">如果上传新附件，它们将根据您的选择被添加或替换现有附件。支持PDF、图片(JPEG, PNG, GIF, BMP)、Word文档(doc, docx)。</div>
+
+                                <div id="fileListContainerFinalize" class="mt-2">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-5 col-xl-4">
+                    <div class="card shadow-sm sticky-lg-top">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>执行定稿操作</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted mb-3">
+                                请仔细审阅合同信息。一旦确认定稿，合同将进入后续的审批流程，通常定稿后的内容将不应再做大的修改。
+                            </p>
+                            <div class="mb-3">
+                                <label for="finalizationComments" class="form-label">定稿意见/备注:</label>
+                                <textarea class="form-control form-control-sm" id="finalizationComments" name="finalizationComments" rows="5" placeholder="（可选）输入您的定稿意见或重要备注..."></textarea>
+                            </div>
+                            <div class="form-actions text-end mt-4">
+                                <button type="submit" class="btn btn-success btn-lg"
+                                        sec:authorize="hasAuthority('CON_FINAL_SUBMIT')"
+                                        onclick="return confirmFinalization();">
+                                    <i class="bi bi-check-circle-fill"></i> 确认定稿
+                                </button>
+                                <a th:href="@{/contract-manager/pending-finalization}" class="btn btn-secondary ms-2">
+                                    <i class="bi bi-x-circle"></i> 取消
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+
+
+    function confirmFinalization() {
+    // 在提交前确保附件信息是最新的，将已上传的附件文件名添加到隐藏字段中
+    prepareAttachmentsForSubmission();
+    return confirm("您确定要将此合同定稿并提交进入下一流程吗？\n定稿后，合同内容通常将不应再做大的修改。");
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+    console.log("DEBUG: DOMContentLoaded 事件触发 - finalize-contract.html (v_移植JS_开始)");
+
+    // 获取后端传递的初始附件文件名列表 (JSON 字符串)
+    const initialAttachmentsJsonString = document.body.dataset.initialAttachments;
+    console.log("Initial attachments JSON string from data attribute: ", initialAttachmentsJsonString);
+
+    // --- 定义 showAlert 函数，如果 utils.js 未能加载，作为备用 ---
+    if (typeof showAlert === 'undefined') {
+    window.showAlert = function(message, type = 'info', containerId = 'globalAlertContainer') {
+    const alertContainer = document.getElementById(containerId);
+    if (alertContainer) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-top: 10px;">${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
+    alertContainer.appendChild(wrapper.firstChild);
+    setTimeout(() => {
+    const activeAlert = wrapper.firstChild;
+    if (activeAlert && bootstrap.Alert.getInstance(activeAlert)) {
+    bootstrap.Alert.getInstance(activeAlert).close();
+    } else if (activeAlert && activeAlert.parentNode) {
+    activeAlert.parentNode.removeChild(activeAlert);
+    }
+    }, 7000);
+    } else {
+    alert(`${type.toUpperCase()}: ${message}`);
+    }
+    };
+    }
+
+    // --- 适配后的元素ID ---
+    const attachmentFilesInput = document.getElementById('newAttachment'); // 修改ID
+    const fileListContainer = document.getElementById('fileListContainerFinalize'); // 修改ID
+    const hiddenAttachmentInputsContainer = document.getElementById('hiddenAttachmentInputsContainerFinalize'); // 修改ID
+    const mainForm = document.getElementById('finalizeForm'); // 修改ID
+
+    const CHUNK_SIZE = 1024 * 1024 * 2; // 2MB per chunk
+    let uploadedFilesData = []; // 用于跟踪所有文件（包括已存在的和新上传的）
+
+    let initialServerFileNames = [];
+    // 尝试解析初始附件 JSON 字符串
+    if (initialAttachmentsJsonString && initialAttachmentsJsonString !== '[]' && initialAttachmentsJsonString !== 'null') {
+    try {
+    initialServerFileNames = JSON.parse(initialAttachmentsJsonString);
+    console.log("Parsed initial attachments: ", initialServerFileNames);
+    } catch (e) {
+    console.error("解析初始附件JSON失败:", e, "Original JSON string:", initialAttachmentsJsonString);
+    showAlert('加载现有附件时发生错误，请检查附件格式。', 'danger');
+    }
+    }
+
+    // 初始化已存在的附件列表到 UI 和 uploadedFilesData
+    initialServerFileNames.forEach(serverFileName => {
+    const existingFileEntry = {
+    id: `existing-${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}`, // 生成唯一ID，替换特殊字符
+    fileObject: null, // 没有实际的 File 对象
+    originalName: serverFileName, // 使用服务器文件名作为原始名
+    size: null, // 大小未知，或从其他地方获取（如果后端提供）
+    status: 'completed', // 标记为已完成
+    progress: 100,
+    uploadId: null, // 没有上传过程 ID
+    serverFileName: serverFileName, // 关键：服务器上的文件名
+    clientFileId: `clientFile_existing_${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}`, // 模拟一个 clientFileId
+    errorMessage: null,
+    uiElement: null,
+    totalChunks: 1, // 假设是1个块
+    uploadedChunksCount: 1,
+    confirmedUploadedChunks: new Set([0]),
+    xhr: null,
+    isExisting: true // 自定义标志，表示这是已存在的文件
+    };
+    uploadedFilesData.push(existingFileEntry);
+    addFileToUI(existingFileEntry); // 用通用函数渲染 UI
+    });
+    // 确保在处理完初始附件后，调用一次以填充隐藏域
+    prepareAttachmentsForSubmission();
+
+
+    if (attachmentFilesInput) {
+    attachmentFilesInput.addEventListener('change', handleFileSelection);
+    } else {
+    console.error("ERROR: Attachment input 'newAttachment' not found for finalize page!");
+    showAlert('附件上传组件初始化失败，请联系管理员。', 'danger');
+    }
+
+    if (mainForm) {
+    // 对于定稿页面，重置行为可能不同，或者不需要。
+    // 如果需要，确保正确清理 uploadedFilesData 和 UI
+    mainForm.addEventListener('reset', function() {
+    console.log("DEBUG: 主表单 'finalizeForm' 已重置 (附件逻辑).");
+    if (attachmentFilesInput) attachmentFilesInput.value = '';
+
+    // 清理逻辑需要更细致，只移除新上传的，保留初始的，除非初始的也被标记删除了
+    // 简单版本：全部清除，用户需要重新选择所有希望保留/新增的附件
+    uploadedFilesData.forEach(fileEntry => {
+    if (fileEntry.clientFileId && (fileEntry.status !== 'completed' && fileEntry.status !== 'cancelled') && !fileEntry.isExisting) {
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+    }
+    });
+    uploadedFilesData = [];
+    if (fileListContainer) fileListContainer.innerHTML = '';
+    if (hiddenAttachmentInputsContainer) hiddenAttachmentInputsContainer.innerHTML = '';
+    // 重要：重置后，需要重新加载初始附件
+    initialServerFileNames.forEach(serverFileName => {
+    const existingFileEntry = { /* ...  同上 ... */
+    id: `existing-${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}`, fileObject: null, originalName: serverFileName, size: null, status: 'completed', progress: 100, uploadId: null, serverFileName: serverFileName, clientFileId: `clientFile_existing_${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}`, errorMessage: null, uiElement: null, totalChunks: 1, uploadedChunksCount: 1, confirmedUploadedChunks: new Set([0]), xhr: null, isExisting: true
+    };
+    uploadedFilesData.push(existingFileEntry);
+    addFileToUI(existingFileEntry);
+    });
+    prepareAttachmentsForSubmission();
+    });
+    }
+
+
+
+    function generateClientFileId(file) {
+    // 使用文件名称、大小和最后修改时间生成一个唯一的客户端ID
+    return `clientFile_${file.name}_${file.size}_${file.lastModified}`;
+    }
+
+    function saveUploadStateToLocalStorage(clientFileId, state) {
+    try {
+    localStorage.setItem("uploadState_" + clientFileId, JSON.stringify(state));
+    } catch (e) {
+    console.warn("Failed to save state to localStorage (possibly full or disabled):", e);
+    }
+    }
+
+    function getUploadStateFromLocalStorage(clientFileId) {
+    try {
+    const stateString = localStorage.getItem("uploadState_" + clientFileId);
+    return stateString ? JSON.parse(stateString) : null;
+    } catch (e) {
+    console.warn("Failed to parse state from localStorage:", e);
+    return null;
+    }
+    }
+
+    function removeUploadStateFromLocalStorage(clientFileId) {
+    try {
+    localStorage.removeItem("uploadState_" + clientFileId);
+    } catch (e) {
+    console.warn("Failed to remove state from localStorage:", e);
+    }
+    }
+
+    async function fetchUploadStatusFromServer(uploadId) {
+    console.log(`Fetching server status for uploadId: ${uploadId}`);
+    try {
+    const response = await fetch(`/api/attachments/status/${uploadId}`);
+    if (!response.ok) {
+    if (response.status === 404) {
+    console.warn(`UploadId ${uploadId} not found on server.`);
+    return null;
+    }
+    const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+    throw new Error(errorData.message || `Failed to fetch status: ${response.status}`);
+    }
+    const statusData = await response.json();
+    console.log(`Server status for ${uploadId}:`, statusData);
+    return statusData;
+    } catch (error) {
+    console.error(`Error fetching status for ${uploadId}:`, error);
+    throw error;
+    }
+    }
+
+    async function handleFileSelection(event) {
+    const files = event.target.files;
+    if (!files.length) return;
+
+    for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const clientFileId = generateClientFileId(file);
+    const uiFileId = `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    // 检查文件是否已经存在于当前上传列表中 (排除已完成的和已取消的)
+    let existingFileEntry = uploadedFilesData.find(f => f.clientFileId === clientFileId && f.status !== 'completed' && f.status !== 'cancelled' && !f.isExisting);
+    if (existingFileEntry) {
+    console.log(`文件 ${file.name} (clientFileId: ${clientFileId}) 已存在于列表中，状态为: ${existingFileEntry.status}。处理重新选择。`);
+    if ((existingFileEntry.status === 'error' || existingFileEntry.status === 'pending_resume' || existingFileEntry.status === 'pending')
+    && confirm(`文件 "${file.name}" 之前似乎未完成上传或出错。是否尝试继续或重新上传？\n- 确定: 继续/重试\n- 取消: 作为新文件上传 (如果已存在旧的将先移除)`)) {
+    if (existingFileEntry.uploadId) {
+    console.log(`尝试恢复/重试上传文件 ${existingFileEntry.originalName} (uploadId: ${existingFileEntry.uploadId})`);
+    await tryToResumeUpload(existingFileEntry, file);
+    } else {
+    console.log(`文件 ${existingFileEntry.originalName} 无 uploadId (错误/待处理状态)，开始新的上传。`);
+    // 移除旧的 UI 元素和数据条目
+    if (existingFileEntry.uiElement) existingFileEntry.uiElement.remove();
+    const idx = uploadedFilesData.findIndex(f => f.id === existingFileEntry.id);
+    if (idx > -1) uploadedFilesData.splice(idx, 1);
+    await initiateNewUploadProcess(file, uiFileId, clientFileId);
+    }
+    } else if (existingFileEntry.status === 'error' || existingFileEntry.status === 'pending_resume' || existingFileEntry.status === 'pending') {
+    // 用户在确认对话框中选择 "取消"，表示作为新文件重新上传
+    console.log(`用户选择重新上传文件 "${file.name}" 作为新文件，移除之前的条目。`);
+    if (existingFileEntry.uiElement) existingFileEntry.uiElement.remove();
+    const idx = uploadedFilesData.findIndex(f => f.id === existingFileEntry.id);
+    if (idx > -1) uploadedFilesData.splice(idx, 1);
+    removeUploadStateFromLocalStorage(clientFileId); // 清除本地存储状态
+    await initiateNewUploadProcess(file, uiFileId, clientFileId);
+    }
+    else {
+    console.log(`文件 ${file.name} 状态为 ${existingFileEntry.status}，重新选择时不执行操作。`);
+    }
+    continue; // 继续处理下一个选中的文件
+    }
+
+    // 检查本地存储中是否有未完成的上传状态
+    const storedState = getUploadStateFromLocalStorage(clientFileId);
+
+    if (storedState && storedState.uploadId && storedState.status === 'in_progress') {
+    console.log(`检测到文件 ${file.name} (UploadID: ${storedState.uploadId}) 有未完成的上传状态。提示用户是否续传。`);
+    const resumedFileEntry = createBaseFileEntry(file, uiFileId, clientFileId);
+    resumedFileEntry.uploadId = storedState.uploadId;
+    resumedFileEntry.serverFileName = storedState.serverFileName;
+    resumedFileEntry.totalChunks = storedState.totalChunks || Math.ceil(file.size / CHUNK_SIZE);
+
+    uploadedFilesData.push(resumedFileEntry);
+    addFileToUI(resumedFileEntry);
+    updateFileStatusUI(resumedFileEntry, 'pending_resume', `检测到未完成。检查状态...`);
+    await promptToResumeUpload(resumedFileEntry, file); // 提示用户是否续传
+    } else {
+    console.log(`文件 ${file.name} 没有活跃的存储状态。开始新的上传。`);
+    if (storedState) {
+    removeUploadStateFromLocalStorage(clientFileId); // 清除旧的、非活跃的存储状态
+    }
+    await initiateNewUploadProcess(file, uiFileId, clientFileId);
+    }
+    }
+    event.target.value = ''; // 清空文件输入框，以便再次选择相同文件时触发 change 事件
+    }
+
+    async function promptToResumeUpload(fileEntry, newFileObject) {
+    // 更新 fileEntry 的实际 File 对象
+    if (newFileObject) fileEntry.fileObject = newFileObject;
+
+    let serverProgressPercent = 0;
+    let serverTotalChunks = fileEntry.totalChunks;
+    let canResumeBasedOnServer = false;
+    let serverFileStatus = null;
+
+    try {
+    const serverState = await fetchUploadStatusFromServer(fileEntry.uploadId); // 从服务器获取最新状态
+    if (serverState) {
+    serverFileStatus = serverState.status; // 例如: "IN_PROGRESS", "COMPLETED"
+    if (serverState.status === 'IN_PROGRESS') {
+    canResumeBasedOnServer = true;
+    const confirmedChunksCount = serverState.uploadedChunks ? serverState.uploadedChunks.length : 0;
+    serverTotalChunks = serverState.totalChunks || fileEntry.totalChunks;
+    if (serverTotalChunks > 0) {
+    serverProgressPercent = Math.round((confirmedChunksCount / serverTotalChunks) * 100);
+    }
+    updateFileProgressUI(fileEntry, serverProgressPercent);
+    updateFileStatusUI(fileEntry, 'pending_resume', `检测到上次已上传 ${serverProgressPercent}%。`);
+    } else if (serverState.status === 'COMPLETED') {
+    // 如果服务器上已完成，直接标记为完成
+    updateFileStatusUI(fileEntry, 'completed', '此文件在服务器上已完成。');
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+    if(fileEntry.uiElement) {
+    fileEntry.uiElement.classList.remove('upload-error');
+    fileEntry.uiElement.classList.add('upload-success');
+    fileEntry.uiElement.querySelector('.preview-btn').style.display = 'inline-block';
+    const progressDiv = fileEntry.uiElement.querySelector('.file-progress');
+    if(progressDiv) progressDiv.style.display = 'none';
+    }
+    prepareAttachmentsForSubmission(); // 更新隐藏字段
+    return; // 流程结束
+    }
+    }
+    } catch (error) {
+    console.warn(`获取服务器状态失败，无法续传文件 ${fileEntry.uploadId}: ${error.message}.`);
+    updateFileStatusUI(fileEntry, 'error', '获取服务器状态失败。');
+    // 即使获取状态失败，仍给用户重新上传的选项
+    }
+
+    // 如果服务器上没有进行中的上传记录，或者服务器状态不是 COMPLETED
+    if (!canResumeBasedOnServer && serverFileStatus !== 'COMPLETED') {
+    if (confirm(`文件 "${fileEntry.originalName}" 之前可能未成功上传或服务器状态未知 (${serverFileStatus || '无法获取'})。\n是否作为新文件重新上传？`)) {
+    console.log(`用户选择重新上传文件 ${fileEntry.originalName} 作为新文件。`);
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+    const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+    if (idx > -1) uploadedFilesData.splice(idx, 1);
+    if (fileEntry.uiElement) fileEntry.uiElement.remove();
+    await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+    } else {
+    console.log(`用户选择不重新上传文件 ${fileEntry.originalName}。从列表中移除。`);
+    const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+    if (idx > -1) uploadedFilesData.splice(idx, 1);
+    if (fileEntry.uiElement) fileEntry.uiElement.remove();
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+    prepareAttachmentsForSubmission(); // 更新隐藏字段
+    }
+    return;
+    }
+
+    // 如果服务器有进行中的上传记录，询问用户是否继续
+    const resumeMessage = `检测到文件 "${fileEntry.originalName}" 上次上传中断，已完成约 ${serverProgressPercent}%。您想继续上传吗？\n\n- 选择“确定”从断点处继续。\n- 选择“取消”将作为新文件重新上传。`;
+
+    if (confirm(resumeMessage)) {
+    console.log(`用户选择续传文件 ${fileEntry.originalName}。`);
+    await tryToResumeUpload(fileEntry, fileEntry.fileObject);
+    } else {
+    console.log(`用户选择不续传文件 ${fileEntry.originalName}。开始新的上传。`);
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+    const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+    if (idx > -1) uploadedFilesData.splice(idx, 1);
+    if (fileEntry.uiElement) fileEntry.uiElement.remove();
+    await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+    }
+    }
+
+    async function tryToResumeUpload(fileEntry, newFileObject) {
+    if(newFileObject) fileEntry.fileObject = newFileObject; // 确保 fileEntry 引用的是最新的 File 对象
+    try {
+    // 再次从服务器获取状态，确保信息最新
+    const serverState = await fetchUploadStatusFromServer(fileEntry.uploadId);
+    if (serverState && serverState.status === 'IN_PROGRESS') {
+    // 更新文件条目的已上传块信息
+    fileEntry.confirmedUploadedChunks = new Set(serverState.uploadedChunks || []);
+    fileEntry.uploadedChunksCount = fileEntry.confirmedUploadedChunks.size;
+    fileEntry.totalChunks = serverState.totalChunks || fileEntry.totalChunks;
+    fileEntry.serverFileName = serverState.serverFileName || fileEntry.serverFileName; // 更新服务器端文件名
+
+    const progressPercent = fileEntry.totalChunks > 0 ? Math.round((fileEntry.uploadedChunksCount / fileEntry.totalChunks) * 100):
+    updateFileProgressUI(fileEntry, progressPercent);
+    updateFileStatusUI(fileEntry, 'resuming', `正在续传 (${progressPercent}%)...`);
+
+    // 更新本地存储状态
+    saveUploadStateToLocalStorage(fileEntry.clientFileId, {
+    uploadId: fileEntry.uploadId,
+    serverFileName: fileEntry.serverFileName,
+    originalName: fileEntry.originalName,
+    totalSize: fileEntry.size,
+    totalChunks: fileEntry.totalChunks,
+    lastModified: fileEntry.fileObject.lastModified,
+    status: 'in_progress'
+    });
+
+    uploadAllChunksForFile(fileEntry); // 继续上传剩余分块
+    } else {
+    // 如果服务器状态不是 IN_PROGRESS (例如 COMPLETED, FAILED, 或 null)，则不续传
+    console.log(`服务器状态对文件 ${fileEntry.uploadId} 不支持续传 (状态: ${serverState ? serverState.status : '未知'})。`);
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId); // 清除本地存储状态
+    // 移除当前 UI 条目，并重新发起新的上传
+    const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+    if (idx > -1) uploadedFilesData.splice(idx, 1);
+    if (fileEntry.uiElement) fileEntry.uiElement.remove();
+    await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+    }
+    } catch (error) {
+    // 获取服务器状态失败，默认重新发起新上传
+    console.warn(`获取服务器状态失败，无法续传文件 ${fileEntry.originalName}。错误:`, error);
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+    const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+    if (idx > -1) uploadedFilesData.splice(idx, 1);
+    if (fileEntry.uiElement) fileEntry.uiElement.remove();
+    await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+    }
+    }
+
+    function createBaseFileEntry(file, uiFileId, clientFileId) {
+    return {
+    id: uiFileId, // UI 元素的唯一 ID
+    fileObject: file, // 实际的 File 对象
+    originalName: file.name, // 原始文件名
+    size: file.size, // 文件大小
+    status: 'pending', // 上传状态：pending, initiating, uploading, resuming, completed, error, cancelled
+    progress: 0, // 上传进度百分比
+    uploadId: null, // 服务器端生成的上传 ID
+    serverFileName: null, // 服务器端最终保存的文件名
+    clientFileId: clientFileId, // 客户端生成的唯一文件 ID
+    errorMessage: null, // 错误信息
+    uiElement: null, // 对应的 UI 元素
+    totalChunks: Math.ceil(file.size / CHUNK_SIZE), // 总分块数
+    uploadedChunksCount: 0, // 已上传并确认的分块数
+    confirmedUploadedChunks: new Set(), // 已确认上传的分块索引集合
+    xhr: null, // 当前上传分块的 XMLHttpRequest 对象
+    isExisting: false // 标记是否为加载时已存在的附件
+    };
+    }
+
+    async function initiateNewUploadProcess(file, uiFileId, clientFileId) {
+    const newFileEntry = createBaseFileEntry(file, uiFileId, clientFileId);
+    uploadedFilesData.push(newFileEntry);
+    addFileToUI(newFileEntry); // 添加 UI 元素
+    await initiateFileUpload(newFileEntry); // 发起文件上传
+    }
+
+    function addFileToUI(fileEntry) {
+    const safeFileEntryId = CSS.escape(fileEntry.id); // 转义 ID 以用于 CSS 选择器
+    const fileSizeFormatted = fileEntry.size ? formatFileSize(fileEntry.size) : ' (已存在)'; // 格式化文件大小
+    const initialProgress = fileEntry.status === 'completed' ? 100 : (fileEntry.progress || 0);
+    const initialStatusMessage = fileEntry.status === 'completed' ? '已上传' : '等待上传...';
+    // 对于已存在的附件或已完成上传的附件，隐藏进度条并显示预览按钮
+    const progressBarDisplay = (fileEntry.status === 'completed' && fileEntry.isExisting) || fileEntry.status === 'completed' ? 'none' : 'block';
+    const previewButtonDisplay = fileEntry.status === 'completed' ? 'inline-block' : 'none';
+
+    // 修正后的 fileItemHTML 模板字符串
+    const fileItemHTML = `
+    <div class="file-list-item ${fileEntry.status === 'completed' ? 'upload-success' : ''}" id="${safeFileEntryId}">
+        <div class="file-info">
+            <span class="file-name" title="${fileEntry.originalName}">${fileEntry.originalName}</span>
+            <span class="file-size">${fileSizeFormatted}</span>
+            <div class="file-progress mt-1" style="display: ${progressBarDisplay};">
+                <div class="file-progress-bar" style="width: ${initialProgress}%;">${initialProgress}%</div>
+            </div>
+            <small class="file-status d-block mt-1 ${fileEntry.status === 'completed' ? 'text-success' : 'text-muted'}">${initialStatusMessage}</small>
+        </div>
+        <div class="file-actions">
+            <button type="button" class="btn btn-sm btn-outline-info preview-btn" style="display: ${previewButtonDisplay};" title="预览">
+                <i class="bi bi-eye"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger delete-btn" title="删除">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>`;
+
+    fileListContainer.insertAdjacentHTML('beforeend', fileItemHTML); // 添加到文件列表容器
+    fileEntry.uiElement = fileListContainer.querySelector(`#${safeFileEntryId}`); // 缓存 UI 元素引用
+
+    // 为删除按钮和预览按钮添加事件监听器
+    const deleteBtn = fileEntry.uiElement.querySelector('.delete-btn');
+    deleteBtn.addEventListener('click', () => handleDeleteFile(fileEntry.id));
+
+    const previewBtn = fileEntry.uiElement.querySelector('.preview-btn');
+    previewBtn.addEventListener('click', () => {
+    if (fileEntry.status === 'completed' && fileEntry.serverFileName) {
+    handlePreviewFile(fileEntry.serverFileName);
+    }
+    });
+    }
+
+    async function initiateFileUpload(fileEntry) {
+    updateFileStatusUI(fileEntry, 'initiating', '正在初始化上传...');
+    // 确保进度条在初始化时可见
+    if(fileEntry.uiElement && fileEntry.uiElement.querySelector('.file-progress')) {
+    fileEntry.uiElement.querySelector('.file-progress').style.display = 'block';
+    }
+    try {
+    const requestBody = {
+    fileName: fileEntry.originalName,
+    totalSize: fileEntry.size,
+    contentType: fileEntry.fileObject.type
+    };
+    const response = await fetch('/api/attachments/initiate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody)
+    });
+    if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+    throw new Error(errorData.message || `初始化失败 (状态: ${response.status})`);
+    }
+    const data = await response.json();
+    fileEntry.uploadId = data.uploadId;
+    fileEntry.serverFileName = data.fileName; // 服务器生成的用于最终保存的文件名
+    // 将上传状态保存到本地存储，以便断点续传
+    saveUploadStateToLocalStorage(fileEntry.clientFileId, {
+    uploadId: fileEntry.uploadId,
+    serverFileName: fileEntry.serverFileName,
+    originalName: fileEntry.originalName,
+    totalSize: fileEntry.size,
+    totalChunks: fileEntry.totalChunks,
+    lastModified: fileEntry.fileObject.lastModified,
+    status: 'in_progress'
+    });
+    updateFileStatusUI(fileEntry, 'uploading', '准备上传分块...');
+    uploadAllChunksForFile(fileEntry); // 开始上传所有分块
+    } catch (error) {
+    console.error(`初始化上传文件 ${fileEntry.originalName} 失败:`, error);
+    updateFileStatusUI(fileEntry, 'error', `初始化失败: ${error.message}`);
+    if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId); // 初始化失败也清理本地状态
+    }
+    }
+
+    async function uploadAllChunksForFile(fileEntry) {
+    // 如果文件已是“已存在”或“已完成”状态，则不需要再次上传
+    if (fileEntry.isExisting || fileEntry.status === 'completed') {
+    updateFileStatusUI(fileEntry, 'completed', `已上传`);
+    prepareAttachmentsForSubmission(); // 确保已存在的附件也添加到隐藏字段
+    return;
+    }
+    // 只有在 'uploading' 或 'resuming' 状态下才继续上传分块
+    if (fileEntry.status !== 'uploading' && fileEntry.status !== 'resuming') {
+    updateFileStatusUI(fileEntry, fileEntry.status, `状态为 ${fileEntry.status}, 跳过上传分块。`);
+    return;
+    }
+    updateFileStatusUI(fileEntry, 'uploading', `正在上传分块... (已确认:
+    ${fileEntry.confirmedUploadedChunks.size}/${fileEntry.totalChunks})`);
+
+    for (let i = 0; i < fileEntry.totalChunks; i++) {
+    // 如果文件状态改变 (例如被取消)，则停止上传
+    if (fileEntry.status !== 'uploading') {
+    console.log(`文件 ${fileEntry.originalName} 在分块 ${i} 之前停止上传/取消。状态: ${fileEntry.status}`);
+    return;
+    }
+    // 跳过已确认上传的分块
+    if (fileEntry.confirmedUploadedChunks && fileEntry.confirmedUploadedChunks.has(i)) {
+    console.log(`跳过文件 ${fileEntry.originalName} 已确认的分块 ${i}`);
+    continue;
+    }
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, fileEntry.size);
+    const chunk = fileEntry.fileObject.slice(start, end); // 切割分块
+    try {
+    await uploadSingleChunkForFile(fileEntry, chunk, i);
+    fileEntry.confirmedUploadedChunks.add(i); // 标记为已确认上传
+    fileEntry.uploadedChunksCount = fileEntry.confirmedUploadedChunks.size;
+    const progress = Math.round((fileEntry.uploadedChunksCount / fileEntry.totalChunks) * 100);
+    updateFileProgressUI(fileEntry, progress); // 更新进度条
+    } catch (error) {
+    console.error(`上传文件 ${fileEntry.originalName} 的分块 ${i} 失败:`, error);
+    updateFileStatusUI(fileEntry, 'error', `分块 ${i + 1} 上传失败: ${error.message}`);
+    if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+    // 更新本地存储状态为错误
+    const currentState = getUploadStateFromLocalStorage(fileEntry.clientFileId);
+    if (currentState) {
+    currentState.status = 'error';
+    saveUploadStateToLocalStorage(fileEntry.clientFileId, currentState);
+    }
+    return; // 任何分块上传失败，停止整个文件上传
+    }
+    }
+    // 如果所有分块都已上传且当前状态仍为 uploading
+    if (fileEntry.uploadedChunksCount === fileEntry.totalChunks && fileEntry.status === 'uploading') {
+    finalizeFileUpload(fileEntry); // 合并文件
+    }
+    }
+
+    function uploadSingleChunkForFile(fileEntry, chunk, chunkNumber) {
+    return new Promise((resolve, reject) => {
+    updateFileStatusUI(fileEntry, 'uploading', `正在上传分块 ${chunkNumber + 1}/${fileEntry.totalChunks}...`);
+    const formData = new FormData();
+    formData.append('file', chunk, `${fileEntry.originalName}.part${chunkNumber}`); // 文件分块
+    formData.append('chunkNumber', chunkNumber);
+    formData.append('totalChunks', fileEntry.totalChunks);
+
+    const xhr = new XMLHttpRequest();
+    fileEntry.xhr = xhr; // 存储 XHR 引用以便可以中止
+
+    xhr.open('POST', '/api/attachments/upload-chunk', true);
+    xhr.setRequestHeader('X-Upload-Id', fileEntry.uploadId); // 传递上传 ID
+
+    xhr.onload = function() {
+    if (xhr.status >= 200 && xhr.status < 300) {
+    resolve(xhr.responseText);
+    } else {
+    let errorMsg = `分块 ${chunkNumber + 1} 响应错误 (状态: ${xhr.status})。`;
+    try {
+    const errorData = JSON.parse(xhr.responseText);
+    errorMsg = errorData.message || errorData.error || errorMsg;
+    } catch (e) { errorMsg = xhr.statusText || errorMsg; }
+    reject(new Error(errorMsg));
+    }
+    };
+    xhr.onerror = function() { reject(new Error(`网络错误导致分块 ${chunkNumber + 1} 上传失败。`)); };
+    xhr.onabort = function() { /* Status check in uploadAllChunksForFile handles this */ }; // 中止处理在父函数中
+    xhr.send(formData);
+    });
+    }
+
+    async function finalizeFileUpload(fileEntry) {
+    // 已存在的附件不需要再次进行 finalize
+    if (fileEntry.isExisting) {
+    return;
+    }
+    updateFileStatusUI(fileEntry, 'finalizing', '正在合并文件...');
+    try {
+    const response = await
+    fetch(`/api/attachments/finalize/${fileEntry.uploadId}?originalFileName=${encodeURIComponent(fileEntry.originalName)}`,
+    {
+    method: 'POST'
+    });
+    if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+    throw new Error(errorData.error || errorData.message || `完成上传失败 (状态: ${response.status})`);
+    }
+    const data = await response.json();
+    fileEntry.serverFileName = data.fileName; // 从 finalize 响应中获取最终的服务器文件名
+    updateFileStatusUI(fileEntry, 'completed', '上传成功！');
+    if(fileEntry.uiElement) {
+    fileEntry.uiElement.classList.remove('upload-error');
+    fileEntry.uiElement.classList.add('upload-success');
+    fileEntry.uiElement.querySelector('.preview-btn').style.display = 'inline-block'; // 显示预览按钮
+    const progressDiv = fileEntry.uiElement.querySelector('.file-progress');
+    if(progressDiv) progressDiv.style.display = 'none'; // 隐藏进度条
+    }
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId); // 清理本地存储状态
+    prepareAttachmentsForSubmission(); // 重新填充隐藏字段
+    } catch (error) {
+    console.error(`完成上传文件 ${fileEntry.originalName} 失败:`, error);
+    updateFileStatusUI(fileEntry, 'error', `完成上传失败: ${error.message}`);
+    if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+    // 更新本地存储状态为错误
+    const currentState = getUploadStateFromLocalStorage(fileEntry.clientFileId);
+    if (currentState) {
+    currentState.status = 'error';
+    saveUploadStateToLocalStorage(fileEntry.clientFileId, currentState);
+    }
+    }
+    }
+
+    function updateFileProgressUI(fileEntry, percent) {
+    if (fileEntry.uiElement) {
+    const progressBar = fileEntry.uiElement.querySelector('.file-progress-bar');
+    if (progressBar) {
+    progressBar.style.width = `${percent}%`;
+    progressBar.textContent = `${percent}%`;
+    }
+    }
+    }
+
+    function updateFileStatusUI(fileEntry, status, message) {
+    fileEntry.status = status;
+    if (fileEntry.uiElement) {
+    const statusElement = fileEntry.uiElement.querySelector('.file-status');
+    const progressBarDiv = fileEntry.uiElement.querySelector('.file-progress');
+    const progressBar = fileEntry.uiElement.querySelector('.file-progress-bar');
+    const previewBtn = fileEntry.uiElement.querySelector('.preview-btn');
+
+    if (statusElement) {
+    statusElement.textContent = message;
+    statusElement.className = 'file-status d-block mt-1 '; // 重置样式
+    if (status === 'error') {
+    statusElement.classList.add('text-danger');
+    if(progressBar) progressBar.classList.add('bg-danger');
+    if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+    if(fileEntry.uiElement) fileEntry.uiElement.classList.remove('upload-success');
+    } else if (status === 'completed') {
+    statusElement.classList.add('text-success');
+    if(progressBarDiv) progressBarDiv.style.display = 'none'; // 完成后隐藏进度条
+    if(previewBtn) previewBtn.style.display = 'inline-block'; // 完成后显示预览按钮
+    if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-success');
+    if(fileEntry.uiElement) fileEntry.uiElement.classList.remove('upload-error');
+    } else {
+    statusElement.classList.add('text-muted');
+    if(progressBar) {
+    progressBar.classList.remove('bg-danger');
+    progressBar.classList.remove('bg-success'); // 确保恢复默认蓝色
+    }
+    if(progressBarDiv) progressBarDiv.style.display = 'block'; // 显示进度条
+    if(previewBtn) previewBtn.style.display = 'none'; // 隐藏预览按钮
+    if(fileEntry.uiElement) fileEntry.uiElement.classList.remove('upload-success', 'upload-error');
+    }
+    }
+    }
+    }
+
+    function handlePreviewFile(serverFileName) {
+    if (!serverFileName) return;
+    const previewUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+    window.open(previewUrl, '_blank');
+    }
+
+    async function handleDeleteFile(fileIdToDelete) {
+    const fileIndex = uploadedFilesData.findIndex(f => f.id === fileIdToDelete);
+    if (fileIndex === -1) return;
+
+    const fileEntry = uploadedFilesData[fileIndex];
+
+    // 如果文件正在上传中，尝试中止 XHR 请求
+    if (fileEntry.xhr && (fileEntry.status === 'uploading' || fileEntry.status === 'initiating' || fileEntry.status ===
+    'resuming')) {
+    fileEntry.xhr.abort();
+    }
+    const oldStatus = fileEntry.status;
+    fileEntry.status = 'cancelled'; // 标记为已取消
+
+    if (fileEntry.uiElement) fileEntry.uiElement.remove(); // 从 UI 中移除
+    uploadedFilesData.splice(fileIndex, 1); // 从数组中移除
+
+    if (fileEntry.clientFileId) {
+    removeUploadStateFromLocalStorage(fileEntry.clientFileId); // 清理本地存储
+    }
+
+    // 如果是已完成的文件（无论是加载时已存在还是新上传并完成的），且有服务器文件名，则发送删除请求到后端
+    if ((oldStatus === 'completed' || fileEntry.isExisting) && fileEntry.serverFileName) {
+    try {
+    const response = await fetch(`/api/attachments/file/${encodeURIComponent(fileEntry.serverFileName)}`, {
+    method: 'DELETE'
+    });
+    if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+    throw new Error(errorData.message || `服务器删除失败 (状态: ${response.status})`);
+    }
+    console.log(`附件 "${fileEntry.originalName}" 已从服务器删除。`);
+    showAlert(`附件 "${fileEntry.originalName}" 已成功从服务器删除。`, 'info');
+    } catch (error) {
+    console.error(`删除服务器附件 "${fileEntry.originalName}" 失败:`, error);
+    showAlert(`删除服务器附件 "${fileEntry.originalName}" 失败: ${error.message}`, 'warning');
+    }
+    } else if (fileEntry.uploadId && oldStatus !== 'pending' && oldStatus !== 'initiating') {
+    console.log(`文件 ${fileEntry.originalName} (uploadId: ${fileEntry.uploadId}) 在完成前被取消/删除。`);
+    }
+    prepareAttachmentsForSubmission(); // 更新隐藏字段
+    }
+
+    // 在表单提交前，收集所有已完成上传的文件名并填充到隐藏的 input 字段中
+    function prepareAttachmentsForSubmission() {
+    if (hiddenAttachmentInputsContainer) {
+    hiddenAttachmentInputsContainer.innerHTML = ''; // 清空之前的隐藏 input
+    uploadedFilesData.forEach(fileEntry => {
+    // 只添加状态为 'completed' 且具有 serverFileName 的文件到表单提交
+    if (fileEntry.status === 'completed' && fileEntry.serverFileName) {
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'attachmentServerFileNames'; // 必须与 DTO 字段名匹配
+    hiddenInput.value = fileEntry.serverFileName;
+    hiddenAttachmentInputsContainer.appendChild(hiddenInput);
+    }
+    });
+    console.log("已为表单提交准备隐藏字段:", hiddenAttachmentInputsContainer.innerHTML);
+    }
+    }
+
+    function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = 2;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+
+    console.log("DEBUG: finalize-contract.html 的内联脚本主要逻辑执行完毕 (v_移植JS_完成).");
+
+    // 初始化 Bootstrap Alert 的自动关闭功能
+    const alerts = document.querySelectorAll('.alert-dismissible');
+    alerts.forEach(alertNode => {
+    const bsAlert = new bootstrap.Alert(alertNode);
+    setTimeout(() => {
+    bsAlert.close();
+    }, 7000); // 7 秒后自动关闭
+    });
+    });
+    </script>
+</th:block>

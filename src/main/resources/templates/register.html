@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>用户注册</title>
-    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
+    <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 350px; text-align: center; }
@@ -47,6 +47,10 @@
             <input type="password" id="password" name="password" required />
         </div>
         <div>
+            <label for="confirmPassword">确认密码:</label>
+            <input type="password" id="confirmPassword" name="confirmPassword" required />
+        </div>
+        <div>
             <label for="email">邮箱:</label>
             <input type="email" id="email" name="email" required />
         </div>
@@ -72,6 +76,8 @@
     const registrationForm = document.getElementById('registrationForm');
     const messageArea = document.getElementById('messageArea');
     const messageText = document.getElementById('messageText');
+    const passwordInput = document.getElementById('password'); // 获取密码输入框
+    const confirmPasswordInput = document.getElementById('confirmPassword'); // 获取确认密码输入框
 
     function showMessage(text, isSuccess) {
         messageText.textContent = text;
@@ -88,10 +94,19 @@
             data[key] = value;
         });
 
+        // ⭐ 客户端密码一致性验证 ⭐
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            showMessage('注册失败: 两次输入的密码不一致！', false);
+            return; // 阻止表单提交
+        }
+
         if (!data.roleType) {
             showMessage('请选择您的角色！', false);
             return;
         }
+
+        // ⭐ 移除确认密码字段，因为后端通常不需要这个字段 ⭐
+        delete data.confirmPassword;
 
         try {
             const response = await fetch('/api/auth/register', {
@@ -110,12 +125,9 @@
             } else {
                 let errorMessage = result.message || '未知错误'; // 尝试获取总消息
 
-                // 如果后端返回了 "errors" 数组（通常是校验错误）
                 if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
-                    // 将所有详细字段错误拼接起来
                     errorMessage = '校验失败: ' + result.errors.join('; ');
                 } else if (result.error) {
-                    // 如果后端返回了 "error" 字段，但没有 "errors" 数组
                     errorMessage = result.error + ": " + errorMessage;
                 }
 

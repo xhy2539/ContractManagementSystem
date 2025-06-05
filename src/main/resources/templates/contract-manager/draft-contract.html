@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}" lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>起草新合同 - 合同管理系统</title>
+    <th:block layout:fragment="css-links">
+    </th:block>
+    <style layout:fragment="inline-css">
+        .card-header { font-weight: 500; }
+        #selectedCustomerInfoPlaceholder {
+            padding: 0.575rem .75rem;
+            border: 1px solid #dee2e6;
+            border-left: 0;
+            border-top-right-radius: .25rem;
+            border-bottom-right-radius: .25rem;
+            background-color: #e9ecef;
+            line-height: 1.5;
+            min-height: calc(1.5em + .5rem + 2px); /* Updated from .75rem to .5rem for form-control-sm */
+            display: flex;
+            align-items: center;
+            flex-grow: 1; /* Ensure it takes available space */
+        }
+        #customerTableModal tbody tr { cursor: pointer; }
+        #customerTableModal tbody tr:hover { background-color: #f8f9fa; }
+        .modal-xl { max-width: 900px; }
+        .form-label { font-weight: 500; }
+        .required-asterisk { color: var(--bs-danger); }
+        #alertPlaceholder { min-height: 60px; transition: opacity 0.15s linear; }
+        #alertPlaceholder:empty { min-height: 0; opacity: 0; }
+        .form-text { font-size: .875em; }
+        .is-invalid-placeholder {
+            border-color: var(--bs-danger) !important;
+        }
+
+        /* Styles for multi-file upload list */
+        .file-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            background-color: #f8f9fa;
+        }
+        .file-info {
+            flex-grow: 1;
+            margin-right: 1rem;
+            overflow: hidden; /* Prevents long names from breaking layout */
+        }
+        .file-name {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block; /* Important for text-overflow to work */
+        }
+        .file-size, .file-status {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+        .file-actions button {
+            margin-left: 0.5rem;
+        }
+        .file-progress {
+            height: 10px;
+            margin-top: 0.25rem;
+            background-color: #e9ecef;
+            border-radius: .25rem; /* Rounded corners for progress container */
+            overflow: hidden; /* Ensures progress bar stays within rounded corners */
+        }
+        .file-progress-bar {
+            background-color: #0d6efd; /* Bootstrap primary blue */
+            height: 100%;
+            transition: width 0.2s ease-in-out;
+            color: white;
+            font-size: 0.7em;
+            line-height:10px;
+            text-align: center;
+        }
+        .file-list-item.upload-error {
+            border-left: 5px solid var(--bs-danger); /* Red for error */
+            background-color: #fbe9e7; /* Lighter red */
+        }
+        .file-list-item.upload-success {
+            border-left: 5px solid var(--bs-success); /* Green for success */
+            background-color: #e8f5e9; /* Lighter green */
+        }
+    </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0 h2"><i class="bi bi-file-earmark-plus-fill text-primary me-2"></i>起草新合同</h1>
+            <a th:href="@{/dashboard}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left-circle me-1"></i>返回仪表盘
+            </a>
+        </div>
+
+        <div id="alertPlaceholder">
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${successMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> <span th:text="${errorMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div th:if="${#fields.hasErrors('contractDraftRequest.*')}" class="alert alert-warning alert-dismissible fade show" role="alert">
+                <strong><i class="bi bi-exclamation-circle-fill me-2"></i>请检查您的输入：</strong>
+                <ul class="mb-0 ps-4">
+                    <li th:each="err : ${#fields.errors('contractDraftRequest.*')}" th:text="${err}"></li>
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div th:if="${attachmentError}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> <span th:text="${attachmentError}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+
+
+        <form th:action="@{/contract-manager/draft}" method="post" th:object="${contractDraftRequest}" id="draftContractForm" class="needs-validation" novalidate>
+            <div id="hiddenAttachmentInputsContainer"></div>
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
+                    <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="contractName" class="form-label">合同名称 <span class="required-asterisk">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="contractName" th:field="*{contractName}" required>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}">合同名称不能为空。</div>
+                        <div class="invalid-feedback">请输入合同名称。</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="startDate" class="form-label">开始日期 <span class="required-asterisk">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="startDate" th:field="*{startDate}" required>
+                            <div class="invalid-feedback" th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}">开始日期不能为空。</div>
+                            <div class="invalid-feedback">请选择开始日期。</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="endDate" class="form-label">结束日期 <span class="required-asterisk">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="endDate" th:field="*{endDate}" required>
+                            <div class="invalid-feedback" th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}">结束日期不能为空。</div>
+                            <div class="invalid-feedback">请选择结束日期。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
+                    <i class="bi bi-person-badge-fill me-2"></i>客户信息
+                </div>
+                <div class="card-body">
+                    <label class="form-label">签约客户 <span class="required-asterisk">*</span></label>
+                    <div class="input-group input-group-sm">
+                        <button class="btn btn-sm btn-outline-primary" type="button" id="openCustomerSelectModalBtn" style="min-width: 110px;">
+                            <i class="bi bi-search me-1"></i> 选择客户
+                        </button>
+                        <div id="selectedCustomerInfoPlaceholder" class="form-control-sm"> <span class="text-muted">尚未选择客户</span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="selectedCustomerId" th:field="*{selectedCustomerId}" required>
+                    <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('selectedCustomerId')}" th:errors="*{selectedCustomerId}"></div>
+                    <div class="invalid-feedback" id="selectedCustomerIdClientFeedback">请选择一个签约客户。</div>
+
+                    <div id="selectedCustomerDetailsCard" class="card mt-2" style="display: none;">
+                        <div class="card-body p-2">
+                            <h6 class="card-title mb-1 small"><strong id="selectedCustomerNameText"></strong></h6>
+                            <p class="card-text mb-0 small">
+                                <strong>编号:</strong> <span id="selectedCustomerNumberText"></span> <br>
+                                <strong>电话:</strong> <span id="selectedCustomerPhoneText"></span> <br>
+                                <strong>邮箱:</strong> <span id="selectedCustomerEmailText"></span> <br>
+                                <strong>地址:</strong> <span id="selectedCustomerAddressText"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
+                    <i class="bi bi-file-text-fill me-2"></i>合同条款与附件
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="contractContent" class="form-label">合同主要内容</label>
+                        <textarea class="form-control form-control-sm" id="contractContent" rows="8" th:field="*{contractContent}" placeholder="请在此处填写合同的核心条款和内容..."></textarea>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('contractContent')}" th:errors="*{contractContent}"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="attachmentFilesInput" class="form-label">上传合同附件 (可选, 可多选)</label>
+                        <input type="file" class="form-control form-control-sm" id="attachmentFilesInput" multiple>
+                        <div class="form-text mb-2">支持的格式：PDF, 图片 (JPEG, PNG), Word文档 (doc, docx)。可按住Ctrl/Shift选择多个文件。</div>
+
+                        <div id="fileListContainer" class="mt-2">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex justify-content-center">
+                <button type="submit" class="btn btn-primary btn-lg px-5 me-3" id="submitDraftContractBtn">
+                    <i class="bi bi-save-fill me-2"></i>确认起草并提交
+                </button>
+                <button type="reset" class="btn btn-outline-secondary btn-lg px-4">
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>全部重置
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="modal fade" id="customerSelectModal" tabindex="-1" aria-labelledby="customerSelectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customerSelectModalLabel"><i class="bi bi-people-fill me-2"></i>选择签约客户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <div class="input-group input-group-sm flex-grow-1 me-2">
+                            <input type="text" id="modalCustomerSearchInput" class="form-control" placeholder="输入客户名称或编号搜索...">
+                            <button type="button" class="btn btn-sm btn-primary" id="modalSearchCustomerBtn"><i class="bi bi-search"></i></button>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm" id="modalAddNewCustomerBtn" data-bs-toggle="modal" data-bs-target="#addCustomerFormModal">
+                            <i class="bi bi-plus-circle me-1"></i> 添加新客户
+                        </button>
+                    </div>
+                    <div id="customerModalAlertPlaceholder"></div>
+                    <div class="table-responsive" style="max-height: 400px;">
+                        <table class="table table-hover table-sm" id="customerTableModal">
+                            <thead class="table-light sticky-top">
+                            <tr>
+                                <th scope="col">客户编号</th>
+                                <th scope="col">客户名称</th>
+                                <th scope="col">联系电话</th>
+                                <th scope="col">邮箱</th>
+                                <th scope="col" class="text-center">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="customerModalSpinner" class="text-center my-3" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                    </div>
+                    <nav aria-label="客户分页" class="mt-3">
+                        <ul class="pagination pagination-sm justify-content-center" id="customerModalPagination">
+                        </ul>
+                    </nav>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>关闭
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addCustomerFormModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="addCustomerFormModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form id="addCustomerFormInModal_draft" class="needs-validation" novalidate>
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title" id="addCustomerFormModalLabel"><i class="bi bi-person-plus-fill me-2"></i>快速添加新客户</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="addCustomerModalAlertPlaceholder_draft" class="mb-3"></div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="new_draft_customerNumber" class="form-label">客户编号 <span class="required-asterisk">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="customerNumber" id="new_draft_customerNumber" required placeholder="例如: CUST-2025-001">
+                                <div class="invalid-feedback">请输入客户编号。</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="new_draft_customerName" class="form-label">客户名称 <span class="required-asterisk">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="customerName" id="new_draft_customerName" required placeholder="请输入完整的客户官方名称">
+                                <div class="invalid-feedback">请输入客户名称。</div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="new_draft_phoneNumber" class="form-label">联系电话 <span class="required-asterisk">*</span></label>
+                                <input type="tel" class="form-control form-control-sm" name="phoneNumber" id="new_draft_phoneNumber" required placeholder="例如: 0755-12345678 或 13800138000">
+                                <div class="invalid-feedback">请输入有效的联系电话。</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="new_draft_email" class="form-label">邮箱 <span class="required-asterisk">*</span></label>
+                                <input type="email" class="form-control form-control-sm" name="email" id="new_draft_email" required placeholder="例如: contact@example.com">
+                                <div class="invalid-feedback">请输入有效的邮箱地址。</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_draft_address" class="form-label">客户地址</label>
+                            <textarea class="form-control form-control-sm" name="address" id="new_draft_address" rows="2" placeholder="请输入客户详细通讯地址"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-target="#customerSelectModal" data-bs-toggle="modal" id="backToCustomerSelectModalBtn">
+                            <i class="bi bi-arrow-left-short"></i> 返回选择
+                        </button>
+                        <button type="submit" class="btn btn-success" id="saveNewCustomerBtn_draft">
+                            <i class="bi bi-check-circle-fill me-1"></i>确认并保存客户
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log("DEBUG: DOMContentLoaded 事件触发 - 脚本开始执行 (v3 - resume prompt)。");
+
+            // --- START: Existing Customer Selection and Bootstrap Validation Logic ---
+            (function () {
+                'use strict'
+                var forms = document.querySelectorAll('.needs-validation');
+                var customerIdField = document.getElementById('selectedCustomerId');
+                var customerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback');
+                var customerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
+
+                Array.prototype.slice.call(forms)
+                    .forEach(function (form) {
+                        form.addEventListener('submit', function (event) {
+                            let isFormValid = form.checkValidity();
+
+                            if (form.id === 'draftContractForm') {
+                                prepareAttachmentsForSubmission(); // Prepare hidden inputs for submission
+
+                                if (customerIdField && customerIdField.required && customerIdField.value === '') {
+                                    if (customerIdClientFeedback) customerIdClientFeedback.style.display = 'block';
+                                    if (customerInfoPlaceholder) customerInfoPlaceholder.classList.add('is-invalid-placeholder');
+                                    isFormValid = false;
+                                } else if (customerIdField) {
+                                    if (customerIdClientFeedback) customerIdClientFeedback.style.display = 'none';
+                                    if (customerInfoPlaceholder) customerInfoPlaceholder.classList.remove('is-invalid-placeholder');
+                                }
+                            }
+
+                            if (!isFormValid) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                            }
+                            form.classList.add('was-validated');
+                        }, false);
+                    });
+            })();
+            // ... (所有客户选择和Bootstrap验证的JS代码保持不变，从上一个回答复制过来) ...
+            // 客户选择相关的常量声明
+            const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
+            const customerSelectModalEl = document.getElementById('customerSelectModal');
+            const customerSelectModal = customerSelectModalEl ? new bootstrap.Modal(customerSelectModalEl) : null;
+            const modalCustomerSearchInput = document.getElementById('modalCustomerSearchInput');
+            const modalSearchCustomerBtn = document.getElementById('modalSearchCustomerBtn');
+            const customerTableBody = document.querySelector('#customerTableModal tbody');
+            const customerModalPagination = document.getElementById('customerModalPagination');
+            const customerModalSpinner = document.getElementById('customerModalSpinner');
+            const customerModalAlertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
+            const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
+            // const selectedCustomerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback'); // 已在上面声明
+            const selectedCustomerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder'); // 已在上面声明
+            const selectedCustomerDetailsCard = document.getElementById('selectedCustomerDetailsCard');
+            const modalAddNewCustomerBtn = document.getElementById('modalAddNewCustomerBtn');
+            const addCustomerFormModalEl = document.getElementById('addCustomerFormModal');
+            const addCustomerFormModal = addCustomerFormModalEl ? new bootstrap.Modal(addCustomerFormModalEl) : null;
+            const addCustomerFormInModalDraft = document.getElementById('addCustomerFormInModal_draft');
+            const saveNewCustomerBtnDraft = document.getElementById('saveNewCustomerBtn_draft');
+            const addCustomerModalAlertPlaceholderDraft = document.getElementById('addCustomerModalAlertPlaceholder_draft');
+            const backToCustomerSelectModalBtn = document.getElementById('backToCustomerSelectModalBtn');
+
+            let currentCustomerPage = 0;
+            const CUSTOMER_PAGE_SIZE = 5;
+            let customerSearchKeyword = '';
+
+            if(openCustomerSelectModalBtn && customerSelectModal) {
+                openCustomerSelectModalBtn.addEventListener('click', function() {
+                    if(modalCustomerSearchInput) modalCustomerSearchInput.value = '';
+                    customerSearchKeyword = '';
+                    loadCustomersForModal(0);
+                    customerSelectModal.show();
+                });
+            }
+
+            if(modalSearchCustomerBtn && modalCustomerSearchInput) {
+                modalSearchCustomerBtn.addEventListener('click', function() {
+                    customerSearchKeyword = modalCustomerSearchInput.value.trim();
+                    loadCustomersForModal(0, customerSearchKeyword);
+                });
+                modalCustomerSearchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        customerSearchKeyword = modalCustomerSearchInput.value.trim();
+                        loadCustomersForModal(0, customerSearchKeyword);
+                    }
+                });
+            }
+
+            function loadCustomersForModal(page, keyword = customerSearchKeyword) {
+                currentCustomerPage = page;
+                const searchUrl = `/customers/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${CUSTOMER_PAGE_SIZE}&sort=customerName,asc`;
+                if(customerModalSpinner) customerModalSpinner.style.display = 'block';
+                if(customerTableBody) customerTableBody.innerHTML = '';
+                if(customerModalAlertPlaceholder) customerModalAlertPlaceholder.innerHTML = '';
+
+                fetch(searchUrl)
+                    .then(response => {
+                        if (!response.ok) throw new Error(`网络响应错误 (${response.status}) while fetching customers.`);
+                        return response.json();
+                    })
+                    .then(pageData => {
+                        if (pageData && pageData.content) {
+                            renderCustomerTable(pageData.content);
+                            renderCustomerPagination(pageData);
+                        } else {
+                            renderCustomerTable([]);
+                            renderCustomerPagination(null);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('加载客户列表失败:', error);
+                        if(customerTableBody) customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">加载客户数据失败: ${error.message}</td></tr>`;
+                        renderCustomerPagination(null);
+                        showAlertInModal('加载客户数据失败: ' + error.message, 'danger', customerModalAlertPlaceholder);
+                    })
+                    .finally(() => {
+                        if(customerModalSpinner) customerModalSpinner.style.display = 'none';
+                    });
+            }
+
+            function renderCustomerTable(customers) {
+                if(!customerTableBody) return;
+                customerTableBody.innerHTML = '';
+                if (!customers || customers.length === 0) {
+                    customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">未找到匹配的客户记录。</td></tr>`;
+                    return;
+                }
+                customers.forEach(customer => {
+                    const row = customerTableBody.insertRow();
+                    row.insertCell().textContent = customer.customerNumber || 'N/A';
+                    row.insertCell().textContent = customer.customerName;
+                    row.insertCell().textContent = customer.phoneNumber || 'N/A';
+                    row.insertCell().textContent = customer.email || 'N/A';
+                    const actionCell = row.insertCell();
+                    actionCell.classList.add('text-center');
+                    const selectBtn = document.createElement('button');
+                    selectBtn.classList.add('btn', 'btn-sm', 'btn-primary');
+                    selectBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> 选择';
+                    selectBtn.type = 'button';
+                    selectBtn.addEventListener('click', function() { selectCustomerForForm(customer); });
+                    actionCell.appendChild(selectBtn);
+                });
+            }
+
+            function selectCustomerForForm(customer) {
+                if (selectedCustomerIdInput) selectedCustomerIdInput.value = customer.id;
+                if (selectedCustomerInfoPlaceholder) {
+                    selectedCustomerInfoPlaceholder.innerHTML = `<strong class="text-success">${customer.customerName}</strong> <small class="text-muted">(编号: ${customer.customerNumber || 'N/A'})</small>`;
+                    selectedCustomerInfoPlaceholder.classList.remove('is-invalid-placeholder');
+                }
+                if(selectedCustomerDetailsCard) {
+                    const nameEl = document.getElementById('selectedCustomerNameText');
+                    const numEl = document.getElementById('selectedCustomerNumberText');
+                    const phoneEl = document.getElementById('selectedCustomerPhoneText');
+                    const emailEl = document.getElementById('selectedCustomerEmailText');
+                    const addressEl = document.getElementById('selectedCustomerAddressText');
+                    if(nameEl) nameEl.textContent = customer.customerName || 'N/A';
+                    if(numEl) numEl.textContent = customer.customerNumber || 'N/A';
+                    if(phoneEl) phoneEl.textContent = customer.phoneNumber || 'N/A';
+                    if(emailEl) emailEl.textContent = customer.email || 'N/A';
+                    if(addressEl) addressEl.textContent = customer.address || 'N/A';
+                    selectedCustomerDetailsCard.style.display = 'block';
+                }
+                if(customerSelectModal) customerSelectModal.hide();
+                if(selectedCustomerIdInput) {
+                    selectedCustomerIdInput.dispatchEvent(new Event('change'));
+                    selectedCustomerIdInput.classList.remove('is-invalid');
+                }
+                var customerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback');
+                if(customerIdClientFeedback) customerIdClientFeedback.style.display = 'none';
+            }
+
+            function renderCustomerPagination(pageData) {
+                if(!customerModalPagination) return;
+                customerModalPagination.innerHTML = '';
+                if (!pageData || pageData.totalPages === undefined || pageData.totalPages <= 1) return;
+                const { totalPages, number: currentPageIdx, first, last } = pageData;
+                let prevLi = document.createElement('li');
+                prevLi.className = `page-item ${first ? 'disabled' : ''}`;
+                let prevA = document.createElement('a');
+                prevA.className = 'page-link';
+                prevA.href = '#';
+                prevA.innerHTML = '&laquo; <span class="d-none d-sm-inline">上一页</span>';
+                if (!first) prevA.addEventListener('click', (e) => { e.preventDefault(); loadCustomersForModal(currentPageIdx - 1); });
+                prevLi.appendChild(prevA);
+                customerModalPagination.appendChild(prevLi);
+                let currentLi = document.createElement('li');
+                currentLi.className = 'page-item disabled';
+                let currentA = document.createElement('a');
+                currentA.className = 'page-link';
+                currentA.textContent = `第 ${currentPageIdx + 1} / ${totalPages} 页`;
+                currentLi.appendChild(currentA);
+                customerModalPagination.appendChild(currentLi);
+                let nextLi = document.createElement('li');
+                nextLi.className = `page-item ${last ? 'disabled' : ''}`;
+                let nextA = document.createElement('a');
+                nextA.className = 'page-link';
+                nextA.href = '#';
+                nextA.innerHTML = '<span class="d-none d-sm-inline">下一页</span> &raquo;';
+                if (!last) nextA.addEventListener('click', (e) => { e.preventDefault(); loadCustomersForModal(currentPageIdx + 1); });
+                nextLi.appendChild(nextA);
+                customerModalPagination.appendChild(nextLi);
+            }
+
+            if(addCustomerFormInModalDraft && saveNewCustomerBtnDraft && addCustomerFormModal) {
+                addCustomerFormInModalDraft.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    if (!addCustomerFormInModalDraft.checkValidity()) {
+                        event.stopPropagation();
+                        addCustomerFormInModalDraft.classList.add('was-validated');
+                        return;
+                    }
+                    addCustomerFormInModalDraft.classList.add('was-validated');
+                    const formData = new FormData(addCustomerFormInModalDraft);
+                    if(addCustomerModalAlertPlaceholderDraft) addCustomerModalAlertPlaceholderDraft.innerHTML = '';
+                    saveNewCustomerBtnDraft.disabled = true;
+                    saveNewCustomerBtnDraft.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>保存中...';
+                    fetch('/customers/api/add', {
+                        method: 'POST',
+                        body: new URLSearchParams(formData)
+                    })
+                        .then(response => {
+                            if (response.status === 201) return response.json();
+                            return response.json().then(errorData => {
+                                let message = `发生错误 (${response.status})`;
+                                if (errorData) {
+                                    if (errorData.message) message = errorData.message;
+                                    else if (Array.isArray(errorData)) message = errorData.join('; ');
+                                    else if (typeof errorData === 'string') message = errorData;
+                                    else if (errorData.error && errorData.errors) message = `${errorData.error}: ${errorData.errors.map(e => e.defaultMessage || e.field).join(', ')}`;
+                                }
+                                throw new Error(message);
+                            });
+                        })
+                        .then(newlyAddedCustomer => {
+                            addCustomerFormInModalDraft.reset();
+                            addCustomerFormInModalDraft.classList.remove('was-validated');
+                            addCustomerFormModal.hide();
+                            showAlertOnMainPage(`新客户 "${newlyAddedCustomer.customerName}" 已成功添加!`, 'success');
+                            selectCustomerForForm(newlyAddedCustomer);
+                        })
+                        .catch(error => {
+                            console.error('添加新客户失败:', error);
+                            showAlertInModal('添加客户失败: ' + error.message, 'danger', addCustomerModalAlertPlaceholderDraft);
+                        })
+                        .finally(() => {
+                            saveNewCustomerBtnDraft.disabled = false;
+                            saveNewCustomerBtnDraft.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>确认并保存客户';
+                        });
+                });
+            }
+
+            if(backToCustomerSelectModalBtn && addCustomerFormModal && customerSelectModal){
+                backToCustomerSelectModalBtn.addEventListener('click', function(){
+                    addCustomerFormModal.hide();
+                    customerSelectModal.show();
+                });
+            }
+
+            function showAlertInModal(message, type = 'info', placeholderElement, duration = 7000) {
+                createAndShowAlert(message, type, placeholderElement, duration);
+            }
+            function showAlertOnMainPage(message, type = 'info', duration = 7000) {
+                createAndShowAlert(message, type, document.getElementById('alertPlaceholder'), duration);
+            }
+
+            function createAndShowAlert(message, type, placeholderElement, duration = 7000) {
+                if (!placeholderElement) {
+                    console.warn("Alert placeholder not found for message:", message);
+                    alert(message); // Fallback
+                    return;
+                }
+                const wrapper = document.createElement('div');
+                const alertId = 'alert-' + Date.now() + Math.random().toString(36).substring(2,7);
+                wrapper.innerHTML = `
+                <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom: 1rem;">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
+                placeholderElement.innerHTML = '';
+                placeholderElement.append(wrapper.firstChild);
+
+                const newAlertElement = document.getElementById(alertId);
+                if (newAlertElement && window.bootstrap && bootstrap.Alert) {
+                    const bsAlertInstance = new bootstrap.Alert(newAlertElement);
+                    if (duration > 0) {
+                        setTimeout(() => {
+                            if (bootstrap.Alert.getInstance(newAlertElement)) {
+                                bsAlertInstance.close();
+                            } else if (newAlertElement.parentNode) {
+                                newAlertElement.parentNode.removeChild(newAlertElement);
+                            }
+                        }, duration);
+                    }
+                } else if (newAlertElement && duration > 0) {
+                    setTimeout(() => {
+                        if(newAlertElement.parentNode) newAlertElement.parentNode.removeChild(newAlertElement);
+                    }, duration);
+                }
+            }
+            // --- 客户选择模态框相关逻辑 END ---
+
+
+            // --- START: Multi-File Resumable Upload Logic (Enhanced for Page Refresh with Prompt) ---
+            const attachmentFilesInput = document.getElementById('attachmentFilesInput');
+            const fileListContainer = document.getElementById('fileListContainer');
+            const hiddenAttachmentInputsContainer = document.getElementById('hiddenAttachmentInputsContainer');
+            const mainDraftForm = document.getElementById('draftContractForm');
+
+            const CHUNK_SIZE = 1024 * 1024 * 2; // 2MB per chunk
+            let uploadedFilesData = [];
+
+            if (attachmentFilesInput) {
+                attachmentFilesInput.addEventListener('change', handleFileSelection);
+            } else {
+                console.error("ERROR: Attachment input 'attachmentFilesInput' not found!");
+                showAlertOnMainPage('附件上传组件初始化失败，请联系管理员。', 'danger');
+            }
+
+            if (mainDraftForm) {
+                mainDraftForm.addEventListener('reset', function() {
+                    console.log("DEBUG: 主表单 'draftContractForm' 已重置 (multi-file logic).");
+                    if (attachmentFilesInput) attachmentFilesInput.value = '';
+                    uploadedFilesData.forEach(fileEntry => {
+                        if (fileEntry.clientFileId && (fileEntry.status !== 'completed' && fileEntry.status !== 'cancelled')) {
+                            removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        }
+                    });
+                    uploadedFilesData = [];
+                    if (fileListContainer) fileListContainer.innerHTML = '';
+                    if (hiddenAttachmentInputsContainer) hiddenAttachmentInputsContainer.innerHTML = '';
+                });
+            }
+
+            function generateClientFileId(file) {
+                return `clientFile_${file.name}_${file.size}_${file.lastModified}`;
+            }
+
+            function saveUploadStateToLocalStorage(clientFileId, state) {
+                try {
+                    localStorage.setItem("uploadState_" + clientFileId, JSON.stringify(state));
+                } catch (e) {
+                    console.warn("Failed to save state to localStorage (possibly full or disabled):", e);
+                }
+            }
+
+            function getUploadStateFromLocalStorage(clientFileId) {
+                try {
+                    const stateString = localStorage.getItem("uploadState_" + clientFileId);
+                    return stateString ? JSON.parse(stateString) : null;
+                } catch (e) {
+                    console.warn("Failed to parse state from localStorage:", e);
+                    return null;
+                }
+            }
+
+            function removeUploadStateFromLocalStorage(clientFileId) {
+                try {
+                    localStorage.removeItem("uploadState_" + clientFileId);
+                } catch (e) {
+                    console.warn("Failed to remove state from localStorage:", e);
+                }
+            }
+
+            async function fetchUploadStatusFromServer(uploadId) {
+                console.log(`Fetching server status for uploadId: ${uploadId}`);
+                try {
+                    const response = await fetch(`/api/attachments/status/${uploadId}`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            console.warn(`UploadId ${uploadId} not found on server.`);
+                            return null;
+                        }
+                        const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+                        throw new Error(errorData.message || `Failed to fetch status: ${response.status}`);
+                    }
+                    const statusData = await response.json();
+                    console.log(`Server status for ${uploadId}:`, statusData);
+                    return statusData;
+                } catch (error) {
+                    console.error(`Error fetching status for ${uploadId}:`, error);
+                    throw error;
+                }
+            }
+
+            async function handleFileSelection(event) {
+                const files = event.target.files;
+                if (!files.length) return;
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const clientFileId = generateClientFileId(file);
+                    const uiFileId = `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+                    let existingFileEntry = uploadedFilesData.find(f => f.clientFileId === clientFileId && f.status !== 'completed' && f.status !== 'cancelled');
+                    if (existingFileEntry) {
+                        console.log(`File ${file.name} (clientFileId: ${clientFileId}) is already in the list with status: ${existingFileEntry.status}. Handling re-selection.`);
+                        if ((existingFileEntry.status === 'error' || existingFileEntry.status === 'pending_resume' || existingFileEntry.status === 'pending')
+                            && confirm(`文件 "${file.name}" 之前似乎未完成上传或出错。是否尝试继续或重新上传？\n- 确定: 继续/重试\n- 取消: 作为新文件上传 (如果已存在旧的将先移除)`)) {
+                            if (existingFileEntry.uploadId) {
+                                console.log(`Attempting to resume/retry upload for ${existingFileEntry.originalName} with uploadId ${existingFileEntry.uploadId}`);
+                                await tryToResumeUpload(existingFileEntry, file);
+                            } else {
+                                console.log(`No uploadId for errored/pending file ${existingFileEntry.originalName}, initiating new upload.`);
+                                if (existingFileEntry.uiElement) existingFileEntry.uiElement.remove();
+                                const idx = uploadedFilesData.findIndex(f => f.id === existingFileEntry.id);
+                                if (idx > -1) uploadedFilesData.splice(idx, 1);
+                                await initiateNewUploadProcess(file, uiFileId, clientFileId);
+                            }
+                        } else if (existingFileEntry.status === 'error' || existingFileEntry.status === 'pending_resume' || existingFileEntry.status === 'pending') {
+                            // User chose "Cancel" on the confirm dialog to re-upload as new
+                            console.log(`User chose to re-upload "${file.name}" as new, removing previous entry.`);
+                            if (existingFileEntry.uiElement) existingFileEntry.uiElement.remove();
+                            const idx = uploadedFilesData.findIndex(f => f.id === existingFileEntry.id);
+                            if (idx > -1) uploadedFilesData.splice(idx, 1);
+                            removeUploadStateFromLocalStorage(clientFileId);
+                            await initiateNewUploadProcess(file, uiFileId, clientFileId);
+                        }
+                        else {
+                            console.log(`File ${file.name} has status ${existingFileEntry.status}, no action on re-selection.`);
+                        }
+                        continue; // To next selected file
+                    }
+
+                    const storedState = getUploadStateFromLocalStorage(clientFileId);
+
+                    if (storedState && storedState.uploadId && storedState.status === 'in_progress') {
+                        console.log(`Found stored 'in_progress' state for ${file.name} (UploadID: ${storedState.uploadId}). Prompting user to resume.`);
+                        const resumedFileEntry = createBaseFileEntry(file, uiFileId, clientFileId);
+                        resumedFileEntry.uploadId = storedState.uploadId;
+                        resumedFileEntry.serverFileName = storedState.serverFileName;
+                        resumedFileEntry.totalChunks = storedState.totalChunks || Math.ceil(file.size / CHUNK_SIZE);
+
+                        uploadedFilesData.push(resumedFileEntry);
+                        addFileToUI(resumedFileEntry);
+                        updateFileStatusUI(resumedFileEntry, 'pending_resume', `检测到未完成。检查状态...`);
+                        await promptToResumeUpload(resumedFileEntry, file);
+                    } else {
+                        console.log(`No active stored state for ${file.name}. Starting new upload.`);
+                        if (storedState) {
+                            removeUploadStateFromLocalStorage(clientFileId);
+                        }
+                        await initiateNewUploadProcess(file, uiFileId, clientFileId);
+                    }
+                }
+                event.target.value = '';
+            }
+
+            async function promptToResumeUpload(fileEntry, newFileObject) {
+                if (newFileObject) fileEntry.fileObject = newFileObject;
+
+                let serverProgressPercent = 0;
+                let serverTotalChunks = fileEntry.totalChunks;
+                let canResumeBasedOnServer = false;
+                let serverFileStatus = null;
+
+                try {
+                    const serverState = await fetchUploadStatusFromServer(fileEntry.uploadId);
+                    if (serverState) {
+                        serverFileStatus = serverState.status; // e.g., "IN_PROGRESS", "COMPLETED"
+                        if (serverState.status === 'IN_PROGRESS') {
+                            canResumeBasedOnServer = true;
+                            const confirmedChunksCount = serverState.uploadedChunks ? serverState.uploadedChunks.length : 0;
+                            serverTotalChunks = serverState.totalChunks || fileEntry.totalChunks;
+                            if (serverTotalChunks > 0) {
+                                serverProgressPercent = Math.round((confirmedChunksCount / serverTotalChunks) * 100);
+                            }
+                            updateFileProgressUI(fileEntry, serverProgressPercent);
+                            updateFileStatusUI(fileEntry, 'pending_resume', `检测到上次已上传 ${serverProgressPercent}%。`);
+                        } else if (serverState.status === 'COMPLETED') {
+                            updateFileStatusUI(fileEntry, 'completed', '此文件在服务器上已完成。');
+                            removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                            if(fileEntry.uiElement) {
+                                fileEntry.uiElement.classList.remove('upload-error'); // Ensure error class is removed
+                                fileEntry.uiElement.classList.add('upload-success');
+                                fileEntry.uiElement.querySelector('.preview-btn').style.display = 'inline-block';
+                                const progressDiv = fileEntry.uiElement.querySelector('.file-progress');
+                                if(progressDiv) progressDiv.style.display = 'none';
+                            }
+                            prepareAttachmentsForSubmission();
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Error fetching server status for ${fileEntry.uploadId} during prompt: ${error.message}.`);
+                    updateFileStatusUI(fileEntry, 'error', '获取服务器状态失败。');
+                    // Continue to ask if user wants to upload as new, as server state is unknown/error
+                }
+
+                if (!canResumeBasedOnServer && serverFileStatus !== 'COMPLETED') { // If not completed and cannot resume from server
+                    if (confirm(`文件 "${fileEntry.originalName}" 之前可能未成功上传或服务器状态未知 (${serverFileStatus || '无法获取'})。\n是否作为新文件重新上传？`)) {
+                        console.log(`User chose to re-upload ${fileEntry.originalName} as new.`);
+                        removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                        if (idx > -1) uploadedFilesData.splice(idx, 1);
+                        if (fileEntry.uiElement) fileEntry.uiElement.remove();
+                        await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+                    } else {
+                        console.log(`User chose not to re-upload ${fileEntry.originalName}. Removing from list.`);
+                        const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                        if (idx > -1) uploadedFilesData.splice(idx, 1);
+                        if (fileEntry.uiElement) fileEntry.uiElement.remove();
+                        removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        prepareAttachmentsForSubmission();
+                    }
+                    return;
+                }
+
+                // If canResumeBasedOnServer is true
+                const resumeMessage = `检测到文件 "${fileEntry.originalName}" 上次上传中断，已完成约 ${serverProgressPercent}%。您想继续上传吗？\n\n- 选择“确定”从断点处继续。\n- 选择“取消”将作为新文件重新上传。`;
+
+                if (confirm(resumeMessage)) {
+                    console.log(`User chose to resume upload for ${fileEntry.originalName}.`);
+                    await tryToResumeUpload(fileEntry, fileEntry.fileObject);
+                } else {
+                    console.log(`User chose NOT to resume for ${fileEntry.originalName}. Starting a new upload.`);
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                    const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                    if (idx > -1) uploadedFilesData.splice(idx, 1);
+                    if (fileEntry.uiElement) fileEntry.uiElement.remove();
+                    await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+                }
+            }
+
+            async function tryToResumeUpload(fileEntry, newFileObject) {
+                if(newFileObject) fileEntry.fileObject = newFileObject;
+
+                try {
+                    // Re-fetch server state to be absolutely sure before resuming
+                    const serverState = await fetchUploadStatusFromServer(fileEntry.uploadId);
+                    if (serverState && serverState.status === 'IN_PROGRESS') {
+                        fileEntry.confirmedUploadedChunks = new Set(serverState.uploadedChunks || []);
+                        fileEntry.uploadedChunksCount = fileEntry.confirmedUploadedChunks.size;
+                        fileEntry.totalChunks = serverState.totalChunks || fileEntry.totalChunks;
+                        fileEntry.serverFileName = serverState.serverFileName || fileEntry.serverFileName;
+
+                        const progressPercent = fileEntry.totalChunks > 0 ? Math.round((fileEntry.uploadedChunksCount / fileEntry.totalChunks) * 100) : 0;
+                        updateFileProgressUI(fileEntry, progressPercent);
+                        updateFileStatusUI(fileEntry, 'resuming', `正在续传 (${progressPercent}%)...`);
+
+                        saveUploadStateToLocalStorage(fileEntry.clientFileId, {
+                            uploadId: fileEntry.uploadId,
+                            serverFileName: fileEntry.serverFileName,
+                            originalName: fileEntry.originalName,
+                            totalSize: fileEntry.size,
+                            totalChunks: fileEntry.totalChunks,
+                            lastModified: fileEntry.fileObject.lastModified,
+                            status: 'in_progress'
+                        });
+
+                        uploadAllChunksForFile(fileEntry);
+                    } else { // Server state is not IN_PROGRESS (e.g., COMPLETED, FAILED, or null)
+                        console.log(`Server status for ${fileEntry.uploadId} is '${serverState ? serverState.status : 'unknown'}' during resume attempt. Not resuming, will start new upload if user agreed.`);
+                        removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                        if (idx > -1) uploadedFilesData.splice(idx, 1);
+                        if (fileEntry.uiElement) fileEntry.uiElement.remove();
+
+                        // Since promptToResume already asked, and if they chose to resume but server isn't resumable,
+                        // we should probably treat it as a new upload here.
+                        await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+                    }
+                } catch (error) {
+                    console.warn(`Failed to get server status for ${fileEntry.uploadId} to resume, starting new upload. Error:`, error);
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                    const idx = uploadedFilesData.findIndex(f => f.id === fileEntry.id);
+                    if (idx > -1) uploadedFilesData.splice(idx, 1);
+                    if (fileEntry.uiElement) fileEntry.uiElement.remove();
+
+                    await initiateNewUploadProcess(fileEntry.fileObject, fileEntry.id, fileEntry.clientFileId);
+                }
+            }
+
+
+            function createBaseFileEntry(file, uiFileId, clientFileId) {
+                return {
+                    id: uiFileId,
+                    fileObject: file,
+                    originalName: file.name,
+                    size: file.size,
+                    status: 'pending',
+                    progress: 0,
+                    uploadId: null,
+                    serverFileName: null,
+                    clientFileId: clientFileId,
+                    errorMessage: null,
+                    uiElement: null,
+                    totalChunks: Math.ceil(file.size / CHUNK_SIZE),
+                    uploadedChunksCount: 0,
+                    confirmedUploadedChunks: new Set(),
+                    xhr: null
+                };
+            }
+
+            async function initiateNewUploadProcess(file, uiFileId, clientFileId) {
+                const newFileEntry = createBaseFileEntry(file, uiFileId, clientFileId);
+                uploadedFilesData.push(newFileEntry);
+                addFileToUI(newFileEntry); // This should get the uiElement
+                await initiateFileUpload(newFileEntry);
+            }
+
+            function addFileToUI(fileEntry) {
+                const safeFileEntryId = CSS.escape(fileEntry.id);
+
+                const fileItemHTML = `
+                    <div class="file-list-item" id="${safeFileEntryId}">
+                        <div class="file-info">
+                            <span class="file-name" title="${fileEntry.originalName}">${fileEntry.originalName}</span>
+                            <span class="file-size">(${formatFileSize(fileEntry.size)})</span>
+                            <div class="file-progress mt-1" style="display: block;">
+                                <div class="file-progress-bar" style="width: ${fileEntry.progress || 0}%;">${fileEntry.progress || 0}%</div>
+                            </div>
+                            <small class="file-status text-muted d-block mt-1">等待上传...</small>
+                        </div>
+                        <div class="file-actions">
+                            <button type="button" class="btn btn-sm btn-outline-info preview-btn" style="display: none;" title="预览">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger delete-btn" title="删除">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                fileListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
+                fileEntry.uiElement = fileListContainer.querySelector(`#${safeFileEntryId}`);
+
+                if (!fileEntry.uiElement) {
+                    console.error(`FATAL: Could not find UI element for fileId ${safeFileEntryId} immediately after insertion.`);
+                    updateFileStatusUI(fileEntry, 'error', 'UI元素创建失败');
+                    return;
+                }
+
+                const deleteBtn = fileEntry.uiElement.querySelector('.delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', () => handleDeleteFile(fileEntry.id));
+                } else {
+                    console.error(`Delete button not found for fileId ${safeFileEntryId}`);
+                }
+
+                const previewBtn = fileEntry.uiElement.querySelector('.preview-btn');
+                if (previewBtn) {
+                    previewBtn.addEventListener('click', () => {
+                        if (fileEntry.status === 'completed' && fileEntry.serverFileName) {
+                            handlePreviewFile(fileEntry.serverFileName);
+                        }
+                    });
+                } else {
+                    console.error(`Preview button not found for fileId ${safeFileEntryId}`);
+                }
+
+                const progressDiv = fileEntry.uiElement.querySelector('.file-progress');
+                if (progressDiv) {
+                    if (fileEntry.status === 'pending' || fileEntry.status === 'initiating' || fileEntry.status === 'resuming' || fileEntry.status === 'uploading') {
+                        progressDiv.style.display = 'block';
+                    } else if (fileEntry.status === 'completed') {
+                        progressDiv.style.display = 'none';
+                    }
+                }
+                if ((fileEntry.status === 'pending_resume' || fileEntry.status === 'resuming') && progressDiv && fileEntry.progress > 0) {
+                    progressDiv.style.display = 'block';
+                } else if (fileEntry.status === 'pending' && progressDiv) { // For newly added pending files, ensure progress is shown
+                    progressDiv.style.display = 'block';
+                }
+            }
+
+
+            async function initiateFileUpload(fileEntry) {
+                updateFileStatusUI(fileEntry, 'initiating', '正在初始化上传...');
+                if(fileEntry.uiElement && fileEntry.uiElement.querySelector('.file-progress')) {
+                    fileEntry.uiElement.querySelector('.file-progress').style.display = 'block';
+                }
+
+
+                try {
+                    const requestBody = {
+                        fileName: fileEntry.originalName,
+                        totalSize: fileEntry.size,
+                        contentType: fileEntry.fileObject.type
+                    };
+                    const response = await fetch('/api/attachments/initiate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+                        throw new Error(errorData.message || `初始化失败 (状态: ${response.status})`);
+                    }
+
+                    const data = await response.json();
+                    fileEntry.uploadId = data.uploadId;
+                    fileEntry.serverFileName = data.fileName;
+
+                    saveUploadStateToLocalStorage(fileEntry.clientFileId, {
+                        uploadId: fileEntry.uploadId,
+                        serverFileName: fileEntry.serverFileName,
+                        originalName: fileEntry.originalName,
+                        totalSize: fileEntry.size,
+                        totalChunks: fileEntry.totalChunks,
+                        lastModified: fileEntry.fileObject.lastModified,
+                        status: 'in_progress'
+                    });
+
+                    updateFileStatusUI(fileEntry, 'uploading', '准备上传分块...');
+                    uploadAllChunksForFile(fileEntry);
+
+                } catch (error) {
+                    console.error(`Error initiating upload for ${fileEntry.originalName}:`, error);
+                    updateFileStatusUI(fileEntry, 'error', `初始化失败: ${error.message}`);
+                    if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                }
+            }
+
+            async function uploadAllChunksForFile(fileEntry) {
+                if (fileEntry.status !== 'uploading' && fileEntry.status !== 'resuming') {
+                    updateFileStatusUI(fileEntry, fileEntry.status, `状态为 ${fileEntry.status}, 跳过上传分块。`);
+                    return;
+                }
+                // If resuming, status might be 'resuming', change to 'uploading' for the actual chunk process
+                updateFileStatusUI(fileEntry, 'uploading', `正在上传分块... (已确认: ${fileEntry.confirmedUploadedChunks.size}/${fileEntry.totalChunks})`);
+
+                for (let i = 0; i < fileEntry.totalChunks; i++) {
+                    if (fileEntry.status !== 'uploading') {
+                        console.log(`Upload stopped/cancelled for ${fileEntry.originalName} before chunk ${i}. Status: ${fileEntry.status}`);
+                        return;
+                    }
+
+                    if (fileEntry.confirmedUploadedChunks && fileEntry.confirmedUploadedChunks.has(i)) {
+                        console.log(`Skipping already confirmed chunk ${i} for ${fileEntry.originalName}`);
+                        continue;
+                    }
+
+                    const start = i * CHUNK_SIZE;
+                    const end = Math.min(start + CHUNK_SIZE, fileEntry.size);
+                    const chunk = fileEntry.fileObject.slice(start, end);
+
+                    try {
+                        await uploadSingleChunkForFile(fileEntry, chunk, i);
+                        fileEntry.confirmedUploadedChunks.add(i);
+                        fileEntry.uploadedChunksCount = fileEntry.confirmedUploadedChunks.size;
+                        const progress = Math.round((fileEntry.uploadedChunksCount / fileEntry.totalChunks) * 100);
+                        updateFileProgressUI(fileEntry, progress);
+                    } catch (error) {
+                        console.error(`Error uploading chunk ${i} for ${fileEntry.originalName}:`, error);
+                        updateFileStatusUI(fileEntry, 'error', `分块 ${i + 1} 上传失败: ${error.message}`);
+                        if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+                        const currentState = getUploadStateFromLocalStorage(fileEntry.clientFileId);
+                        if (currentState) {
+                            currentState.status = 'error';
+                            saveUploadStateToLocalStorage(fileEntry.clientFileId, currentState);
+                        }
+                        return;
+                    }
+                }
+
+                if (fileEntry.uploadedChunksCount === fileEntry.totalChunks && fileEntry.status === 'uploading') {
+                    finalizeFileUpload(fileEntry);
+                }
+            }
+
+            function uploadSingleChunkForFile(fileEntry, chunk, chunkNumber) {
+                return new Promise((resolve, reject) => {
+                    updateFileStatusUI(fileEntry, 'uploading', `正在上传分块 ${chunkNumber + 1}/${fileEntry.totalChunks}...`);
+                    const formData = new FormData();
+                    formData.append('file', chunk, `${fileEntry.originalName}.part${chunkNumber}`);
+                    formData.append('chunkNumber', chunkNumber);
+                    formData.append('totalChunks', fileEntry.totalChunks);
+
+                    const xhr = new XMLHttpRequest();
+                    fileEntry.xhr = xhr;
+
+                    xhr.open('POST', '/api/attachments/upload-chunk', true);
+                    xhr.setRequestHeader('X-Upload-Id', fileEntry.uploadId);
+
+                    xhr.onload = function() {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve(xhr.responseText);
+                        } else {
+                            let errorMsg = `分块 ${chunkNumber + 1} 响应错误 (状态: ${xhr.status})。`;
+                            try {
+                                const errorData = JSON.parse(xhr.responseText);
+                                errorMsg = errorData.message || errorData.error || errorMsg;
+                            } catch (e) { errorMsg = xhr.statusText || errorMsg; }
+                            reject(new Error(errorMsg));
+                        }
+                    };
+                    xhr.onerror = function() { reject(new Error(`网络错误导致分块 ${chunkNumber + 1} 上传失败。`)); };
+                    xhr.onabort = function() { /* Status check in uploadAllChunksForFile handles this */ };
+                    xhr.send(formData);
+                });
+            }
+
+            async function finalizeFileUpload(fileEntry) {
+                updateFileStatusUI(fileEntry, 'finalizing', '正在合并文件...');
+                try {
+                    const response = await fetch(`/api/attachments/finalize/${fileEntry.uploadId}?originalFileName=${encodeURIComponent(fileEntry.originalName)}`, {
+                        method: 'POST'
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+                        throw new Error(errorData.error || errorData.message || `完成上传失败 (状态: ${response.status})`);
+                    }
+                    const data = await response.json();
+                    fileEntry.serverFileName = data.fileName;
+                    updateFileStatusUI(fileEntry, 'completed', '上传成功！');
+                    if(fileEntry.uiElement) {
+                        fileEntry.uiElement.classList.remove('upload-error');
+                        fileEntry.uiElement.classList.add('upload-success');
+                        fileEntry.uiElement.querySelector('.preview-btn').style.display = 'inline-block';
+                        const progressDiv = fileEntry.uiElement.querySelector('.file-progress');
+                        if(progressDiv) progressDiv.style.display = 'none';
+                    }
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                    prepareAttachmentsForSubmission();
+                } catch (error) {
+                    console.error(`Error finalizing upload for ${fileEntry.originalName}:`, error);
+                    updateFileStatusUI(fileEntry, 'error', `完成上传失败: ${error.message}`);
+                    if(fileEntry.uiElement) fileEntry.uiElement.classList.add('upload-error');
+                    const currentState = getUploadStateFromLocalStorage(fileEntry.clientFileId);
+                    if (currentState) {
+                        currentState.status = 'error';
+                        saveUploadStateToLocalStorage(fileEntry.clientFileId, currentState);
+                    }
+                }
+            }
+
+            function updateFileProgressUI(fileEntry, percent) {
+                if (fileEntry.uiElement) {
+                    const progressBar = fileEntry.uiElement.querySelector('.file-progress-bar');
+                    if (progressBar) {
+                        progressBar.style.width = `${percent}%`;
+                        progressBar.textContent = `${percent}%`;
+                    } else {
+                        // console.warn(`Progress bar element not found for fileId ${fileEntry.id} in updateFileProgressUI`);
+                    }
+                }
+            }
+
+            function updateFileStatusUI(fileEntry, status, message) {
+                fileEntry.status = status;
+                if (fileEntry.uiElement) {
+                    const statusElement = fileEntry.uiElement.querySelector('.file-status');
+                    const progressBarDiv = fileEntry.uiElement.querySelector('.file-progress');
+                    const progressBar = fileEntry.uiElement.querySelector('.file-progress-bar');
+
+                    if (statusElement) {
+                        statusElement.textContent = message;
+                        statusElement.className = 'file-status d-block mt-1 ';
+                        if (status === 'error') {
+                            statusElement.classList.add('text-danger');
+                            if(progressBar) progressBar.classList.add('bg-danger');
+                        } else if (status === 'completed') {
+                            statusElement.classList.add('text-success');
+                            if(progressBarDiv) progressBarDiv.style.display = 'none';
+                        } else {
+                            statusElement.classList.add('text-muted');
+                            if(progressBar) progressBar.classList.remove('bg-danger', 'bg-success');
+                            if(progressBarDiv) progressBarDiv.style.display = 'block';
+                        }
+                    } else {
+                        // console.warn(`Status element not found for fileId ${fileEntry.id} in updateFileStatusUI`);
+                    }
+                }
+            }
+
+            function handlePreviewFile(serverFileName) {
+                if (!serverFileName) return;
+                const previewUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+                window.open(previewUrl, '_blank');
+            }
+
+            async function handleDeleteFile(fileId) {
+                const fileIndex = uploadedFilesData.findIndex(f => f.id === fileId);
+                if (fileIndex === -1) return;
+                const fileEntry = uploadedFilesData[fileIndex];
+
+                if (fileEntry.xhr && (fileEntry.status === 'uploading' || fileEntry.status === 'initiating' || fileEntry.status === 'resuming')) {
+                    fileEntry.xhr.abort();
+                }
+                const oldStatus = fileEntry.status;
+                fileEntry.status = 'cancelled';
+
+                if (fileEntry.uiElement) fileEntry.uiElement.remove();
+                uploadedFilesData.splice(fileIndex, 1);
+
+                if (fileEntry.clientFileId) {
+                    removeUploadStateFromLocalStorage(fileEntry.clientFileId);
+                }
+
+                if (oldStatus === 'completed' && fileEntry.serverFileName) {
+                    try {
+                        const response = await fetch(`/api/attachments/file/${encodeURIComponent(fileEntry.serverFileName)}`, {
+                            method: 'DELETE'
+                        });
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}` }));
+                            throw new Error(errorData.message || `服务器删除失败 (状态: ${response.status})`);
+                        }
+                        showAlertOnMainPage(`附件 "${fileEntry.originalName}" 已成功从服务器删除。`, 'info');
+                    } catch (error) {
+                        showAlertOnMainPage(`删除服务器附件 "${fileEntry.originalName}" 失败: ${error.message}`, 'warning');
+                    }
+                } else if (fileEntry.uploadId && oldStatus !== 'pending' && oldStatus !== 'initiating') {
+                    console.log(`File ${fileEntry.originalName} (uploadId: ${fileEntry.uploadId}) was cancelled/deleted before completion.`);
+                }
+                prepareAttachmentsForSubmission();
+            }
+
+            function prepareAttachmentsForSubmission() {
+                if (hiddenAttachmentInputsContainer) {
+                    hiddenAttachmentInputsContainer.innerHTML = '';
+                    uploadedFilesData.forEach(fileEntry => {
+                        if (fileEntry.status === 'completed' && fileEntry.serverFileName) {
+                            const hiddenInput = document.createElement('input');
+                            hiddenInput.type = 'hidden';
+                            hiddenInput.name = 'attachmentServerFileNames';
+                            hiddenInput.value = fileEntry.serverFileName;
+                            hiddenAttachmentInputsContainer.appendChild(hiddenInput);
+                        }
+                    });
+                }
+            }
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const dm = 2;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+            }
+            // --- END: Multi-File Resumable Upload Logic ---
+
+            console.log("DEBUG: draft-contract.html 的内联脚本主要逻辑执行完毕 (v3 - resume prompt)。");
+        });
+        /*]]>*/
+    </script>
+</th:block>
+</body>
+</html>

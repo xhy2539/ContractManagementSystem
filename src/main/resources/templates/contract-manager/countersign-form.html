@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title th:text="${listTitle}">合同会签</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .navbar {
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar .brand {
+            font-size: 1.5em;
+        }
+        .navbar .user-info {
+            font-size: 0.9em;
+        }
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 15px;
+        }
+        .container {
+            padding: 20px;
+            max-width: 900px; /* 调整最大宽度以适应内容 */
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .detail-item {
+            margin-bottom: 10px;
+        }
+        .detail-item strong {
+            display: inline-block;
+            width: 120px;
+            color: #555;
+        }
+        .contract-content {
+            border: 1px solid #ddd;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            white-space: pre-wrap; /* 保留空白符和换行 */
+            word-wrap: break-word; /* 单词换行 */
+            max-height: 300px; /* 限制高度并添加滚动条 */
+            overflow-y: auto;
+        }
+        .attachment-list {
+            margin-top: 10px;
+        }
+        .attachment-list a {
+            display: block;
+            margin-bottom: 5px;
+            color: #007bff;
+            text-decoration: none;
+        }
+        .attachment-list a:hover {
+            text-decoration: underline;
+        }
+        .countersign-form {
+            margin-top: 30px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 100px;
+            box-sizing: border-box; /* 确保padding和border包含在宽度内 */
+        }
+        .form-actions {
+            text-align: right;
+        }
+        .form-actions button {
+            padding: 10px 20px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .btn-approve {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-approve:hover {
+            background-color: #218838;
+        }
+        .btn-reject {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-reject:hover {
+            background-color: #c82333;
+        }
+        .btn-back {
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+            display: inline-block;
+        }
+        .btn-back:hover {
+            background-color: #5a6268;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+
+        .comments-section {
+            margin-top: 30px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+        .comments-section h2 {
+            margin-bottom: 15px;
+        }
+        .comment-item {
+            background-color: #f0f0f0;
+            border-left: 5px solid #007bff;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .comment-item strong {
+            color: #0056b3;
+        }
+        .comment-item span.status {
+            font-weight: bold;
+            float: right;
+        }
+        .comment-item span.status.approved { color: #28a745; }
+        .comment-item span.status.rejected { color: #dc3545; }
+        .comment-item span.status.pending { color: #ffc107; }
+
+        .comment-item p {
+            margin: 5px 0;
+            font-size: 0.95em;
+        }
+        .comment-item .meta {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <div class="brand">合同管理系统</div>
+    <div class="user-info">
+        欢迎, <span sec:authentication="name">用户</span>!
+        <a th:href="@{/perform_logout}" onclick="document.getElementById('logout-form-inline').submit(); return false;">注销</a>
+        <form id="logout-form-inline" th:action="@{/perform_logout}" method="post" style="display: none;">
+        </form>
+    </div>
+</div>
+
+<div class="container">
+    <h1 th:text="${listTitle}">合同会签</h1>
+
+    <div th:if="${errorMessage}" class="alert-error">
+        <p th:text="${errorMessage}"></p>
+    </div>
+    <div th:if="${successMessage}" class="alert-success">
+        <p th:text="${successMessage}"></p>
+    </div>
+
+    <h2>合同详情</h2>
+    <div th:if="${contract}">
+        <div class="detail-item"><strong>合同编号:</strong> <span th:text="${contract.contractNumber}"></span></div>
+        <div class="detail-item"><strong>合同名称:</strong> <span th:text="${contract.contractName}"></span></div>
+        <div class="detail-item"><strong>客户名称:</strong> <span th:text="${contract.customer.customerName}"></span></div>
+        <div class="detail-item"><strong>起草人:</strong> <span th:text="${contract.drafter.username}"></span></div>
+        <div class="detail-item"><strong>起草日期:</strong> <span th:text="${#temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm')}"></span></div>
+        <div class="detail-item"><strong>开始日期:</strong> <span th:text="${#temporals.format(contract.startDate, 'yyyy-MM-dd')}"></span></div>
+        <div class="detail-item"><strong>结束日期:</strong> <span th:text="${#temporals.format(contract.endDate, 'yyyy-MM-dd')}"></span></div>
+        <div class="detail-item"><strong>当前状态:</strong> <span th:text="${contract.status.description}"></span></div>
+
+        <h3>合同内容:</h3>
+        <div class="contract-content" th:text="${contract.content}">
+        </div>
+
+        <div th:if="${!attachmentPaths.isEmpty()}" class="attachment-list">
+            <h3>附件:</h3>
+            <div th:each="path : ${attachmentPaths}">
+                <a th:href="@{'/attachments/' + ${path}}" target="_blank" th:text="${#strings.substringAfterLast(path, '/')}">附件名称</a>
+            </div>
+        </div>
+        <div th:if="${attachmentPaths.isEmpty()}">
+            <h3>附件:</h3>
+            <p>无附件</p>
+        </div>
+    </div>
+    <div th:unless="${contract}">
+        <p class="no-records">合同信息加载失败。</p>
+    </div>
+
+    <div th:if="${currentProcess != null and currentProcess.state == T(com.example.contractmanagementsystem.entity.ContractProcessState).PENDING}" class="countersign-form">
+        <h2>我的会签操作</h2>
+        <form th:action="@{/contracts/countersign/submit}" method="post">
+            <input type="hidden" name="contractProcessId" th:value="${currentProcess.id}" />
+
+            <div class="form-group">
+                <label for="comments">会签意见:</label>
+                <textarea id="comments" name="comments" placeholder="请输入会签意见..."></textarea>
+            </div>
+
+            <div class="form-actions">
+                <a th:href="@{/contracts/pending-countersign}" class="btn-back">返回列表</a>
+                <button type="submit" name="action" value="reject" class="btn-reject">拒绝</button>
+                <button type="submit" name="action" value="approve" class="btn-approve">批准</button>
+            </div>
+        </form>
+    </div>
+    <div th:if="${currentProcess == null || currentProcess.state != T(com.example.contractmanagementsystem.entity.ContractProcessState).PENDING}">
+        <p class="no-records">您已完成对此合同的会签或该合同已不处于待会签状态。</p>
+        <a th:href="@{/contracts/pending-countersign}" class="btn-back">返回列表</a>
+    </div>
+
+
+    <div class="comments-section">
+        <h2>所有会签意见</h2>
+        <div th:if="${allCountersignProcesses.isEmpty()}">
+            <p>目前没有会签意见。</p>
+        </div>
+        <div th:unless="${allCountersignProcesses.isEmpty()}">
+            <div th:each="cp : ${allCountersignProcesses}" class="comment-item">
+                <strong>会签人:</strong> <span th:text="${cp.operator.username}"></span>
+                <span th:classappend="${cp.state == T(com.example.contractmanagementsystem.entity.ContractProcessState).APPROVED} ? 'approved' : (${cp.state == T(com.example.contractmanagementsystem.entity.ContractProcessState).REJECTED} ? 'rejected' : 'pending')"
+                      th:text="${cp.state.description}" class="status">状态</span>
+                <p><strong>意见:</strong> <span th:text="${cp.comments != null and !cp.comments.isEmpty() ? cp.comments : '无'}"></span></p>
+                <div class="meta">
+                    <span th:if="${cp.processedAt != null}">处理时间: <span th:text="${#temporals.format(cp.processedAt, 'yyyy-MM-dd HH:mm')}"></span></span>
+                    <span th:unless="${cp.processedAt != null}">创建时间: <span th:text="${#temporals.format(cp.createdAt, 'yyyy-MM-dd HH:mm')}"></span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
