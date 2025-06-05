@@ -41,6 +41,8 @@ import java.security.Principal;
 import java.util.ArrayList;
 // import java.util.Collections; // 未在此控制器中直接使用，可移除
 import java.util.List;
+import java.util.Map; // 导入 Map
+import java.util.HashMap; // 导入 HashMap
 
 @Controller
 @RequestMapping("/contract-manager")
@@ -132,6 +134,12 @@ public class ContractController {
         model.addAttribute("pendingCountersigns", pendingCountersigns);
         model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
         model.addAttribute("listTitle", "待会签合同");
+        // 为了在分页链接中保留搜索条件，将搜索参数放入 Map
+        Map<String, Object> additionalParamsMap = new HashMap<>();
+        if (contractNameSearch != null && !contractNameSearch.isEmpty()) {
+            additionalParamsMap.put("contractNameSearch", contractNameSearch);
+        }
+        model.addAttribute("additionalParamsMap", additionalParamsMap); // 将Map传递给模板
         return "contract-manager/pending-countersign";
     }
 
@@ -139,6 +147,7 @@ public class ContractController {
     @PreAuthorize("hasAuthority('CON_CSIGN_VIEW') or hasAuthority('CON_CSIGN_SUBMIT')") // 允许查看或提交会签的用户访问
     public String showCountersignForm(@PathVariable Long contractProcessId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
         try {
+            // 获取并验证会签流程记录
             ContractProcess process = contractService.getContractProcessByIdAndOperator(
                     contractProcessId,
                     principal.getName(),
@@ -147,6 +156,11 @@ public class ContractController {
             );
             model.addAttribute("contractProcess", process);
             model.addAttribute("contract", process.getContract()); // 将关联的合同对象也添加到模型
+
+            // 获取所有会签意见，用于在会签页面显示
+            List<ContractProcess> allCountersignOpinions = contractService.getContractCountersignOpinions(process.getContract().getId());
+            model.addAttribute("allCountersignOpinions", allCountersignOpinions);
+
             return "contract-manager/countersign-contract";
         } catch (ResourceNotFoundException | BusinessLogicException | AccessDeniedException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "加载会签页面失败: " + e.getMessage());

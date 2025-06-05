@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title th:text="${contract?.contractName ?: '合同详情'} + ' - 合同管理系统'"></title>
+    <style layout:fragment="inline-css">
+        .contract-details-section {
+            margin-bottom: 1.5rem;
+        }
+        .contract-content-display {
+            background-color: #f8f9fa;
+            border: 1px solid #e3e6ea;
+            padding: 1rem 1.25rem;
+            border-radius: 0.375rem;
+            min-height: 150px;
+            white-space: pre-wrap; /* 保持内容中的换行和空格 */
+            font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+            overflow-x: auto; /* 如果内容过宽，允许水平滚动 */
+        }
+        .attachment-link i {
+            margin-right: 0.3rem;
+        }
+        .form-actions {
+            border-top: 1px solid #e9ecef;
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .sticky-lg-top {
+            top: calc(56px + 1.5rem); /* 调整为 Navbar 高度 + 页面顶部内边距 */
+        }
+        .dl-horizontal dt {
+            font-weight: 500;
+        }
+        .countersign-opinions-card .card-body {
+            max-height: 300px; /* 控制会签意见区域的高度 */
+            overflow-y: auto; /* 溢出时显示滚动条 */
+        }
+        .status-badge {
+            display: inline-block;
+            padding: .35em .65em;
+            font-size: .75em;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: .375rem;
+        }
+        /* 定义所有 ContractStatus 的颜色 */
+        .status-DRAFT { background-color: #6c757d; } /* 灰色 - 草稿 */
+        .status-PENDING_ASSIGNMENT { background-color: #ffc107; color: #212529; } /* 警告色（黄色），文字黑色 - 待分配 */
+        .status-PENDING_COUNTERSIGN { background-color: #0dcaf0; color: #212529; } /* 信息色（青色），文字黑色 - 待会签 */
+        .status-PENDING_FINALIZATION { background-color: #fd7e14; } /* 橙色 - 待定稿 */
+        .status-PENDING_APPROVAL { background-color: #0d6efd; } /* 主色（蓝色） - 待审批 */
+        .status-PENDING_SIGNING { background-color: #198754; } /* 成功色（绿色） - 待签订 */
+        .status-ACTIVE { background-color: #28a745; } /* 更亮的成功色 - 有效 */
+        .status-COMPLETED { background-color: #6610f2; } /* 紫色 - 完成 */
+        .status-EXPIRED { background-color: #dc3545; } /* 危险色（红色） - 过期 */
+        .status-TERMINATED { background-color: #343a40; } /* 深色（黑色） - 终止 */
+        .status-REJECTED { background-color: #e31a1a; } /* 自定义红色 - 已拒绝 */
+
+        /* 会签流程状态的特定背景色，与ContractStatus不同 */
+        .status-PENDING { background-color: #0d6efd; } /* 蓝色 */
+        .status-APPROVED { background-color: #198754; } /* 绿色 */
+        .status-REJECTED { background-color: #dc3545; } /* 红色 */
+        .status-COMPLETED { background-color: #6c757d; } /* 灰色，如果COMPLETED表示最终完成状态 */
+    </style>
+</head>
+<body>
+<section layout:fragment="content">
+    <div class="container-fluid mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">
+                <i class="bi bi-person-check-fill text-primary me-2"></i>会签合同:
+                <span th:if="${contract != null}" th:text="${contract.contractName ?: '未知合同'}" class="text-primary"></span>
+                <span th:if="${contract == null}" class="text-muted">加载中...</span>
+            </h1>
+            <a th:href="@{/contract-manager/pending-countersign}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left-circle"></i> 返回待会签列表
+            </a>
+        </div>
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i><span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div th:if="${contract == null}" class="alert alert-warning text-center py-4" role="alert">
+            <h5 class="alert-heading"><i class="bi bi-exclamation-octagon-fill me-2"></i>无法加载合同信息</h5>
+            <p class="mb-0">未能加载合同详细信息，或您没有权限访问此合同进行会签操作。</p>
+            <hr>
+            <a th:href="@{/contract-manager/pending-countersign}" class="btn btn-primary btn-sm">返回列表</a>
+        </div>
+
+
+        <form th:if="${contract != null}" th:action="@{/contract-manager/countersign/submit}" method="post">
+            <input type="hidden" name="contractProcessId" th:value="${contractProcess.id}" />
+
+            <div class="row g-4">
+                <div class="col-lg-7 col-xl-8">
+                    <div class="card shadow-sm contract-details-section">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>合同基本信息</h5>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row dl-horizontal mb-0">
+                                <dt class="col-sm-4 col-md-3 text-muted">合同编号:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.contractNumber ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">合同名称:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.contractName ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">客户名称:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.customer?.customerName ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">起草人:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.drafter?.username ?: '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">开始日期:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">结束日期:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">当前状态:</dt>
+                                <dd class="col-sm-8 col-md-9">
+                                    <span th:if="${contract.status != null}"
+                                          th:text="${contract.status.description}"
+                                          class="status-badge"
+                                          th:classappend="'status-' + ${contract.status.name()}">待会签</span>
+                                    <span th:unless="${contract.status != null}" class="text-muted">未知状态</span>
+                                </dd>
+                                <dt class="col-sm-4 col-md-3 text-muted">创建时间:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
+
+                                <dt class="col-sm-4 col-md-3 text-muted">最后更新:</dt>
+                                <dd class="col-sm-8 col-md-9" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm') : '-'}"></dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm contract-details-section">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0"><i class="bi bi-file-text-fill me-2"></i>合同主要内容</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="contract-content-display">
+                                <p th:text="${contract.content ?: '无合同内容'}"></p>
+                            </div>
+                            <div th:if="${contract.attachmentPath != null and contract.attachmentPath != '[]' and contract.attachmentPath != 'null'}" class="mt-3">
+                                <h6>合同附件:</h6>
+                                <ul class="list-unstyled">
+                                    <th:block th:with="attachments = ${#strings.isEmpty(contract.attachmentPath) ? '[]' : (contract.attachmentPath.startsWith('[') ? contract.attachmentPath : '[' + contract.attachmentPath + ']') }">
+                                        <li th:each="filename : ${#json.array(attachments)}" class="mb-1">
+                                            <a href="#"
+                                               th:onclick="'event.preventDefault(); showAttachmentDialog(\'' + ${filename} + '\');'"
+                                               class="attachment-link btn btn-sm btn-outline-info">
+                                                <i class="bi bi-file-earmark-arrow-down-fill"></i> <span th:text="${filename}">附件名称</span>
+                                            </a>
+                                        </li>
+                                    </th:block>
+                                </ul>
+                            </div>
+                            <div th:unless="${contract.attachmentPath != null and contract.attachmentPath != '[]' and contract.attachmentPath != 'null'}" class="mt-3 text-muted">
+                                <p>无合同附件。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-5 col-xl-4">
+                    <div class="card shadow-sm sticky-lg-top">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="bi bi-pencil-square me-2"></i>会签操作</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted mb-3">
+                                请在此处填写您的会签意见并决定是否通过此合同的会签。
+                            </p>
+                            <div class="mb-3">
+                                <label class="form-label">会签决定:</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="decision" id="approveDecision" value="APPROVED" required>
+                                    <label class="form-check-label" for="approveDecision">
+                                        <span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> 通过会签</span>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="decision" id="rejectDecision" value="REJECTED">
+                                    <label class="form-check-label" for="rejectDecision">
+                                        <span class="text-danger fw-bold"><i class="bi bi-x-circle-fill me-1"></i> 拒绝会签</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="comments" class="form-label">会签意见:</label>
+                                <textarea class="form-control form-control-sm" id="comments" name="comments" rows="5" placeholder="请填写您的会签意见"></textarea>
+                            </div>
+
+                            <div class="form-actions text-end mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg"
+                                        sec:authorize="hasAuthority('CON_CSIGN_SUBMIT')"
+                                        onclick="return confirmSubmission();">
+                                    <i class="bi bi-send-fill"></i> 提交会签
+                                </button>
+                                <a th:href="@{/contract-manager/pending-countersign}" class="btn btn-secondary ms-2">
+                                    <i class="bi bi-x-circle"></i> 取消
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mt-4 countersign-opinions-card" th:if="${allCountersignOpinions != null and not #lists.isEmpty(allCountersignOpinions)}">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="bi bi-chat-left-text-fill me-2"></i>所有会签意见</h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item" th:each="opinion : ${allCountersignOpinions}">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">
+                                            <span th:text="${opinion.operatorUsername ?: '匿名用户'}"></span>
+                                            <span th:text="${(opinion.operator?.realName != null and opinion.operator.realName.trim() != '') ? '(' + opinion.operator.realName + ')' : ''}" class="text-muted small"></span>
+                                        </h6>
+                                        <small class="text-muted" th:text="${opinion.processedAt != null ? #temporals.format(opinion.processedAt, 'yyyy-MM-dd HH:mm') : '未处理'}"></small>
+                                    </div>
+                                    <p class="mb-1 small" th:text="${opinion.comments ?: '(无具体意见)'}"></p>
+                                    <small th:text="${opinion.state?.description ?: '未知状态'}"
+                                           th:classappend="${(opinion.state?.name() == 'APPROVED' or opinion.state?.name() == 'COMPLETED') ? 'text-success fw-bold' : (opinion.state?.name() == 'REJECTED' ? 'text-danger fw-bold' : 'text-muted')}">
+                                    </small>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/utils.js}"></script>
+    <script th:inline="javascript">
+        // 确保showAlert在页脚脚本加载后可用
+        if (typeof showAlert === 'undefined') {
+            window.showAlert = function(message, type = 'info') {
+                alert(`${type.toUpperCase()}: ${message}`);
+            };
+        }
+
+        function confirmSubmission() {
+            const decisionRadios = document.querySelectorAll('input[name="decision"]');
+            let decisionMade = false;
+            let selectedDecision = '';
+            for (const radio of decisionRadios) {
+                if (radio.checked) {
+                    decisionMade = true;
+                    selectedDecision = radio.value;
+                    break;
+                }
+            }
+
+            if (!decisionMade) {
+                showAlert('请选择您的会签决定：通过或拒绝。', 'warning');
+                return false;
+            }
+
+            const commentsInput = document.getElementById('comments');
+            if (selectedDecision === 'REJECTED' && commentsInput.value.trim() === '') {
+                showAlert('拒绝会签时必须填写意见。', 'warning');
+                commentsInput.focus();
+                return false;
+            }
+
+            const confirmationMessage = `您确定要提交会签决定：${selectedDecision === 'APPROVED' ? '通过' : '拒绝'} 吗？`;
+            return confirm(confirmationMessage);
+        }
+
+        // 全局函数用于处理附件下载，从JSON字符串中提取第一个文件名并下载
+        function showAttachmentDialog(filename) {
+            console.log("尝试打开附件：", filename);
+            if (!filename) {
+                showAlert('附件文件名无效。', 'info');
+                return;
+            }
+            const downloadUrl = '/api/attachments/download/' + encodeURIComponent(filename);
+            window.open(downloadUrl, '_blank');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // 自动关闭提示消息
+            var alertList = document.querySelectorAll('.alert-dismissible');
+            alertList.forEach(function (alertNode) {
+                new bootstrap.Alert(alertNode); // 初始化Bootstrap的Alert组件
+                setTimeout(() => {
+                    const alertInstance = bootstrap.Alert.getInstance(alertNode);
+                    if (alertInstance) {
+                        alertInstance.close();
+                    }
+                }, 7000); // 7秒后自动关闭
+            });
+
+            // 如果是拒绝，则意见框必须填写
+            const rejectRadio = document.getElementById('rejectDecision');
+            const commentsTextArea = document.getElementById('comments');
+
+            if (rejectRadio) {
+                rejectRadio.addEventListener('change', function() {
+                    if (this.checked) {
+                        commentsTextArea.setAttribute('required', 'required');
+                        commentsTextArea.placeholder = '请填写您的拒绝理由。';
+                    } else {
+                        commentsTextArea.removeAttribute('required');
+                        commentsTextArea.placeholder = '请填写您的会签意见';
+                    }
+                });
+            }
+            const approveRadio = document.getElementById('approveDecision');
+            if (approveRadio) {
+                approveRadio.addEventListener('change', function() {
+                    if (this.checked) {
+                        commentsTextArea.removeAttribute('required');
+                        commentsTextArea.placeholder = '请填写您的会签意见';
+                    }
+                });
+            }
+            // 页面加载时检查一次，以防通过后台跳转直接进入此页面且有预选状态
+            if (rejectRadio && rejectRadio.checked) {
+                commentsTextArea.setAttribute('required', 'required');
+                commentsTextArea.placeholder = '请填写您的拒绝理由。';
+            } else if (approveRadio && approveRadio.checked) {
+                commentsTextArea.removeAttribute('required');
+                commentsTextArea.placeholder = '请填写您的会签意见';
+            }
+        });
+    </script>
+</th:block>
+</body>
+</html>

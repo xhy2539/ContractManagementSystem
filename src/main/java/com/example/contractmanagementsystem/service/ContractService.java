@@ -189,7 +189,14 @@ public interface ContractService {
      */
     Contract finalizeContract(Long contractId, String finalizationComments, List<String> attachmentServerFileNames, String updatedContent, String username) throws IOException, AccessDeniedException;
 
-    // 新增会签处理方法声明 (如果之前没有)
+    /**
+     * 处理会签操作。
+     * @param contractProcessId 会签流程记录ID。
+     * @param comments 会签意见。
+     * @param username 执行会签操作的用户名。
+     * @param isApproved 会签是否通过 (true为通过，false为拒绝)。
+     * @throws AccessDeniedException 如果用户无权执行此操作。
+     */
     void processCountersign(Long contractProcessId, String comments, String username, boolean isApproved) throws AccessDeniedException;
 
 
