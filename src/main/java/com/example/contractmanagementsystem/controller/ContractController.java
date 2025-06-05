@@ -40,9 +40,7 @@ import java.io.IOException;
 import java.security.Principal;
 import java.util.ArrayList;
 // import java.util.Collections; // 未在此控制器中直接使用，可移除
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 @Controller
 @RequestMapping("/contract-manager")
@@ -137,7 +135,26 @@ public class ContractController {
         return "contract-manager/pending-countersign";
     }
 
-    @PostMapping("/contract-manager/countersign-form")
+    @GetMapping("/countersign/{contractProcessId}")
+    @PreAuthorize("hasAuthority('CON_CSIGN_VIEW') or hasAuthority('CON_CSIGN_SUBMIT')") // 允许查看或提交会签的用户访问
+    public String showCountersignForm(@PathVariable Long contractProcessId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
+        try {
+            ContractProcess process = contractService.getContractProcessByIdAndOperator(
+                    contractProcessId,
+                    principal.getName(),
+                    ContractProcessType.COUNTERSIGN,
+                    ContractProcessState.PENDING
+            );
+            model.addAttribute("contractProcess", process);
+            model.addAttribute("contract", process.getContract()); // 将关联的合同对象也添加到模型
+            return "contract-manager/countersign-contract";
+        } catch (ResourceNotFoundException | BusinessLogicException | AccessDeniedException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "加载会签页面失败: " + e.getMessage());
+            return "redirect:/contract-manager/pending-countersign";
+        }
+    }
+
+    @PostMapping("/countersign/submit")
     @PreAuthorize("hasAuthority('CON_CSIGN_SUBMIT')") // 仅允许拥有 "CON_CSIGN_SUBMIT" 权限的用户提交
     public String processCountersignAction(
             @RequestParam Long contractProcessId,
