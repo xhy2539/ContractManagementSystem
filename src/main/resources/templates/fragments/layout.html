@@ -81,7 +81,7 @@
                        aria-current="page" th:href="@{/dashboard}"><i class="bi bi-house-door-fill"></i> 仪表盘</a>
                 </li>
                 <li class="nav-item dropdown" sec:authorize="hasRole('ROLE_ADMIN')">
-                    <a class="nav-link dropdown-toggle" href="#" id="adminMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle" href="#" id="adminMenuDropdown" role="button" aria-expanded="false">
                         <i class="bi bi-gear-fill"></i> 系统管理
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="adminMenuDropdown">
@@ -96,7 +96,7 @@
 
             <ul class="navbar-nav ms-auto mb-2 mb-md-0" sec:authorize="isAuthenticated()">
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" aria-expanded="false">
                         <i class="bi bi-person-circle"></i> <span sec:authentication="name">User</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="userDropdown">
@@ -138,6 +138,45 @@
 
 <th:block layout:fragment="scripts">
 </th:block>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined' && typeof bootstrap.Dropdown !== 'undefined') {
+            console.log('Bootstrap 5 JS (bootstrap.bundle.min.js) 成功加载并可用。');
+
+            // --- 新增代码：手动初始化所有下拉菜单并强制绑定点击事件 ---
+            // 延迟一小段时间，确保所有 DOM 元素都已完全渲染
+            setTimeout(function() {
+                // 获取所有下拉菜单触发元素
+                const dropdownToggleElements = document.querySelectorAll('.nav-link.dropdown-toggle');
+
+                dropdownToggleElements.forEach(function (dropdownToggleEl) {
+                    try {
+                        // 确保元素存在且未被 Bootstrap 自动初始化
+                        if (dropdownToggleEl && !bootstrap.Dropdown.getInstance(dropdownToggleEl)) {
+                            const dropdown = new bootstrap.Dropdown(dropdownToggleEl);
+                            console.log('手动初始化 Bootstrap Dropdown:', dropdownToggleEl.id || dropdownToggleEl.className);
+
+                            // 明确绑定点击事件，并阻止事件冒泡，防止外部脚本干扰
+                            dropdownToggleEl.addEventListener('click', function(event) {
+                                event.preventDefault(); // 阻止默认的链接跳转行为
+                                event.stopPropagation(); // 阻止事件冒泡，防止其他脚本捕获并干扰
+                                dropdown.toggle(); // 调用 Bootstrap 下拉菜单的切换方法
+                                console.log('Dropdown toggle attempted for:', this.id || this.className, 'Expanded:', this.getAttribute('aria-expanded'));
+                            });
+                        }
+                    } catch (e) {
+                        console.error('初始化下拉菜单失败:', dropdownToggleEl.id || dropdownToggleEl.className, e);
+                    }
+                });
+            }, 200); // 延迟 200 毫秒，确保更稳定
+
+        } else {
+            console.error('错误: Bootstrap 5 JS 未加载或不可用。下拉菜单和其他组件可能无法工作。');
+            console.trace(); // 打印调用堆栈，帮助诊断为何未加载
+        }
+    });
+</script>
 
 </body>
 </html>

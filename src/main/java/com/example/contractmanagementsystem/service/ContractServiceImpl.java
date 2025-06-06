@@ -356,7 +356,7 @@ public class ContractServiceImpl implements ContractService {
                 }
             }
 
-            // Non-admin users can only see contracts they drafted or are involved in a process for
+            // 非管理员用户只能看到他们起草的合同或参与了流程的合同
             if (!isAdmin && StringUtils.hasText(currentUsername)) {
                 User currentUser = userRepository.findByUsername(currentUsername)
                         .orElse(null);
@@ -364,7 +364,7 @@ public class ContractServiceImpl implements ContractService {
                 if (currentUser != null) {
                     Predicate isDrafter = criteriaBuilder.equal(root.get("drafter"), currentUser); //
 
-                    // Subquery: check if user is involved in any contract process (countersign, approval, signing, finalization)
+                    // 子查询：检查用户是否参与了任何合同流程（会签、审批、签订、定稿、延期请求）
                     Subquery<Long> subquery = query.subquery(Long.class);
                     Root<ContractProcess> contractProcessRoot = subquery.from(ContractProcess.class); //
                     subquery.select(contractProcessRoot.get("contract").get("id")); //
@@ -384,20 +384,20 @@ public class ContractServiceImpl implements ContractService {
                 }
             }
 
-            // Ensure Eager Fetch for main query to avoid N+1 issues
-            // Only fetch if query result type is Contract.class, to avoid affecting count queries
+            // 确保 Eager Fetch for main query to avoid N+1 issues
+            // 仅在查询结果类型是 Contract.class 时进行 Fetch Join，以避免影响 count 查询
             if (query.getResultType().equals(Contract.class)) { //
                 root.fetch("customer", JoinType.LEFT); //
                 root.fetch("drafter", JoinType.LEFT); //
             }
 
-            query.distinct(true); // Avoid duplicate rows due to JOIN
+            query.distinct(true); // 避免 JOIN 导致的重复行
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
 
         Page<Contract> contractsPage = contractRepository.findAll(spec, pageable); //
 
-        // Explicitly initialize lazy-loaded collections to ensure data availability for DTO conversion or Thymeleaf rendering
+        // 显式初始化懒加载的集合，以确保数据在 DTO 转换或 Thymeleaf 渲染时可用
         contractsPage.getContent().forEach(contract -> {
             Hibernate.initialize(contract.getCustomer()); //
             User drafter = contract.getDrafter(); //
@@ -429,7 +429,7 @@ public class ContractServiceImpl implements ContractService {
 
             Join<ContractProcess, Contract> contractJoin = root.join("contract", JoinType.INNER); //
 
-            // Ensure contract's own status matches process type for data consistency
+            // 确保合同自身的业务状态与流程类型匹配，以保持数据一致性
             switch (type) {
                 case COUNTERSIGN: //
                     predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_COUNTERSIGN)); //
@@ -440,7 +440,7 @@ public class ContractServiceImpl implements ContractService {
                 case SIGNING: //
                     predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_SIGNING)); //
                     break;
-                case FINALIZE: // Finalization process, usually completed by drafter, contract status is PENDING_FINALIZATION
+                case FINALIZE: // 定稿流程，通常由起草人完成，合同状态是 PENDING_FINALIZATION
                     predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_FINALIZATION)); //
                     break;
                 case EXTENSION_REQUEST: // 新增：延期请求
@@ -451,7 +451,7 @@ public class ContractServiceImpl implements ContractService {
                     ));
                     break;
                 default:
-                    // For other unhandled types, no additional status restrictions, or throw exception
+                    // 对于其他未处理的类型，没有额外的状态限制，或者可以抛出异常
                     break;
             }
 
@@ -459,7 +459,7 @@ public class ContractServiceImpl implements ContractService {
                 predicates.add(cb.like(cb.lower(contractJoin.get("contractName")), "%" + contractNameSearch.toLowerCase().trim() + "%"));
             }
 
-            // Eager Fetch in main query to avoid N+1 query issues
+            // 在主查询中进行 Eager Fetch，以避免 N+1 查询问题
             if (query.getResultType().equals(ContractProcess.class)) { //
                 root.fetch("operator", JoinType.LEFT); // Fetch operator User
                 Fetch<ContractProcess, Contract> contractFetch = root.fetch("contract", JoinType.LEFT); // Fetch associated Contract
@@ -471,7 +471,7 @@ public class ContractServiceImpl implements ContractService {
         };
         Page<ContractProcess> resultPage = contractProcessRepository.findAll(spec, pageable); //
 
-        // Explicitly initialize lazy-loaded collections (even if fetch should have handled most)
+        // 显式初始化懒加载的集合 (即使 fetch 已经处理了大部分，以防万一)
         resultPage.getContent().forEach(process -> {
             Hibernate.initialize(process.getOperator()); //
             User operator = process.getOperator(); //

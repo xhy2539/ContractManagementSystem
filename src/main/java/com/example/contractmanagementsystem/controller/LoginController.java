@@ -61,13 +61,14 @@ public class LoginController {
                     // 实际应用中，您可能需要记录更详细的日志或向用户显示一个不显眼的警告
                 }
 
-                List<ContractProcess> pendingTasks = contractService.getAllPendingTasksForUser(username);
-                model.addAttribute("pendingTasks", pendingTasks);
-
                 // 获取当前用户是否为管理员
                 Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
                 boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
                         .anyMatch(ga -> ga.getAuthority().equals("ROLE_ADMIN"));
+
+                // 获取当前用户的所有待处理任务
+                List<ContractProcess> pendingTasks = contractService.getAllPendingTasksForUser(username);
+                model.addAttribute("pendingTasks", pendingTasks);
 
                 Map<String, Object> systemStats = new HashMap<>();
                 // 传递 username 和 isAdmin 参数以过滤统计结果
