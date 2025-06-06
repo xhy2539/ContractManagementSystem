@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate; // Import LocalDate
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -310,12 +311,15 @@ public interface ContractService {
     List<ContractProcess> getContractProcessHistory(Long contractId);
 
     /**
-     * 统计所有流程中合同的数量。
-     * 流程中合同包括：PENDING_ASSIGNMENT, PENDING_COUNTERSIGN, PENDING_APPROVAL, PENDING_SIGNING, PENDING_FINALIZATION。
-     * 会根据用户权限（是否为管理员）进行过滤。
-     * @param username 当前用户的用户名。
-     * @param isAdmin 是否为管理员。
-     * @return 流程中合同的数量。
+     * 延期合同的到期日期。
+     * @param contractId 要延期的合同ID。
+     * @param newEndDate 新的到期日期。
+     * @param reason 延期原因。
+     * @param username 执行延期操作的用户名。
+     * @return 更新后的合同实体。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果业务逻辑不允许延期（如新日期早于旧日期，或合同状态不允许）。
+     * @throws org.springframework.security.access.AccessDeniedException 如果用户没有延期权限。
      */
-    long countInProcessContracts(String username, boolean isAdmin);
+    Contract extendContract(Long contractId, LocalDate newEndDate, String reason, String username);
 }

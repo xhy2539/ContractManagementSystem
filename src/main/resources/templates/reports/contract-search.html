@@ -90,6 +90,22 @@
 
 <th:block layout:fragment="scripts">
     <script th:inline="javascript">
+        // 从后端 Model 中获取 JSON 权限字符串，并安全解析
+        const currentUserAuthoritiesJson = /*[[${currentUserAuthoritiesJson}]]*/ '[]';
+        let currentUserAuthorities = [];
+        try {
+            currentUserAuthorities = JSON.parse(currentUserAuthoritiesJson);
+        } catch (e) {
+            console.error("Error parsing currentUserAuthoritiesJson:", e);
+            // 兜底方案，如果解析失败，确保 currentUserAuthorities 是一个空数组
+            currentUserAuthorities = [];
+        }
+
+        const canExtendContract = currentUserAuthorities.includes('CON_EXTEND');
+
+        console.log("DEBUG: currentUserAuthorities (parsed):", currentUserAuthorities);
+        console.log("DEBUG: canExtendContract:", canExtendContract);
+
         // 状态中文名称映射
         const statusLabels = {
             'DRAFT': '起草',
@@ -102,41 +118,36 @@
             'COMPLETED': '完成',
             'EXPIRED': '过期',
             'TERMINATED': '终止',
-            'REJECTED': '已拒绝' // 确保所有状态都有映射
+            'REJECTED': '已拒绝'
         };
 
         // 格式化日期函数
         function formatDate(dateString) {
-            if (!dateString) { // 处理 null 或 undefined
+            if (!dateString) {
                 return 'N/A';
             }
             const date = new Date(dateString);
-            // 检查日期是否有效
             if (isNaN(date.getTime())) {
                 return 'Invalid Date';
             }
-            // 如果后端返回的是 LocalDate (如 YYYY-MM-DD)，直接使用 toLocaleDateString 可能因时区问题导致日期偏差
-            // 更可靠的方式是，如果确定后端返回的是 'YYYY-MM-DD' 格式，可以手动处理或使用库
-            // 对于 LocalDateTime 或 Instant，toLocaleDateString 通常是安全的
-            // 为简化，这里仍然使用 toLocaleDateString，但要注意潜在的时区问题
-            return date.toLocaleDateString('zh-CN'); // 使用中文区域设置
+            return date.toLocaleDateString('zh-CN');
         }
 
+        let extendContractModalInstance; // 模态框实例声明
 
-        // 合同查询相关函数
         async function searchContracts(page = 1) {
+            console.log("DEBUG: searchContracts called for page:", page);
             const formData = new FormData(document.getElementById('contractSearchForm'));
             const searchParams = new URLSearchParams();
             formData.forEach((value, key) => {
                 if (value) searchParams.append(key, value);
             });
-            searchParams.append('page', page - 1); // Spring Boot 分页从0开始
-            searchParams.append('size', 10); // 假设每页10条
+            searchParams.append('page', page - 1);
+            searchParams.append('size', 10);
 
             try {
-                // 注意：API端点是 /reports/api/contracts/search
                 const response = await fetch(`/reports/api/contracts/search?${searchParams.toString()}`);
-                if (!response.ok) { // 检查HTTP状态码
+                if (!response.ok) {
                     let errorMsg = `查询失败，服务器状态: ${response.status}`;
                     try {
                         const errorData = await response.json();
@@ -145,37 +156,63 @@
                     throw new Error(errorMsg);
                 }
                 const data = await response.json();
+                console.log("DEBUG: Contracts data received:", data.content);
                 renderContractTable(data.content);
                 renderPagination(data);
             } catch (error) {
                 console.error('查询失败:', error);
-                document.getElementById('contractTableBody').innerHTML = `<tr><td colspan="7" class="text-center text-danger">查询失败: ${error.message}</td></tr>`;
-                document.getElementById('pagination').innerHTML = ''; // 清空分页
-                // alert('查询失败，请稍后重试: ' + error.message); // 可以用更友好的方式提示用户
+                const tbody = document.getElementById('contractTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">查询失败: ${error.message}</td></tr>`;
+                }
+                const pagination = document.getElementById('pagination');
+                if (pagination) {
+                    pagination.innerHTML = '';
+                }
             }
         }
 
         function renderContractTable(contracts) {
             const tbody = document.getElementById('contractTableBody');
+            if (!tbody) {
+                console.error("ERROR: contractTableBody element not found during rendering.");
+                return;
+            }
+            console.log("DEBUG: Rendering contract table with contracts:", contracts);
+
             if (!contracts || contracts.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" class="text-center">未找到符合条件的合同。</td></tr>';
                 return;
             }
 
             tbody.innerHTML = contracts.map(contract => {
-                // 安全地访问嵌套属性，并提供默认值
                 const contractNumber = contract.contractNumber || 'N/A';
                 const contractName = contract.contractName || 'N/A';
-                // customer 对象可能为 null，其 customerName 属性也可能为 null
                 const customerName = contract.customer && contract.customer.customerName ? contract.customer.customerName : 'N/A';
-
-                // 后端返回的 startDate 和 endDate 是 LocalDate 类型，格式通常是 "YYYY-MM-DD"
-                // signingDate 和 expirationDate 在您的实体 Contract.java 中是 startDate 和 endDate
                 const signingDate = formatDate(contract.startDate);
                 const expirationDate = formatDate(contract.endDate);
-
                 const statusDisplay = statusLabels[contract.status] || contract.status || 'N/A';
                 const contractId = contract.id;
+
+                let extendButtonHtml = '';
+                if (contract.status === 'ACTIVE') {
+                    if (canExtendContract) {
+                        extendButtonHtml = `
+                            <button class="btn btn-sm btn-warning extend-contract-btn"
+                                    data-contract-id="${contractId}"
+                                    data-contract-name="${contractName}"
+                                    data-contract-number="${contractNumber}"
+                                    data-current-end-date="${contract.endDate}">
+                                延期
+                            </button>`;
+                    } else {
+                        extendButtonHtml = `
+                            <button class="btn btn-sm btn-warning" disabled title="您没有延期权限，请联系管理员。">
+                                延期
+                            </button>`;
+                    }
+                }
+
 
                 return `
                     <tr>
@@ -189,50 +226,94 @@
                             <button class="btn btn-sm btn-primary" onclick="viewContract(${contractId})">
                                 查看详情
                             </button>
+                            ${extendButtonHtml}
                         </td>
                     </tr>
                 `;
             }).join('');
+
+            // 为“延期”按钮添加事件监听器 (只对实际生成的按钮有效)
+            document.querySelectorAll('.extend-contract-btn').forEach(button => {
+                // 移除 data-bs-toggle="modal" 属性，由 JS 手动控制模态框显示，避免冲突
+                button.removeAttribute('data-bs-toggle');
+                button.removeAttribute('data-bs-target');
+
+                button.addEventListener('click', function() {
+                    console.log("DEBUG: Extend button clicked. Checking permissions...");
+                    if (!canExtendContract) {
+                        alert('权限不足，您没有执行延期操作的权限，请联系管理员。');
+                        return;
+                    }
+
+                    // 填充模态框数据
+                    const extendContractId = document.getElementById('extendContractId');
+                    const extendContractName = document.getElementById('extendContractName');
+                    const extendContractNumber = document.getElementById('extendContractNumber');
+                    const currentEndDateSpan = document.getElementById('currentEndDate');
+                    const newEndDateInput = document.getElementById('newEndDate');
+                    const extensionReasonTextarea = document.getElementById('extensionReason');
+
+                    if (extendContractId) extendContractId.value = this.dataset.contractId; else console.error("ERROR: extendContractId not found.");
+                    if (extendContractName) extendContractName.textContent = this.dataset.contractName; else console.error("ERROR: extendContractName not found.");
+                    if (extendContractNumber) extendContractNumber.textContent = this.dataset.contractNumber; else console.error("ERROR: extendContractNumber not found.");
+                    if (currentEndDateSpan) currentEndDateSpan.textContent = formatDate(this.dataset.currentEndDate); else console.error("ERROR: currentEndDateSpan not found.");
+
+                    if (newEndDateInput) {
+                        const currentEndDate = new Date(this.dataset.currentEndDate);
+                        const nextDay = new Date(currentEndDate);
+                        nextDay.setDate(currentEndDate.getDate() + 1);
+                        newEndDateInput.min = nextDay.toISOString().split('T')[0];
+                        newEndDateInput.value = '';
+                    } else console.error("ERROR: newEndDateInput not found.");
+                    if (extensionReasonTextarea) extensionReasonTextarea.value = ''; else console.error("ERROR: extensionReasonTextarea not found.");
+
+                    // 显示模态框
+                    if (extendContractModalInstance) {
+                        console.log("DEBUG: Showing extendContractModalInstance.");
+                        extendContractModalInstance.show();
+                    } else {
+                        console.error("ERROR: extendContractModalInstance is null. Modal not initialized.");
+                        alert('系统错误：延期模态框组件未能正常加载，请联系管理员。');
+                    }
+                });
+            });
         }
 
         function renderPagination(pageData) {
             const pagination = document.getElementById('pagination');
+            if (!pagination) return;
+
             if (!pageData || pageData.totalPages === undefined) {
-                pagination.innerHTML = ''; // 如果没有分页数据，清空
+                pagination.innerHTML = '';
                 return;
             }
 
             const totalPages = pageData.totalPages;
-            const currentPage = pageData.number + 1; // pageData.number 是从0开始的
+            const currentPage = pageData.number + 1;
 
             if (totalPages <= 1) {
-                pagination.innerHTML = ''; // 如果只有一页或没有页，不显示分页
+                pagination.innerHTML = '';
                 return;
             }
 
             let paginationHtml = '';
-
-            // 上一页
             paginationHtml += `
                 <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="event.preventDefault(); if(${currentPage !== 1}) searchContracts(${currentPage - 1});">&laquo;</a>
                 </li>
             `;
 
-            // 页码 (可以实现更复杂的页码显示逻辑，例如省略号)
-            // 简化版：显示所有页码或固定数量的页码
             const maxVisiblePages = 5;
             let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
             let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
             if (endPage - startPage + 1 < maxVisiblePages && totalPages > maxVisiblePages) {
-                if (currentPage < (totalPages / 2) ) { // 偏左
+                if (currentPage < (totalPages / 2) ) {
                     endPage = Math.min(totalPages, startPage + maxVisiblePages -1);
-                } else { // 偏右
+                } else {
                     startPage = Math.max(1, endPage - maxVisiblePages + 1);
                 }
             }
-
 
             if (startPage > 1) {
                 paginationHtml += `<li class="page-item"><a class="page-link" href="#" onclick="event.preventDefault(); searchContracts(1);">1</a></li>`;
@@ -256,8 +337,6 @@
                 paginationHtml += `<li class="page-item"><a class="page-link" href="#" onclick="event.preventDefault(); searchContracts(${totalPages});">${totalPages}</a></li>`;
             }
 
-
-            // 下一页
             paginationHtml += `
                 <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="event.preventDefault(); if(${currentPage !== totalPages}) searchContracts(${currentPage + 1});">&raquo;</a>
@@ -271,25 +350,96 @@
             if (contractId) {
                 window.location.href = `/contracts/${contractId}/detail`;
             } else {
-                console.error("无效的合同ID: ", contractId);
-                alert("无法查看详情：合同ID无效。");
+                console.error("Invalid contract ID: ", contractId);
+                alert("Cannot view details: Invalid contract ID.");
             }
         }
 
-        // 页面加载完成后的初始化
+        const extendContractForm = document.getElementById('extendContractForm');
+        if (extendContractForm) {
+            extendContractForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const contractId = document.getElementById('extendContractId').value;
+                const newEndDate = document.getElementById('newEndDate').value;
+                const extensionReason = document.getElementById('extensionReason').value;
+
+                if (!newEndDate || !extensionReason) {
+                    alert('请填写新的到期日期和延期原因。');
+                    return;
+                }
+
+                const currentEndDateStr = document.getElementById('currentEndDate').textContent;
+                const currentEndDateObj = new Date(currentEndDateStr);
+                const newEndDateObj = new Date(newEndDate);
+
+                if (newEndDateObj <= currentEndDateObj) {
+                    alert('新的到期日期必须晚于当前到期日期。');
+                    return;
+                }
+
+                const submitButton = document.getElementById('submitExtensionBtn');
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 提交中...';
+                }
+
+                try {
+                    const response = await fetch(`/api/contracts/${contractId}/extend`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ newEndDate: newEndDate, reason: extensionReason })
+                    });
+
+                    if (response.ok) {
+                        alert('合同延期成功！');
+                        if (extendContractModalInstance) {
+                            extendContractModalInstance.hide();
+                        }
+                        searchContracts();
+                    } else {
+                        const errorData = await response.json();
+                        if (response.status === 403) {
+                            alert('权限不足，您没有执行延期操作的权限，请联系管理员。');
+                        } else {
+                            alert('合同延期失败: ' + (errorData.message || '未知错误'));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error extending contract:', error);
+                    alert('合同延期失败: 网络错误或服务器无响应。');
+                } finally {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = '确认延期';
+                    }
+                }
+            });
+        }
+
+        // --- DOMContentLoaded 监听器 ---
         document.addEventListener('DOMContentLoaded', () => {
+            // 初始化模态框实例
+            const modalElement = document.getElementById('extendContractModal');
+            if (modalElement) {
+                extendContractModalInstance = new bootstrap.Modal(modalElement);
+                console.log("DEBUG: extendContractModalInstance initialized successfully.");
+            } else {
+                console.error("ERROR: extendContractModal element not found for Bootstrap Modal initialization. Check fragments/layout.html or Thymeleaf processing.");
+                alert("系统错误：延期模态框组件未能正常加载，请联系管理员。");
+            }
+
             const searchForm = document.getElementById('contractSearchForm');
             if (searchForm) {
                 searchForm.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    searchContracts(1); // 提交表单时总是从第一页开始搜索
+                    searchContracts(1);
                 });
                 searchForm.addEventListener('reset', () => {
-                    // 重置表单后，也应该重新加载第一页的默认数据
                     setTimeout(() => searchContracts(1), 0);
                 });
             }
-            // 加载初始数据
             searchContracts(1);
         });
     </script>
