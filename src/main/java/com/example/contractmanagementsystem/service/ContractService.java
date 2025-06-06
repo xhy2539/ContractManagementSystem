@@ -200,25 +200,49 @@ public interface ContractService {
     void processCountersign(Long contractProcessId, String comments, String username, boolean isApproved) throws AccessDeniedException;
 
 
-    // --- 新增：为仪表盘统计信息添加方法声明 ---
+    // --- 仪表盘统计信息的方法声明 ---
     /**
      * 统计当前系统中所有状态为 ACTIVE 的合同数量。
+     *
+     * @param username 当前登录用户的用户名。
+     * @param isAdmin  当前用户是否是管理员。
      * @return 有效合同的总数。
      */
-    long countActiveContracts();
+    long countActiveContracts(String username, boolean isAdmin);
 
     /**
      * 统计在未来指定天数内即将到期的有效合同数量。
-     * @param days 指定的天数（例如 30 天）。
+     *
+     * @param days     指定的天数（例如 30 天）。
+     * @param username 当前登录用户的用户名。
+     * @param isAdmin  当前用户是否是管理员。
      * @return 即将到期的有效合同数量。
      */
-    long countContractsExpiringSoon(int days);
+    long countContractsExpiringSoon(int days, String username, boolean isAdmin);
 
     /**
      * Counts the number of contracts currently pending assignment.
      * @return The count of contracts with status PENDING_ASSIGNMENT.
      */
     long countContractsPendingAssignment();
+
+    /**
+     * 统计当前系统中所有状态为 EXPIRED 的合同数量。
+     *
+     * @param username 当前登录用户的用户名。
+     * @param isAdmin  当前用户是否是管理员。
+     * @return 已过期合同的总数。
+     */
+    long countExpiredContracts(String username, boolean isAdmin);
+
+    /**
+     * 检查所有合同的到期日期，并更新已过期合同的状态。
+     * 此方法通常由定时任务或在特定事件（如登录）时调用。
+     *
+     * @return 更新状态的合同数量。
+     */
+    int updateExpiredContractStatuses();
+
 
     /**
      * (可选) 获取指定合同的所有会签意见。
@@ -253,6 +277,7 @@ public interface ContractService {
      * @param type 流程类型（例如COUNTERSIGN）。
      * @return 该合同和类型的所有流程记录列表。
      */
+
     List<ContractProcess> getAllContractProcessesByContractAndType(Contract contract, ContractProcessType type);
 
 
@@ -262,6 +287,8 @@ public interface ContractService {
      * @param username 用户名。
      * @return 如果用户可以会签则为 true，否则为 false。
      */
+
+
     boolean canUserCountersignContract(Long contractId, String username);
 
     /**
@@ -282,4 +309,13 @@ public interface ContractService {
      */
     List<ContractProcess> getContractProcessHistory(Long contractId);
 
+    /**
+     * 统计所有流程中合同的数量。
+     * 流程中合同包括：PENDING_ASSIGNMENT, PENDING_COUNTERSIGN, PENDING_APPROVAL, PENDING_SIGNING, PENDING_FINALIZATION。
+     * 会根据用户权限（是否为管理员）进行过滤。
+     * @param username 当前用户的用户名。
+     * @param isAdmin 是否为管理员。
+     * @return 流程中合同的数量。
+     */
+    long countInProcessContracts(String username, boolean isAdmin);
 }

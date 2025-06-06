@@ -26,49 +26,49 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
     List<Contract> findByStartDateBetween(LocalDate startDate, LocalDate endDate);
     long countByDrafter(User drafter);
 
-    // 新增：按客户统计合同数量
+    // New: Count contracts by customer
     @Query("SELECT c.customer.customerName, COUNT(c) FROM Contract c GROUP BY c.customer.customerName")
     List<Object[]> findContractCountByCustomer();
 
-    // 新增：根据合同名称和编号组合查询
+    // New: Query contracts by contract name and number combined
     @Query("SELECT c FROM Contract c WHERE " +
             "(:contractName IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractName, '%'))) AND " +
             "(:contractNumber IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumber, '%')))")
     Page<Contract> findByContractNameAndNumberContaining(String contractName, String contractNumber, Pageable pageable);
 
-    // 新增：根据状态和其他条件组合查询
+    // New: Query contracts by status and other conditions combined
     @Query("SELECT c FROM Contract c WHERE " +
             "(:status IS NULL OR c.status = :status) AND " +
             "(:contractName IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractName, '%'))) AND " +
             "(:contractNumber IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumber, '%')))")
     Page<Contract> findByStatusAndOtherConditions(ContractStatus status, String contractName, String contractNumber, Pageable pageable);
 
-    // 新增：查询特定状态的合同数量
+    // New: Count contracts by status
     long countByStatus(ContractStatus status);
 
     /**
-     * 示例：一个更精确的查询待分配合同的方法（使用JPQL）
-     * 这个方法会筛选出状态为 DRAFT 或 PENDING_ASSIGNMENT，并且没有任何关联 ContractProcess 记录的合同。
-     * @param statuses 要筛选的合同状态列表
-     * @param pageable 分页参数
-     * @return 分页的合同数据
+     * Example: A more precise method for querying contracts pending assignment (using JPQL)
+     * This method filters for contracts with status DRAFT or PENDING_ASSIGNMENT that have no associated ContractProcess records.
+     * @param statuses List of contract statuses to filter by
+     * @param pageable Pagination parameters
+     * @return Paginated contract data
      */
     @Query("SELECT c FROM Contract c WHERE c.status IN :statuses AND NOT EXISTS (SELECT cp FROM ContractProcess cp WHERE cp.contract = c)")
     Page<Contract> findContractsForAssignmentByStatusAndNoProcess(List<ContractStatus> statuses, Pageable pageable);
 
     /**
-     * 示例：包含搜索条件的待分配合同查询
-     * @param statuses 状态列表
-     * @param contractNameSearch 合同名称关键词 (如果为null或空则忽略)
-     * @param contractNumberSearch 合同编号关键词 (如果为null或空则忽略)
-     * @param pageable 分页参数
-     * @return 分页的合同数据
+     * Example: Query contracts pending assignment with search filters
+     * @param statuses List of statuses
+     * @param contractNameSearch Keyword for contract name (ignored if null or empty)
+     * @param contractNumberSearch Keyword for contract number (ignored if null or empty)
+     * @param pageable Pagination parameters
+     * @return Paginated contract data
      */
     @Query("SELECT DISTINCT c FROM Contract c " +
-            "LEFT JOIN FETCH c.customer cust " +          // 预先抓取 customer
-            "LEFT JOIN FETCH c.drafter dft " +            // 预先抓取 drafter (User)
-            "LEFT JOIN FETCH dft.roles contract_drafter_roles " +  // 预先抓取 drafter 的 roles 集合
-            "LEFT JOIN FETCH contract_drafter_roles.functionalities " + // 预先抓取这些 roles 的 functionalities 集合
+            "LEFT JOIN FETCH c.customer cust " +          // Eager fetch customer
+            "LEFT JOIN FETCH c.drafter dft " +            // Eager fetch drafter (User)
+            "LEFT JOIN FETCH dft.roles contract_drafter_roles " +  // Eager fetch drafter's roles collection
+            // "LEFT JOIN FETCH contract_drafter_roles.functionalities " + // 预先抓取这些 roles 的 functionalities 集合 - 暂时注释掉，因为 Role 实体中可能缺少 functionalities 属性
             "WHERE c.status IN :statuses " +
             "AND (:contractNameSearch IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractNameSearch, '%'))) " +
             "AND (:contractNumberSearch IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumberSearch, '%'))) " +
@@ -78,9 +78,14 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
     @Query("SELECT c.status, COUNT(c) FROM Contract c GROUP BY c.status")
     List<Object[]> findContractCountByStatus();
 
-    // ⭐ 重点修改：更新后的急切加载方法
-    // 同时 FETCH JOIN `customer` 和 `drafter` (User)
+    // ⭐ Key modification: Updated eager loading method
+    // Eagerly FETCH JOIN `customer` and `drafter` (User) simultaneously
     @Query("SELECT c FROM Contract c LEFT JOIN FETCH c.customer LEFT JOIN FETCH c.drafter WHERE c.id = :id")
-    Optional<Contract> findByIdWithCustomerAndDrafter(@Param("id") Long id); // 方法名也更改为更具描述性
+    Optional<Contract> findByIdWithCustomerAndDrafter(@Param("id") Long id); // Method name also changed for more descriptive clarity
 
+    /**
+     * New: Used to find contracts of a specific status where the end date is less than or equal to a given date.
+     * Changed from findByStatusAndEndDateBeforeOrEqual to resolve ambiguity.
+     */
+    List<Contract> findByStatusAndEndDateLessThanEqual(ContractStatus status, LocalDate endDate);
 }

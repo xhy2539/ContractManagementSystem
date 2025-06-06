@@ -148,8 +148,8 @@
                         <div class="col-md-6 mb-3">
                             <label for="endDate" class="form-label">结束日期 <span class="required-asterisk">*</span></label>
                             <input type="date" class="form-control form-control-sm" id="endDate" th:field="*{endDate}" required>
-                            <div class="invalid-feedback" th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}">结束日期不能为空。</div>
-                            <div class="invalid-feedback">请选择结束日期。</div>
+                            <div class="invalid-feedback" id="endDateValidationFeedback" th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}">结束日期不能为空。</div>
+                            <div class="invalid-feedback">结束日期不可以是过去时间</div>
                         </div>
                     </div>
                 </div>
@@ -339,6 +339,11 @@
                 var customerIdClientFeedback = document.getElementById('selectedCustomerIdClientFeedback');
                 var customerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
 
+                // Get date input fields
+                const startDateField = document.getElementById('startDate');
+                const endDateField = document.getElementById('endDate');
+                const endDateValidationFeedback = document.getElementById('endDateValidationFeedback');
+
                 Array.prototype.slice.call(forms)
                     .forEach(function (form) {
                         form.addEventListener('submit', function (event) {
@@ -355,6 +360,31 @@
                                     if (customerIdClientFeedback) customerIdClientFeedback.style.display = 'none';
                                     if (customerInfoPlaceholder) customerInfoPlaceholder.classList.remove('is-invalid-placeholder');
                                 }
+
+                                // New validation for endDate not being in the past
+                                if (endDateField && endDateField.value) {
+                                    const selectedEndDate = new Date(endDateField.value);
+                                    const today = new Date();
+                                    today.setHours(0, 0, 0, 0); // Normalize today's date to midnight
+
+                                    if (selectedEndDate < today) {
+                                        endDateField.classList.add('is-invalid');
+                                        if (endDateValidationFeedback) {
+                                            endDateValidationFeedback.textContent = '结束日期不能早于今天。';
+                                            endDateValidationFeedback.style.display = 'block';
+                                        }
+                                        isFormValid = false;
+                                    } else {
+                                        endDateField.classList.remove('is-invalid');
+                                        if (endDateValidationFeedback) {
+                                            endDateValidationFeedback.textContent = '结束日期不能为空。'; // Reset to default message
+                                            // Only hide if no other Thymeleaf errors are present for endDate
+                                            if (!endDateField.dataset.thymeleafErrors) { // Custom data attribute to check for server-side errors
+                                                endDateValidationFeedback.style.display = 'none';
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
                             if (!isFormValid) {
@@ -364,6 +394,38 @@
                             form.classList.add('was-validated');
                         }, false);
                     });
+
+                // Add real-time validation for endDate when it changes
+                if (endDateField) {
+                    endDateField.addEventListener('change', function() {
+                        const selectedEndDate = new Date(this.value);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        if (selectedEndDate < today) {
+                            this.classList.add('is-invalid');
+                            if (endDateValidationFeedback) {
+                                endDateValidationFeedback.textContent = '结束日期不能早于今天。';
+                                endDateValidationFeedback.style.display = 'block';
+                            }
+                        } else {
+                            this.classList.remove('is-invalid');
+                            if (endDateValidationFeedback) {
+                                endDateValidationFeedback.textContent = '结束日期不能为空。'; // Reset to default message
+                                if (!this.dataset.thymeleafErrors) { // Check if server-side errors exist
+                                    endDateValidationFeedback.style.display = 'none';
+                                }
+                            }
+                        }
+                    });
+
+                    // Initialize data attribute to track server-side errors if any
+                    if (endDateField.classList.contains('is-invalid') && endDateValidationFeedback && endDateValidationFeedback.textContent !== '结束日期不能为空。') {
+                        endDateField.dataset.thymeleafErrors = 'true';
+                        endDateValidationFeedback.style.display = 'block';
+                    }
+                }
+
             })();
             // ... (所有客户选择和Bootstrap验证的JS代码保持不变，从上一个回答复制过来) ...
             // 客户选择相关的常量声明
@@ -596,7 +658,7 @@
             function createAndShowAlert(message, type, placeholderElement, duration = 7000) {
                 if (!placeholderElement) {
                     console.warn("Alert placeholder not found for message:", message);
-                    alert(message); // Fallback
+                    // No alert() usage as per instructions
                     return;
                 }
                 const wrapper = document.createElement('div');

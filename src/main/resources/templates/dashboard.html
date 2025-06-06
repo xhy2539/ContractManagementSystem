@@ -228,7 +228,7 @@
                     </div>
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            有效合同总数
+                            已生效合同总数
                             <span class="badge bg-primary rounded-pill">
                                 <a th:href="@{/contract-manager/view-all(status='ACTIVE')}"
                                    class="stats-badge-link text-white"
@@ -243,6 +243,26 @@
                                    class="stats-badge-link text-dark"
                                    title="点击查看即将到期的有效合同"
                                    th:text="${systemStats?.expiringSoonCount != null ? systemStats.expiringSoonCount : 'N/A'}">0</a>
+                            </span>
+                        </li>
+                        <!-- 新增：已过期合同数量 -->
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            已过期合同总数
+                            <span class="badge bg-danger rounded-pill">
+                                <a th:href="@{/contract-manager/view-all(status='EXPIRED')}"
+                                   class="stats-badge-link text-white"
+                                   title="点击查看所有已过期合同"
+                                   th:text="${systemStats?.expiredContractsCount != null ? systemStats.expiredContractsCount : 'N/A'}">0</a>
+                            </span>
+                        </li>
+                        <!-- 新增：流程中合同总数 -->
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            流程中合同总数
+                            <span class="badge bg-info rounded-pill">
+                                <a th:href="@{/reports/contract-search(status='PENDING_ASSIGNMENT,PENDING_COUNTERSIGN,PENDING_APPROVAL,PENDING_SIGNING,PENDING_FINALIZATION')}"
+                                   class="stats-badge-link text-white"
+                                   title="点击查看所有流程中合同"
+                                   th:text="${systemStats?.inProcessContractsCount != null ? systemStats.inProcessContractsCount : 'N/A'}">0</a>
                             </span>
                         </li>
                     </ul>
