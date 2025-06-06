@@ -57,7 +57,7 @@ import com.example.contractmanagementsystem.dto.PendingApprovalItemDto;
 
 
 @Controller
-@RequestMapping({"/contract-manager", "/contracts"})
+@RequestMapping({"/contract-manager", "/contracts"}) // 类级别映射，例如 /contract-manager
 public class ContractController {
 
     private static final Logger logger = LoggerFactory.getLogger(ContractController.class);
@@ -219,7 +219,8 @@ public class ContractController {
         return "contract-manager/pending-countersign";
     }
 
-    @PostMapping("/contract-manager/countersign-form")
+    // 注意：这里的 @PostMapping 路径已修改，移除了重复的 /contract-manager
+    @PostMapping("/countersign-form")
     @PreAuthorize("hasAuthority('CON_CSIGN_SUBMIT')") // 仅允许拥有 "CON_CSIGN_SUBMIT" 权限的用户提交
     public String processCountersignAction(
             @RequestParam Long contractProcessId,
@@ -227,22 +228,27 @@ public class ContractController {
             @RequestParam(required = false) String comments,
             Principal principal,
             RedirectAttributes redirectAttributes) {
+        // --- 添加的日志 ---
+        logger.info("进入 processCountersignAction 方法.");
+        logger.info("接收到参数：contractProcessId={}, decision={}, comments={}", contractProcessId, decision, comments);
+        // --- 日志结束 ---
         try {
             boolean isApproved = "APPROVED".equalsIgnoreCase(decision);
             contractService.processCountersign(contractProcessId, comments, principal.getName(), isApproved);
             redirectAttributes.addFlashAttribute("successMessage", "会签意见已成功提交。");
             return "redirect:/contract-manager/pending-countersign";
         } catch (BusinessLogicException | ResourceNotFoundException | AccessDeniedException e) {
-            // 如果发生业务逻辑、资源未找到或权限异常，重定向回会签详情页并显示错误
+            logger.error("会签操作失败，错误信息: {}", e.getMessage()); // 记录错误信息
             redirectAttributes.addFlashAttribute("errorMessage", "会签操作失败: " + e.getMessage());
-            return "redirect:/contract-manager/countersign-form/" + contractProcessId;
+            return "redirect:/contract-manager/pending-countersign";
         } catch (Exception e) {
-            // 捕获其他未知异常
+            logger.error("会签过程中发生未知系统错误。", e); // 记录未知异常及堆栈
             redirectAttributes.addFlashAttribute("errorMessage", "会签过程中发生未知系统错误。");
-            logger.error("处理会签提交未知错误", e);
             return "redirect:/contract-manager/pending-countersign";
         }
     }
+
+    // 注意：这里的 @GetMapping 路径已修改，移除了重复的 /contract-manager
     @GetMapping("/countersign-form/{contractId}") // 路径变量使用 contractId
     @PreAuthorize("hasAuthority('CON_CSIGN_VIEW')or hasAuthority('CON_CSIGN_SUBMIT')")
     public String showCountersignForm(
@@ -709,7 +715,7 @@ public class ContractController {
             List<ContractProcess> contractProcesses = contractService.getContractProcessHistory(contractId);
 
             // 按创建时间倒序排序处理记录
-            contractProcesses.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+            contractProcesses.sort((a, b) -> b.getCreatedAt().compareTo(b.getCreatedAt()));
 
             model.addAttribute("contract", contract);
             model.addAttribute("contractProcesses", contractProcesses);
