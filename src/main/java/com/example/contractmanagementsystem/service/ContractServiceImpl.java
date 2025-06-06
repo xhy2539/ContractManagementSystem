@@ -482,7 +482,7 @@ public class ContractServiceImpl implements ContractService {
             // 1. 任务状态必须是“待处理”
             finalPredicates.add(cb.equal(root.get("state"), ContractProcessState.PENDING));
 
-            // 2. 连接到 Contract 实体以过滤合同状态
+            // 2. 连接到Contract实体以过滤合同状态
             Join<ContractProcess, Contract> contractJoin = root.join("contract", JoinType.INNER);
 
             // 3. 定义与用户权限无关的基本任务条件
@@ -507,27 +507,6 @@ public class ContractServiceImpl implements ContractService {
                     cb.equal(contractJoin.get("status"), ContractStatus.PENDING_FINALIZATION),
                     cb.equal(root.get("operator"), currentUser) // 必须是当前用户操作的
             );
-
-            // 4. 将以上任务通过 OR 组合
-            Predicate userSpecificTasks = cb.or(countersignTasks, approvalTasks, signingTasks, finalizeTasks);
-            finalPredicates.add(userSpecificTasks); // 先添加用户相关的任务
-
-            // 5. 仅当用户是管理员时，添加 EXTENSION_REQUEST 任务，且不限制操作员
-            if (isAdmin) {
-                Predicate extensionRequestTasksForAdmin = cb.and(
-                        cb.equal(root.get("type"), ContractProcessType.EXTENSION_REQUEST),
-                        cb.or(cb.equal(contractJoin.get("status"), ContractStatus.ACTIVE), cb.equal(contractJoin.get("status"), ContractStatus.EXPIRED))
-                        // 这里不再限制 cb.equal(root.get("operator"), currentUser)
-                        // 因为管理员应该能看到所有待审批的延期请求
-                );
-                // 将管理员的延期请求任务与用户特定任务通过 OR 组合
-                finalPredicates.add(extensionRequestTasksForAdmin); // 直接添加到列表，最后会被 cb.and 连接
-            }
-            // 确保如果 isAdmin 为 false，则不会添加 extensionRequestTasksForAdmin
-            // 且 userSpecificTasks 已经包含了 operator = currentUser 筛选，所以对于非管理员，
-            // 最终的 Predicate 会是 cb.and(cb.equal(root.get("state"), PENDING), userSpecificTasks)
-            // 如果 isAdmin 为 true，则会是 cb.and(cb.equal(root.get("state"), PENDING), (userSpecificTasks OR extensionRequestTasksForAdmin))
-            // 实际上，这里需要一个总的 OR 条件，所以我们调整一下构建方式：
 
             List<Predicate> allOrConditions = new ArrayList<>();
             allOrConditions.add(countersignTasks);
@@ -668,17 +647,22 @@ public class ContractServiceImpl implements ContractService {
         User currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessLogicException("Current user '" + username + "' not found."));
 
+        // **修改开始：在方法内部获取 isAdmin 状态**
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        // **修改结束**
+
         if (process.getType() != ContractProcessType.EXTENSION_REQUEST && !process.getOperator().equals(currentUser)) {
             throw new AccessDeniedException("You (" + username + ") are not the designated operator for this contract process (ID: " + contractProcessId +
                     ", Operator: " + process.getOperator().getUsername() + "), no permission to operate.");
         }
         if (process.getType() == ContractProcessType.EXTENSION_REQUEST) {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            // 对于 EXTENSION_REQUEST 类型，如果用户不是管理员，抛出 AccessDeniedException
             if (!isAdmin) {
                 throw new AccessDeniedException("Only an Administrator can process Extension Requests.");
             }
+            // 如果是管理员，则允许继续执行（无需判断 operator，因为管理员可以处理任何人的请求）
         }
 
 
@@ -708,6 +692,7 @@ public class ContractServiceImpl implements ContractService {
         }
         return process;
     }
+
 
 
     @Override
@@ -1173,9 +1158,17 @@ public class ContractServiceImpl implements ContractService {
         process.setState(ContractProcessState.PENDING);
         process.setOperator(requestingUser);
         process.setOperatorUsername(username);
-        String processComments = "请求将合同到期日期从 " + contract.getEndDate() + " 延期至 " + requestedNewEndDate +
-                "。原因: " + reason + (StringUtils.hasText(comments) ? ". 附加备注: " + comments : "");
-        process.setComments(processComments);
+        // 构建comments字符串时，明确包含所有部分，即使某些部分为空
+        StringBuilder commentsBuilder = new StringBuilder();
+        commentsBuilder.append("请求将合同到期日期从 ").append(contract.getEndDate()).append(" 延期至 ").append(requestedNewEndDate).append("。");
+        commentsBuilder.append("原因: ").append(StringUtils.hasText(reason) ? reason : "无").append(".");
+        if (StringUtils.hasText(comments)) {
+            commentsBuilder.append(" 附加备注: ").append(comments).append(".");
+        } else {
+            commentsBuilder.append(" 附加备注: ").append("无。"); // 确保始终有这一部分
+        }
+        process.setComments(commentsBuilder.toString());
+
         ContractProcess savedProcess = contractProcessRepository.save(process);
 
         auditLogService.logAction(username, "CONTRACT_EXTENSION_REQUESTED",
@@ -1211,22 +1204,18 @@ public class ContractServiceImpl implements ContractService {
             throw new BusinessLogicException("延期请求关联的合同不存在。流程ID: " + processId);
         }
 
+        // 使用新的解析方法来获取期望新日期，避免重复的解析逻辑
+        Map<String, String> parsedComments = parseExtensionRequestComments(requestProcess.getComments());
         LocalDate requestedNewEndDate = null;
-        String originalRequestComments = requestProcess.getComments();
-        if (StringUtils.hasText(originalRequestComments) && originalRequestComments.contains("延期至 ")) {
-            try {
-                String datePart = originalRequestComments.substring(originalRequestComments.indexOf("延期至 ") + 4);
-                if (datePart.contains("。")) {
-                    datePart = datePart.substring(0, datePart.indexOf("。"));
-                } else if (datePart.contains(".")) {
-                    datePart = datePart.substring(0, datePart.indexOf("."));
-                }
-                requestedNewEndDate = LocalDate.parse(datePart.trim(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            } catch (Exception e) {
-                logger.error("无法从延期请求评论中解析出期望的新到期日期：'{}'", originalRequestComments, e);
-                throw new BusinessLogicException("延期请求内容格式错误，无法解析期望的到期日期。");
+        try {
+            if (parsedComments.get("requestedNewEndDate") != null && !parsedComments.get("requestedNewEndDate").isEmpty()) {
+                requestedNewEndDate = LocalDate.parse(parsedComments.get("requestedNewEndDate"), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
             }
+        } catch (Exception e) {
+            logger.error("从解析后的延期请求评论中获取期望的新到期日期失败：'{}'", parsedComments.get("requestedNewEndDate"), e);
+            throw new BusinessLogicException("延期请求内容格式错误，无法解析期望的到期日期。");
         }
+
         if (requestedNewEndDate == null) {
             throw new BusinessLogicException("延期请求中未包含有效的期望到期日期。");
         }
@@ -1271,5 +1260,76 @@ public class ContractServiceImpl implements ContractService {
         logger.info("管理员 '{}' 处理延期请求 {}: {}。合同 ID: {}", username, processId, (isApproved ? "批准" : "拒绝"), contract.getId());
 
         return savedProcess;
+    }
+
+    @Override
+    public Map<String, String> parseExtensionRequestComments(String comments) {
+        Map<String, String> parsed = new HashMap<>();
+        String requestedNewEndDate = null;
+        String reason = null;
+        String additionalComments = null;
+
+        if (StringUtils.hasText(comments)) {
+            // 查找期望新日期
+            int dateStartIdx = comments.indexOf("延期至 ");
+            int reasonStartKeywordIdx = comments.indexOf("。原因: ");
+            int additionalCommentsStartKeywordIdx = comments.indexOf(". 附加备注: ");
+
+            if (dateStartIdx != -1) {
+                dateStartIdx += "延期至 ".length();
+                int dateEndIdx = -1;
+
+                if (reasonStartKeywordIdx != -1 && reasonStartKeywordIdx > dateStartIdx) {
+                    dateEndIdx = reasonStartKeywordIdx;
+                }
+                // else if (comments.length() > dateStartIdx) { // 如果没有原因关键字，就取到字符串末尾（不太可能）
+                //     dateEndIdx = comments.length();
+                // }
+
+                if (dateEndIdx != -1) {
+                    requestedNewEndDate = comments.substring(dateStartIdx, dateEndIdx).trim();
+                    // 移除可能的中文句号
+                    if (requestedNewEndDate.endsWith("。")) {
+                        requestedNewEndDate = requestedNewEndDate.substring(0, requestedNewEndDate.length() - 1);
+                    }
+                }
+            }
+
+            // 查找原因和附加备注
+            if (reasonStartKeywordIdx != -1) {
+                reasonStartKeywordIdx += "。原因: ".length();
+
+                if (additionalCommentsStartKeywordIdx != -1 && additionalCommentsStartKeywordIdx > reasonStartKeywordIdx) {
+                    reason = comments.substring(reasonStartKeywordIdx, additionalCommentsStartKeywordIdx).trim();
+                    additionalComments = comments.substring(additionalCommentsStartKeywordIdx + ". 附加备注: ".length()).trim();
+                    // 移除附加备注末尾的句号，如果存在
+                    if (additionalComments.endsWith("。")) {
+                        additionalComments = additionalComments.substring(0, additionalComments.length() - 1);
+                    }
+                } else {
+                    // 没有“附加备注”部分，原因取到字符串末尾
+                    reason = comments.substring(reasonStartKeywordIdx).trim();
+                    // 移除原因末尾的句号，如果存在
+                    if (reason.endsWith("。")) {
+                        reason = reason.substring(0, reason.length() - 1);
+                    }
+                    additionalComments = "(无)"; // 明确表示没有附加备注
+                }
+            } else {
+                reason = "(无法解析原因)";
+                additionalComments = "(无法解析备注)";
+            }
+        } else {
+            requestedNewEndDate = "(无)";
+            reason = "(无)";
+            additionalComments = "(无)";
+        }
+
+        parsed.put("requestedNewEndDate", requestedNewEndDate);
+        parsed.put("reason", reason);
+        parsed.put("additionalComments", additionalComments);
+
+        logger.debug("Parsed extension request comments: {}", parsed);
+        return parsed;
     }
 }

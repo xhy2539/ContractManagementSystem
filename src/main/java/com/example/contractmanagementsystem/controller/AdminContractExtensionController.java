@@ -22,6 +22,8 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.Map; // 导入 Map
+
 @Controller
 @RequestMapping("/admin/approve-extension-request")
 @PreAuthorize("hasRole('ROLE_ADMIN')")
@@ -45,7 +47,7 @@ public class AdminContractExtensionController {
      * @param authentication 认证信息。
      * @return 模板路径。
      */
-    @GetMapping // 匹配 /admin/approve-extension-request
+    @GetMapping
     @PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_VIEW')")
     public String showPendingExtensionRequests(
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
@@ -61,7 +63,7 @@ public class AdminContractExtensionController {
         model.addAttribute("pendingRequests", pendingRequests);
         model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
         model.addAttribute("listTitle", "待审批延期请求");
-        return "admin/approve-extension-request"; // 此处仍然返回列表页面
+        return "admin/approve-extension-request";
     }
 
     /**
@@ -73,7 +75,7 @@ public class AdminContractExtensionController {
      * @param redirectAttributes 重定向属性。
      * @return 模板路径。
      */
-    @GetMapping("/{processId}") // 匹配 /admin/approve-extension-request/{processId}
+    @GetMapping("/{processId}")
     @PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_VIEW') or hasAuthority('CON_EXTEND_APPROVAL_SUBMIT')")
     public String showApproveExtensionRequestForm(
             @PathVariable Long processId,
@@ -88,11 +90,17 @@ public class AdminContractExtensionController {
             );
             model.addAttribute("requestProcess", requestProcess);
             model.addAttribute("contract", requestProcess.getContract());
-            return "admin/approve-extension-request-detail"; // **修改行：返回新的详情页面模板**
+
+            // **修改开始：调用服务层方法解析 comments 并添加到模型中**
+            Map<String, String> parsedComments = contractService.parseExtensionRequestComments(requestProcess.getComments());
+            model.addAttribute("parsedComments", parsedComments);
+            // **修改结束**
+
+            return "admin/approve-extension-request-detail";
         } catch (Exception e) {
             logger.error("加载延期请求审批表单失败 (Process ID: {}): {}", processId, e.getMessage(), e);
             redirectAttributes.addFlashAttribute("errorMessage", "加载延期请求详情失败: " + e.getMessage());
-            return "redirect:/admin/approve-extension-request"; // 重定向回列表页面
+            return "redirect:/admin/approve-extension-request";
         }
     }
 
@@ -106,7 +114,7 @@ public class AdminContractExtensionController {
      * @param redirectAttributes 重定向属性。
      * @return 重定向路径。
      */
-    @PostMapping("/{processId}") // 匹配 /admin/approve-extension-request/{processId}
+    @PostMapping("/{processId}")
     @PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_SUBMIT')")
     public String approveExtensionRequest(
             @PathVariable Long processId,
@@ -117,8 +125,7 @@ public class AdminContractExtensionController {
     ) {
         if (bindingResult.hasErrors()) {
             redirectAttributes.addFlashAttribute("errorMessage", "审批决定不能为空。");
-            // 当表单校验失败时，应返回到详情页，并重新加载数据，而不是重定向
-            return "redirect:/admin/approve-extension-request/" + processId; // 保持重定向，但下次会加载详情页
+            return "redirect:/admin/approve-extension-request/" + processId;
         }
 
         String username = authentication.getName();
@@ -136,6 +143,6 @@ public class AdminContractExtensionController {
             logger.error("处理延期请求 {} 失败: {}", processId, e.getMessage(), e);
             redirectAttributes.addFlashAttribute("errorMessage", "处理延期请求失败: " + e.getMessage());
         }
-        return "redirect:/admin/approve-extension-request"; // 重定向回列表页
+        return "redirect:/admin/approve-extension-request";
     }
 }

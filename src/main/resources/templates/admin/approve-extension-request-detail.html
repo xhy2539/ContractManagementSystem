@@ -137,68 +137,26 @@
                     <span class="detail-label">请求时间：</span>
                     <span class="detail-value" th:text="${requestProcess.createdAt != null ? #temporals.format(requestProcess.createdAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></span>
                 </div>
-                <th:block th:with="comments=${requestProcess.comments ?: ''},
-                                requestedNewEndDateExtracted='',
-                                reasonExtracted='',
-                                additionalCommentsExtracted=''">
-                    <th:block th:if="${comments.contains('延期至 ')}">
-                        <th:block th:with="datePartIndex=${comments.indexOf('延期至 ') + 4},
-                                        reasonPartIndex=${comments.indexOf('。原因: ')}">
-                            <th:block th:if="${datePartIndex > 0 and reasonPartIndex > datePartIndex}">
-                                <th:block th:with="dateStr=${comments.substring(datePartIndex, reasonPartIndex).trim()}">
-                                    <th:block th:if="${#strings.contains(dateStr, '延期至 ')}">
-                                    </th:block>
-                                    <th:block th:unless="${#strings.contains(dateStr, '延期至 ')}">
-                                        <span th:with="requestedNewEndDateExtracted=${dateStr}"></span>
-                                    </th:block>
-                                </th:block>
-                            </th:block>
-                        </th:block>
-                        <th:block th:with="reasonStartIdx=${comments.indexOf('。原因: ') + 6},
-                                        additionalCommentsStartIdx=${comments.indexOf('. 附加备注: ')}">
-                            <th:block th:if="${reasonStartIdx > 0}">
-                                <th:block th:if="${additionalCommentsStartIdx > 0 and additionalCommentsStartIdx > reasonStartIdx}">
-                                    <span th:with="reasonExtracted=${comments.substring(reasonStartIdx, additionalCommentsStartIdx).trim()}"></span>
-                                    <span th:with="additionalCommentsExtracted=${comments.substring(additionalCommentsStartIdx + 7).trim()}"></span>
-                                </th:block>
-                                <th:block th:unless="${additionalCommentsStartIdx > 0}">
-                                    <span th:with="reasonExtracted=${comments.substring(reasonStartIdx).trim()}"></span>
-                                    <span th:with="additionalCommentsExtracted='(无)'"></span>
-                                </th:block>
-                            </th:block>
-                            <th:block th:unless="${reasonStartIdx > 0}">
-                                <span th:with="reasonExtracted='(无法解析具体原因)'"></span>
-                                <span th:with="additionalCommentsExtracted='(无法解析)'"></span>
-                            </th:block>
-                        </th:block>
-                    </th:block>
-                    <th:block th:unless="${comments.contains('延期至 ')}">
-                        <span th:with="requestedNewEndDateExtracted='(无法解析期望日期)'"></span>
-                        <span th:with="reasonExtracted='(无法解析具体原因)'"></span>
-                        <span th:with="additionalCommentsExtracted='(无法解析)'"></span>
-                    </th:block>
+                <div class="detail-row">
+                    <span class="detail-label">期望新日期：</span>
+                    <span class="detail-value" th:text="${parsedComments?.get('requestedNewEndDate') ?: '-'}"></span>
+                </div>
 
+                <div class="request-details-card">
+                    <h5><i class="bi bi-chat-left-text me-2"></i>请求原因与备注</h5>
                     <div class="detail-row">
-                        <span class="detail-label">期望新日期：</span>
-                        <span class="detail-value" th:text="${requestedNewEndDateExtracted}"></span>
+                        <span class="detail-label">延期原因：</span>
+                        <span class="detail-value">
+                            <p th:text="${parsedComments?.get('reason') ?: '-'}"></p>
+                        </span>
                     </div>
-
-                    <div class="request-details-card">
-                        <h5><i class="bi bi-chat-left-text me-2"></i>请求原因与备注</h5>
-                        <div class="detail-row">
-                            <span class="detail-label">延期原因：</span>
-                            <span class="detail-value">
-                                <p th:text="${reasonExtracted}"></p>
-                            </span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">附加备注：</span>
-                            <span class="detail-value">
-                                <p th:text="${additionalCommentsExtracted}"></p>
-                            </span>
-                        </div>
+                    <div class="detail-row">
+                        <span class="detail-label">附加备注：</span>
+                        <span class="detail-value">
+                            <p th:text="${parsedComments?.get('additionalComments') ?: '-'}"></p>
+                        </span>
                     </div>
-                </th:block>
+                </div>
             </div>
 
             <div class="approval-form-card">

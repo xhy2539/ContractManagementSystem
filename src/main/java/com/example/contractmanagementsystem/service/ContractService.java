@@ -15,6 +15,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.HashMap; // Added import for HashMap
+
 /**
  * 合同管理业务接口。
  * 定义合同起草、查询、状态统计、定稿等核心业务操作。
@@ -195,7 +197,7 @@ public interface ContractService {
      * @param contractProcessId 会签流程记录ID。
      * @param comments 会签意见。
      * @param username 执行会签操作的用户名。
-     * @param isApproved 会签是否通过 (true为通过，false为拒绝)。
+     * @param isApproved 会签是否通过 (true为通过, false为拒绝)。
      * @throws AccessDeniedException 如果用户无权执行此操作。
      */
     void processCountersign(Long contractProcessId, String comments, String username, boolean isApproved) throws AccessDeniedException;
@@ -360,6 +362,15 @@ public interface ContractService {
      * @throws AccessDeniedException 如果用户无权执行此操作。
      * @return 更新后的合同流程实体。
      */
-    ContractProcess processExtensionRequest(Long processId, String username, boolean isApproved, String comments) //
-            throws AccessDeniedException; //
+    ContractProcess processExtensionRequest(Long processId, String username, boolean isApproved, String comments)
+            throws AccessDeniedException;
+
+    /**
+     * 从延期请求的评论中解析出请求的期望新日期、原因和附加备注。
+     *
+     * @param comments 延期请求流程记录的评论字符串。
+     * @return 包含解析结果的Map，键包括 "requestedNewEndDate", "reason", "additionalComments"。
+     * 如果解析失败，对应的值可能为null或默认字符串。
+     */
+    Map<String, String> parseExtensionRequestComments(String comments); // 新增方法声明
 }
