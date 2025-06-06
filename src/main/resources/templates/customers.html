@@ -256,13 +256,19 @@
                         <input type="text" class="form-control" name="keyword"
                                placeholder="输入客户名称、编号或电话进行搜索..."
                                th:value="${keyword}">
+
+                        <!-- 添加隐藏字段传递分页大小 -->
+                        <input type="hidden" name="size" th:value="${pageSize}">
+
                         <button class="btn btn-primary" type="submit">
                             <i class="bi bi-search me-1"></i> 搜索
                         </button>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <a class="btn btn-outline-secondary w-100" th:href="@{/customers}">
+                    <!-- 重置搜索时保留分页大小 -->
+                    <a class="btn btn-outline-secondary w-100"
+                       th:href="@{/customers(size=${pageSize})}">
                         <i class="bi bi-arrow-clockwise me-1"></i> 重置搜索
                     </a>
                 </div>
@@ -317,23 +323,37 @@
         </table>
     </div>
 
+    <!-- 分页部分 -->
     <div class="pagination-section" th:if="${totalPages > 1}">
-        <div th:text="'显示 ' + ${currentPage * pageSize + 1} + ' 到 ' +
-                      ${Math.min((currentPage + 1) * pageSize, totalElements)} +
-                      ' 项，共 ' + ${totalElements} + ' 项'">
-            显示 1 到 5 项，共 15 项
+        <div>
+            <!-- 使用新的 start 和 end 属性 -->
+            显示 <span th:text="${start}">1</span> 到
+            <span th:text="${end}">5</span> 项，共
+            <span th:text="${totalElements}">15</span> 项
         </div>
         <nav>
             <ul class="pagination">
                 <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled' : ''">
-                    <a class="page-link" th:href="@{/customers(page=${currentPage - 1}, keyword=${keyword})}">上一页</a>
+                    <a class="page-link"
+                       th:href="@{/customers(page=${currentPage - 1}, size=${pageSize}, keyword=${keyword})}">
+                        上一页
+                    </a>
                 </li>
+
+                <!-- 优化分页显示逻辑 -->
                 <li th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
-                    class="page-item" th:classappend="${i == currentPage} ? 'active' : ''">
-                    <a class="page-link" th:href="@{/customers(page=${i}, keyword=${keyword})}" th:text="${i + 1}">1</a>
+                    class="page-item"
+                    th:classappend="${i == currentPage} ? 'active' : ''">
+                    <a class="page-link"
+                       th:href="@{/customers(page=${i}, size=${pageSize}, keyword=${keyword})}"
+                       th:text="${i + 1}">1</a>
                 </li>
+
                 <li class="page-item" th:classappend="${currentPage == totalPages - 1} ? 'disabled' : ''">
-                    <a class="page-link" th:href="@{/customers(page=${currentPage + 1}, keyword=${keyword})}">下一页</a>
+                    <a class="page-link"
+                       th:href="@{/customers(page=${currentPage + 1}, size=${pageSize}, keyword=${keyword})}">
+                        下一页
+                    </a>
                 </li>
             </ul>
         </nav>
