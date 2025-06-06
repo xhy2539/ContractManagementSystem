@@ -1,6 +1,8 @@
 package com.example.contractmanagementsystem.controller;
 
 import com.example.contractmanagementsystem.dto.ContractDraftRequest;
+import com.example.contractmanagementsystem.dto.ContractExtendRequest; // 导入 ContractExtendRequest
+import com.example.contractmanagementsystem.dto.ContractExtendRequestOperator; // 导入 ContractExtendRequestOperator
 import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
@@ -37,6 +39,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody; // 导入 RequestBody
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -371,7 +374,7 @@ public class ContractController {
                         !attachmentPathJson.equals("[]") && !attachmentPathJson.equalsIgnoreCase("null")) {
                     try {
                         // 使用 ObjectMapper 将 JSON 字符串反序列化为 List<String>
-                        currentAttachmentFileNames = objectMapper.readValue(attachmentPathJson, new TypeReference<List<String>>(){});
+                        currentAttachmentFileNames = objectMapper.readValue(attachmentPathJson, new TypeReference<List<String>>() {});
                         logger.debug("加载定稿表单时解析附件JSON成功。合同ID: {}, 附件: {}", contractId, currentAttachmentFileNames);
                     } catch (JsonProcessingException e) {
                         logger.warn("加载定稿表单时解析附件JSON失败 (Contract ID: {}): {}", contractId, e.getMessage());
@@ -742,6 +745,78 @@ public class ContractController {
         } catch (AccessDeniedException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "您没有权限查看此合同");
             return "redirect:/reports/contract-search";
+        }
+    }
+
+    /**
+     * 管理员直接延期合同。
+     * 权限：仅限 ROLE_ADMIN。
+     * @param contractId 合同ID。
+     * @param request 包含新到期日期和备注的请求体。
+     * @param authentication 认证信息。
+     * @return 成功响应或错误响应。
+     */
+    @PostMapping("/{contractId}/extend/admin")
+    @PreAuthorize("hasRole('ROLE_ADMIN')") // 仅允许管理员访问此端点
+    @ResponseBody // 返回JSON响应，而不是视图
+    public ResponseEntity<String> extendContractAdmin(
+            @PathVariable Long contractId,
+            @Valid @RequestBody ContractExtendRequest request,
+            Authentication authentication) {
+        try {
+            contractService.extendContract(contractId, request.getNewEndDate(), request.getComments(), authentication.getName());
+            return ResponseEntity.ok("合同延期成功！");
+        } catch (BusinessLogicException e) {
+            logger.warn("管理员延期合同失败 (合同ID: {}): {}", contractId, e.getMessage());
+            return ResponseEntity.badRequest().body("延期失败: " + e.getMessage());
+        } catch (ResourceNotFoundException e) {
+            logger.warn("管理员延期合同失败，合同未找到 (合同ID: {}): {}", contractId, e.getMessage());
+            return ResponseEntity.status(404).body("延期失败: " + e.getMessage());
+        } catch (AccessDeniedException e) {
+            logger.error("管理员延期合同失败，权限不足 (用户: {}): {}", authentication.getName(), e.getMessage());
+            return ResponseEntity.status(403).body("延期失败: 权限不足。");
+        } catch (Exception e) {
+            logger.error("管理员延期合同发生未知错误 (合同ID: {}): {}", contractId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("延期失败: 服务器内部错误。");
+        }
+    }
+
+    /**
+     * 操作员请求延期合同。
+     * 权限：仅限 ROLE_CONTRACT_OPERATOR 或 ROLE_ADMIN (因为管理员是操作员的超集)。
+     * @param contractId 合同ID。
+     * @param request 包含期望新到期日期、原因和备注的请求体。
+     * @param authentication 认证信息。
+     * @return 成功响应或错误响应。
+     */
+    @PostMapping("/{contractId}/extend/request")
+    @PreAuthorize("hasRole('ROLE_CONTRACT_OPERATOR') or hasRole('ROLE_ADMIN')") // 允许操作员或管理员访问此端点
+    @ResponseBody // 返回JSON响应，而不是视图
+    public ResponseEntity<String> requestExtendContractOperator(
+            @PathVariable Long contractId,
+            @Valid @RequestBody ContractExtendRequestOperator request,
+            Authentication authentication) {
+        try {
+            contractService.requestExtendContract(
+                    contractId,
+                    request.getRequestedNewEndDate(),
+                    request.getReason(),
+                    request.getComments(),
+                    authentication.getName()
+            );
+            return ResponseEntity.ok("延期请求已提交，请等待管理员审批。");
+        } catch (BusinessLogicException e) {
+            logger.warn("操作员请求延期合同失败 (合同ID: {}): {}", contractId, e.getMessage());
+            return ResponseEntity.badRequest().body("提交请求失败: " + e.getMessage());
+        } catch (ResourceNotFoundException e) {
+            logger.warn("操作员请求延期合同失败，合同未找到 (合同ID: {}): {}", contractId, e.getMessage());
+            return ResponseEntity.status(404).body("提交请求失败: " + e.getMessage());
+        } catch (AccessDeniedException e) {
+            logger.error("操作员请求延期合同失败，权限不足 (用户: {}): {}", authentication.getName(), e.getMessage());
+            return ResponseEntity.status(403).body("提交请求失败: 权限不足。");
+        } catch (Exception e) {
+            logger.error("操作员请求延期合同发生未知错误 (合同ID: {}): {}", contractId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("提交请求失败: 服务器内部错误。");
         }
     }
 }

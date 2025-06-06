@@ -52,4 +52,14 @@ public interface ContractProcessRepository extends JpaRepository<ContractProcess
      * 查找指定合同的所有处理记录
      */
     List<ContractProcess> findByContract(Contract contract);
+
+    /**
+     * 新增方法：根据合同ID、流程类型和状态查找延期请求
+     * 用于检查是否存在未处理的延期请求，不关心具体操作员。
+     * @param contractId 合同ID
+     * @param type 流程类型 (例如 EXTENSION_REQUEST)
+     * @param state 流程状态 (例如 PENDING)
+     * @return 匹配的合同流程记录列表
+     */
+    List<ContractProcess> findByContractIdAndTypeAndState(Long contractId, ContractProcessType type, ContractProcessState state);
 }

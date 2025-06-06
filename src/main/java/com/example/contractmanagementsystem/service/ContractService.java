@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate; // 导入 LocalDate
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -318,4 +319,34 @@ public interface ContractService {
      * @return 流程中合同的数量。
      */
     long countInProcessContracts(String username, boolean isAdmin);
+
+    /**
+     * 管理员直接延期合同。
+     * @param contractId 要延期的合同ID。
+     * @param newEndDate 新的到期日期。
+     * @param comments 延期备注。
+     * @param username 执行操作的管理员用户名。
+     * @return 更新后的合同实体。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果延期日期无效或合同状态不允许直接延期。
+     * @throws AccessDeniedException 如果用户没有管理员权限。
+     */
+    Contract extendContract(Long contractId, LocalDate newEndDate, String comments, String username)
+            throws AccessDeniedException;
+
+    /**
+     * 操作员请求延期合同。
+     * @param contractId 要延期的合同ID。
+     * @param requestedNewEndDate 期望的新的到期日期。
+     * @param reason 延期请求的原因。
+     * @param comments 附加备注。
+     * @param username 提交请求的操作员用户名。
+     * @return 创建的延期请求流程实体。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果请求日期无效或合同状态不允许请求延期。
+     * @throws AccessDeniedException 如果用户没有操作员权限。
+     */
+    ContractProcess requestExtendContract(Long contractId, LocalDate requestedNewEndDate, String reason, String comments, String username)
+            throws AccessDeniedException;
+
 }

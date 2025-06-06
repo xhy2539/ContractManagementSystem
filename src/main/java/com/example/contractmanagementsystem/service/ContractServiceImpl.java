@@ -32,6 +32,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication; // 导入 Authentication
+import org.springframework.security.core.context.SecurityContextHolder; // 导入 SecurityContextHolder
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +45,17 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.UUID; // 导入 UUID
 import java.util.stream.Collectors; // Ensure Collectors is imported
 
 @Service
@@ -56,7 +68,7 @@ public class ContractServiceImpl implements ContractService {
     private final UserRepository userRepository;
     private final ContractProcessRepository contractProcessRepository;
     private final AuditLogService auditLogService;
-    private final AttachmentService attachmentService;
+    private final AttachmentService attachmentService; // 声明成员变量
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -65,14 +77,14 @@ public class ContractServiceImpl implements ContractService {
                                UserRepository userRepository,
                                ContractProcessRepository contractProcessRepository,
                                AuditLogService auditLogService,
-                               AttachmentService attachmentService,
+                               AttachmentService attachmentService, // 构造函数参数
                                ObjectMapper objectMapper) {
         this.contractRepository = contractRepository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
         this.contractProcessRepository = contractProcessRepository;
         this.auditLogService = auditLogService;
-        this.attachmentService = attachmentService;
+        this.attachmentService = attachmentService; // 赋值给成员变量
         this.objectMapper = objectMapper;
     }
 
@@ -431,6 +443,13 @@ public class ContractServiceImpl implements ContractService {
                 case FINALIZE: // Finalization process, usually completed by drafter, contract status is PENDING_FINALIZATION
                     predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_FINALIZATION)); //
                     break;
+                case EXTENSION_REQUEST: // 新增：延期请求
+                    // 对于延期请求，目标合同状态通常是ACTIVE或EXPIRED，因为是对这些合同进行延期
+                    predicates.add(cb.or(
+                            cb.equal(contractJoin.get("status"), ContractStatus.ACTIVE),
+                            cb.equal(contractJoin.get("status"), ContractStatus.EXPIRED)
+                    ));
+                    break;
                 default:
                     // For other unhandled types, no additional status restrictions, or throw exception
                     break;
@@ -506,9 +525,14 @@ public class ContractServiceImpl implements ContractService {
                     cb.equal(root.get("type"), ContractProcessType.FINALIZE), //
                     cb.equal(contractJoin.get("status"), ContractStatus.PENDING_FINALIZATION) //
             );
+            // 新增：延期请求审批任务
+            Predicate extensionRequestTasks = cb.and(
+                    cb.equal(root.get("type"), ContractProcessType.EXTENSION_REQUEST),
+                    cb.or(cb.equal(contractJoin.get("status"), ContractStatus.ACTIVE), cb.equal(contractJoin.get("status"), ContractStatus.EXPIRED)) // 延期请求通常针对有效或过期合同
+            );
 
             // Combine these specific task conditions
-            mainPredicates.add(cb.or(countersignTasks, approvalTasks, signingTasks, finalizeTasks));
+            mainPredicates.add(cb.or(countersignTasks, approvalTasks, signingTasks, finalizeTasks, extensionRequestTasks)); // 新增 extensionRequestTasks
 
             // Eager fetching for the main query
             if (query.getResultType().equals(ContractProcess.class)) { //
@@ -826,7 +850,7 @@ public class ContractServiceImpl implements ContractService {
         // Predicate 1: User is the drafter of the contract
         Predicate isDrafter = criteriaBuilder.equal(root.get("drafter"), currentUser);
 
-        // Predicate 2: User is involved in any process for the contract (countersign, approval, signing, finalization)
+        // Predicate 2: User is involved in any process for the contract (countersign, approval, signing, finalization, extension request)
         Subquery<Long> subquery = query.subquery(Long.class);
         Root<ContractProcess> contractProcessRoot = subquery.from(ContractProcess.class);
         subquery.select(contractProcessRoot.get("contract").get("id"));
@@ -1054,7 +1078,7 @@ public class ContractServiceImpl implements ContractService {
                 // 条件1: 用户是合同的起草人
                 Predicate isDrafter = criteriaBuilder.equal(root.get("drafter"), currentUser);
 
-                // 条件2: 用户是该合同任一“待处理”流程（会签、审批、签署、定稿）的操作人
+                // 条件2: 用户是该合同任一“待处理”流程（会签、审批、签署、定稿、延期请求）的操作人
                 Subquery<Long> subquery = query.subquery(Long.class);
                 Root<ContractProcess> contractProcessRoot = subquery.from(ContractProcess.class);
                 subquery.select(contractProcessRoot.get("contract").get("id")); // 选择合同ID
@@ -1066,12 +1090,13 @@ public class ContractServiceImpl implements ContractService {
                         criteriaBuilder.equal(contractProcessRoot.get("operator"), currentUser),
                         // 确保流程状态是“待处理”
                         criteriaBuilder.equal(contractProcessRoot.get("state"), ContractProcessState.PENDING),
-                        // 确保流程类型是会签、审批、签署或定稿（与合同状态的“处理中”相对应）
+                        // 确保流程类型是会签、审批、签署、定稿或延期请求（与合同状态的“处理中”相对应）
                         contractProcessRoot.get("type").in(
                                 ContractProcessType.COUNTERSIGN,
                                 ContractProcessType.APPROVAL,
                                 ContractProcessType.SIGNING,
-                                ContractProcessType.FINALIZE
+                                ContractProcessType.FINALIZE,
+                                ContractProcessType.EXTENSION_REQUEST // 新增：包含延期请求
                         )
                 );
                 subquery.where(subqueryPredicate);
@@ -1090,5 +1115,130 @@ public class ContractServiceImpl implements ContractService {
 
         return contractRepository.count(spec);
     }
-}
 
+    @Override
+    @Transactional
+    public Contract extendContract(Long contractId, LocalDate newEndDate, String comments, String username) {
+        // 1. 获取合同
+        Contract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
+
+        // 2. 验证当前用户是否是管理员（通过 SecurityContextHolder）
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            throw new AccessDeniedException("只有管理员才能直接延期合同。请通过操作员延期请求流程。");
+        }
+
+        // 3. 业务逻辑验证：合同状态必须为 ACTIVE 或 EXPIRED
+        if (contract.getStatus() != ContractStatus.ACTIVE && contract.getStatus() != ContractStatus.EXPIRED) {
+            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法直接延期。合同必须是“有效”或“过期”状态。");
+        }
+
+        // 4. 业务逻辑验证：新的到期日期必须晚于当前到期日期和今天
+        if (newEndDate.isBefore(contract.getEndDate()) || newEndDate.isEqual(contract.getEndDate())) {
+            throw new BusinessLogicException("新的到期日期必须晚于原到期日期 (" + contract.getEndDate() + ")。");
+        }
+        if (newEndDate.isBefore(LocalDate.now())) { // 确保不能延期到过去
+            throw new BusinessLogicException("新的到期日期不能是过去的日期。");
+        }
+
+
+        // 5. 更新合同信息
+        contract.setEndDate(newEndDate);
+        // 如果合同是“过期”状态，延期后将其变回“有效”
+        if (contract.getStatus() == ContractStatus.EXPIRED) {
+            contract.setStatus(ContractStatus.ACTIVE);
+        }
+        contract.setUpdatedAt(LocalDateTime.now());
+        Contract updatedContract = contractRepository.save(contract);
+
+        // 6. 记录合同流程（作为管理员直接操作）
+        User adminUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("管理员用户 '" + username + "' 未找到。"));
+        ContractProcess process = new ContractProcess();
+        process.setContract(updatedContract);
+        process.setContractNumber(updatedContract.getContractNumber());
+        process.setType(ContractProcessType.EXTENSION); // 新的流程类型
+        process.setState(ContractProcessState.COMPLETED); // 管理员直接操作，所以是完成状态
+        process.setOperator(adminUser);
+        process.setOperatorUsername(username);
+        process.setComments("管理员直接延期。原到期日期: " + contract.getEndDate() + ", 新到期日期: " + newEndDate + (StringUtils.hasText(comments) ? ". 备注: " + comments : ""));
+        process.setProcessedAt(LocalDateTime.now());
+        process.setCompletedAt(LocalDateTime.now());
+        contractProcessRepository.save(process);
+
+        // 7. 记录审计日志
+        auditLogService.logAction(username, "CONTRACT_EXTENDED_ADMIN",
+                "管理员直接延期合同 ID: " + contractId + " (" + contract.getContractName() + ")，新到期日期: " + newEndDate);
+
+        return updatedContract;
+    }
+
+    @Override
+    @Transactional
+    public ContractProcess requestExtendContract(Long contractId, LocalDate requestedNewEndDate, String reason, String comments, String username) {
+        // 1. 获取合同
+        Contract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
+
+        // 2. 验证当前用户是否是操作员（通过 SecurityContextHolder）
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isContractOperator = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CONTRACT_OPERATOR"));
+
+        if (!isContractOperator && !authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) { // 额外允许管理员提交延期请求，因为他们是操作员的超集
+            throw new AccessDeniedException("只有合同操作员或管理员才能提交合同延期请求。");
+        }
+
+        // 3. 业务逻辑验证：合同状态必须为 ACTIVE 或 EXPIRED
+        if (contract.getStatus() != ContractStatus.ACTIVE && contract.getStatus() != ContractStatus.EXPIRED) {
+            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法提交延期请求。合同必须是“有效”或“过期”状态。");
+        }
+
+        // 4. 业务逻辑验证：期望的到期日期必须晚于当前到期日期和今天
+        if (requestedNewEndDate.isBefore(contract.getEndDate()) || requestedNewEndDate.isEqual(contract.getEndDate())) {
+            throw new BusinessLogicException("期望新的到期日期必须晚于原到期日期 (" + contract.getEndDate() + ")。");
+        }
+        if (requestedNewEndDate.isBefore(LocalDate.now())) { // 确保不能请求延期到过去
+            throw new BusinessLogicException("期望新的到期日期不能是过去的日期。");
+        }
+
+        // 5. 检查是否已经有未完成的延期请求
+        // 这里你之前用的是 findByContractIdAndTypeAndState，但现在这个方法在 ContractProcessRepository 中是 List 返回类型。
+        // 而且你可能希望检查的是“任何用户”发起的，或者仅是“当前用户”发起的。
+        // 如果要检查的是当前用户是否已提交过未处理的延期请求，则应该结合 operatorUsername：
+        boolean hasPendingExtensionRequest = contractProcessRepository
+                .findByContractIdAndOperatorUsernameAndTypeAndState(contractId, username, ContractProcessType.EXTENSION_REQUEST, ContractProcessState.PENDING)
+                .isPresent(); // 检查是否有当前用户发起的待处理延期请求
+
+        if (hasPendingExtensionRequest) {
+            throw new BusinessLogicException("您已为此合同提交过延期请求，请勿重复提交。");
+        }
+
+        // 6. 创建延期请求流程
+        User requestingUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("操作员用户 '" + username + "' 未找到。"));
+
+        ContractProcess process = new ContractProcess();
+        process.setContract(contract);
+        process.setContractNumber(contract.getContractNumber());
+        process.setType(ContractProcessType.EXTENSION_REQUEST); // 新的流程类型：延期请求
+        process.setState(ContractProcessState.PENDING); // 状态为待处理
+        process.setOperator(requestingUser);
+        process.setOperatorUsername(username);
+        String processComments = "请求将合同到期日期从 " + contract.getEndDate() + " 延期至 " + requestedNewEndDate +
+                "。原因: " + reason + (StringUtils.hasText(comments) ? ". 附加备注: " + comments : "");
+        process.setComments(processComments);
+        // processedAt 和 completedAt 留空，待管理员审批时更新
+        ContractProcess savedProcess = contractProcessRepository.save(process);
+
+        // 7. 记录审计日志
+        auditLogService.logAction(username, "CONTRACT_EXTENSION_REQUESTED",
+                "操作员请求延期合同 ID: " + contractId + " (" + contract.getContractName() + ")，请求延期至: " + requestedNewEndDate + "。原因: " + reason);
+
+        return savedProcess;
+    }
+}
