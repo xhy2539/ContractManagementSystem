@@ -1,236 +1,148 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-      layout:decorate="~{fragments/layout}">
+<html xmlns:th="http://www.thymeleaf.org" lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title th:text="${listTitle ?: '待会签合同'} + ' - 合同管理系统'"></title>
-    <style layout:fragment="inline-css">
-        .status-badge {
-            display: inline-block;
-            padding: .35em .65em; /* 内边距 */
-            font-size: .75em;     /* 字体大小 */
-            font-weight: 700;    /* 字体粗细 */
-            line-height: 1;      /* 行高 */
-            color: #fff;         /* 文字颜色默认为白色 */
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>待审批合同</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .search-form {
+            margin-bottom: 20px;
+        }
+        .search-form input[type="text"] {
+            padding: 8px;
+            width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .search-form button {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-form button:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .btn-action {
+            padding: 6px 12px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-right: 5px;
+        }
+        .btn-view {
+            padding: 6px 12px;
+            background-color: #17a2b8;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .btn-action:hover, .btn-view:hover {
+            opacity: 0.9;
+        }
+        .no-records {
             text-align: center;
-            white-space: nowrap;
-            vertical-align: baseline;
-            border-radius: .375rem; /* 圆角，与Bootstrap 5一致 */
-        }
-        /* 定义所有 ContractStatus 的颜色 */
-        .status-DRAFT { background-color: #6c757d; } /* 灰色 - 草稿 */
-        .status-PENDING_ASSIGNMENT { background-color: #ffc107; color: #212529; } /* 警告色（黄色），文字黑色 - 待分配 */
-        .status-PENDING_COUNTERSIGN { background-color: #0dcaf0; color: #212529; } /* 信息色（青色），文字黑色 - 待会签 */
-        .status-PENDING_FINALIZATION { background-color: #fd7e14; } /* 橙色 - 待定稿 */
-        .status-PENDING_APPROVAL { background-color: #0d6efd; } /* 主色（蓝色） - 待审批 */
-        .status-PENDING_SIGNING { background-color: #198754; } /* 成功色（绿色） - 待签订 */
-        .status-ACTIVE { background-color: #28a745; } /* 更亮的成功色 - 有效 */
-        .status-COMPLETED { background-color: #6610f2; } /* 紫色 - 完成 */
-        .status-EXPIRED { background-color: #dc3545; } /* 危险色（红色） - 过期 */
-        .status-TERMINATED { background-color: #343a40; } /* 深色（黑色） - 终止 */
-        .status-REJECTED { background-color: #e31a1a; } /* 自定义红色 - 已拒绝 */
-
-        .table th, .table td {
-            vertical-align: middle; /* 表格内容垂直居中 */
-        }
-        .action-column {
-            min-width: 130px; /* 为操作按钮列设置一个合适的最小宽度 */
-            text-align: center; /* 操作按钮通常居中显示 */
-        }
-        .search-card .card-body {
-            padding: 1rem; /* 调整筛选卡片主体内边距 */
+            padding: 20px;
+            color: #666;
         }
     </style>
 </head>
 <body>
 
-<section layout:fragment="content">
-    <div class="container-fluid mt-3">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="mb-0" th:text="${listTitle ?: '待处理合同'}"></h1>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0 bg-light px-3 py-2 rounded-pill">
-                    <li class="breadcrumb-item"><a th:href="@{/dashboard}">仪表盘</a></li>
-                    <li class="breadcrumb-item active" aria-current="page" th:text="${listTitle ?: '待处理合同'}"></li>
-                </ol>
-            </nav>
-        </div>
+<div class="container">
+    <h1>待审批合同</h1>
+    <p>以下是需要您进行审批的合同列表。</p>
 
-        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i>
-            <span th:text="${successMessage}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <span th:text="${errorMessage}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
+    <form th:action="@{/contracts/pending-approval}" method="get" class="search-form">
+        <input type="text" name="contractNameSearch" th:value="${contractNameSearch}" placeholder="输入合同名称搜索..."/>
+        <button type="submit">搜索</button>
+    </form>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-light">
-                <h5 class="mb-0"><i class="bi bi-funnel-fill me-2"></i>筛选条件</h5>
-            </div>
-            <div class="card-body">
-                <form th:action="@{/contract-manager/pending-countersign}" method="get" class="row gx-3 gy-2 align-items-end">
-                    <div class="col-sm-12 col-md-6 col-lg-5">
-                        <label for="contractNameSearch" class="form-label form-label-sm">合同名称</label>
-                        <input type="text" class="form-control form-control-sm" id="contractNameSearch" name="contractNameSearch" th:value="${contractNameSearch}" placeholder="按合同名称模糊搜索...">
-                    </div>
-                    <div class="col-sm-6 col-md-3 col-lg-auto mt-md-0 mt-2">
-                        <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search"></i> 查询</button>
-                    </div>
-                    <div class="col-sm-6 col-md-3 col-lg-auto mt-md-0 mt-2">
-                        <a th:href="@{/contract-manager/pending-countersign}" class="btn btn-outline-secondary btn-sm w-100"><i class="bi bi-arrow-clockwise"></i> 重置</a>
-                    </div>
-                </form>
-            </div>
-        </div>
+    <div th:if="${pendingApprovals.isEmpty()}" class="no-records">
+        <p>没有待审批的合同。</p>
+    </div>
 
+    <div th:unless="${pendingApprovals.isEmpty()}">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>合同编号</th>
+                <th>合同名称</th>
+                <th>客户名称</th>
+                <th>起草人</th>
+                <th>起草日期</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="process : ${pendingApprovals.content}">
+                <td th:text="${process.contract.id}"></td>
+                <td th:text="${process.contract.contractNumber}"></td>
+                <td th:text="${process.contract.contractName}"></td>
+                <td th:text="${process.contract.customer.customerName}"></td>
+                <td th:text="${process.contract.drafter.username}"></td>
+                <td th:text="${#temporals.format(process.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+                <td th:text="${process.state.description}"></td>
+                <td>
+                    <a th:href="@{/contracts/approval-details/{id}(id=${process.contract.id})}" class="btn-action">审批</a>
+                    <a th:href="@{/contracts/view/{id}(id=${process.contract.id})}" class="btn-view">查看</a>
+                    <span th:if="${process.contract.attachmentPath}">
+                        <a th:href="@{'/attachments/' + ${process.contract.attachmentPath}}" target="_blank" class="btn-view">附件</a>
+                    </span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
 
-        <div th:if="${pendingCountersigns == null or pendingCountersigns.isEmpty()}" class="alert alert-info mt-4 text-center py-4">
-            <h5 class="alert-heading"><i class="bi bi-info-circle-fill me-2"></i>无记录</h5>
-            <p class="mb-0">当前没有待您会签的合同。</p>
-        </div>
-
-        <div th:unless="${pendingCountersigns == null or pendingCountersigns.isEmpty()}" class="card shadow-sm">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>合同列表</h5>
-                <span class="badge bg-primary rounded-pill" th:text="'总计: ' + ${pendingCountersigns.totalElements} + ' 条'"></span>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover table-bordered mb-0">
-                        <thead class="table-dark">
-                        <tr>
-                            <th scope="col" style="width: 15%;">合同编号</th>
-                            <th scope="col">合同名称</th>
-                            <th scope="col" style="width: 18%;">客户名称</th>
-                            <th scope="col" style="width: 10%;">起草人</th>
-                            <th scope="col" style="width: 10%;" class="text-center">状态</th>
-                            <th scope="col" style="width: 15%;">最后更新时间</th>
-                            <th scope="col" class="action-column" style="width: 12%;">操作</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:each="process : ${pendingCountersigns.content}">
-                            <td th:text="${process.contract.contractNumber}">CON-XYZ-001</td>
-                            <td>
-                                <a th:if="${#authorization.expression('hasAuthority(''CON_CSIGN_SUBMIT'')')}"
-                                   th:href="@{/contract-manager/countersign/{id}(id=${process.id})}"
-                                   th:text="${process.contract.contractName}"
-                                   th:title="'点击进入会签合同: ' + ${process.contract.contractName}"
-                                   class="fw-semibold">合同示例名称</a>
-                                <span th:unless="${#authorization.expression('hasAuthority(''CON_CSIGN_SUBMIT'')')}"
-                                      th:text="${process.contract.contractName}"></span>
-                            </td>
-                            <td th:text="${process.contract.customer?.customerName ?: '-'}">示例客户公司</td>
-                            <td th:text="${process.contract.drafter?.username ?: '-'}">张三</td>
-                            <td class="text-center">
-                                <span th:if="${process.contract.status != null}"
-                                      th:text="${process.contract.status.description}"
-                                      class="status-badge"
-                                      th:classappend="'status-' + ${process.contract.status.name()}">待会签</span>
-                            </td>
-                            <td th:text="${#temporals.format(process.contract.updatedAt, 'yyyy-MM-dd HH:mm')}">2025-06-01 10:30</td>
-                            <td class="action-column">
-                                <a th:href="@{/contract-manager/countersign/{id}(id=${process.id})}" class="btn btn-success btn-sm" title="会签此合同"
-                                   sec:authorize="hasAuthority('CON_CSIGN_SUBMIT')">
-                                    <i class="bi bi-check2-square"></i> 会签
-                                </a>
-                                <a th:if="${process.contract.attachmentPath != null and process.contract.attachmentPath != '[]' and process.contract.attachmentPath != 'null'}"
-                                   href="#"
-                                   data-bs-toggle="tooltip" data-bs-placement="top" th:title="'查看合同附件'"
-                                   th:attr="data-attachment-json=${process.contract.attachmentPath}"
-                                   onclick="event.preventDefault(); showAttachmentDialogFromData(this);"
-                                   class="btn btn-info btn-sm ms-1">
-                                    <i class="bi bi-paperclip"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="card-footer bg-light py-3" th:if="${pendingCountersigns.totalPages > 0}">
-                <div th:replace="~{fragments/pagination :: paginationbar (page=${pendingCountersigns}, baseUrl='/contract-manager/pending-countersign', additionalParams=${additionalParamsMap})}"></div>
-            </div>
+        <!-- 分页控件 -->
+        <div class="pagination" th:if="${pendingApprovals.totalPages > 1}">
+            <span th:each="i : ${#numbers.sequence(0, pendingApprovals.totalPages - 1)}">
+                <a th:href="@{/contracts/pending-approval(page=${i}, contractNameSearch=${contractNameSearch})}"
+                   th:text="${i + 1}"
+                   th:class="${i == pendingApprovals.number} ? 'active' : ''"></a>
+            </span>
         </div>
     </div>
-</section>
-
-<th:block layout:fragment="scripts">
-    <script th:src="@{/js/utils.js}"></script>
-    <script th:inline="javascript">
-        // 确保showAlert在页脚脚本加载后可用
-        if (typeof showAlert === 'undefined') {
-            window.showAlert = function(message, type = 'info') {
-                alert(`${type.toUpperCase()}: ${message}`);
-            };
-        }
-
-        // 全局函数用于处理附件下载，从JSON字符串中提取第一个文件名并下载
-        function showAttachmentDialog(attachmentPathJson) {
-            console.log("尝试打开附件：", attachmentPathJson);
-            if (!attachmentPathJson || attachmentPathJson === '[]' || attachmentPathJson === 'null') {
-                showAlert('此合同没有可用的附件。', 'info');
-                return;
-            }
-
-            try {
-                const attachments = JSON.parse(attachmentPathJson);
-                if (Array.isArray(attachments) && attachments.length > 0) {
-                    const firstFileName = attachments[0]; // 只下载第一个附件
-                    const downloadUrl = '/api/attachments/download/' + encodeURIComponent(firstFileName);
-                    window.open(downloadUrl, '_blank');
-                } else {
-                    showAlert('附件格式不正确或没有附件可供下载。', 'warning');
-                }
-            } catch (e) {
-                console.error("解析附件JSON失败:", e);
-                showAlert('解析附件信息失败，无法下载。', 'danger');
-            }
-        }
-
-        // 新增的函数：从data属性获取附件JSON并调用 showAttachmentDialog
-        function showAttachmentDialogFromData(element) {
-            // Thymeleaf 渲染后 th:data-attachment-json 会变成 data-attachment-json
-            // 可以通过 element.dataset.attachmentJson 访问
-            const attachmentJson = element.dataset.attachmentJson;
-            if (attachmentJson) {
-                showAttachmentDialog(attachmentJson);
-            } else {
-                showAlert('未能获取附件信息。', 'danger');
-            }
-        }
-
-
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("待会签合同列表页面已成功加载。");
-
-            // 自动关闭提示消息
-            var alertList = document.querySelectorAll('.alert-dismissible');
-            alertList.forEach(function (alertNode) {
-                new bootstrap.Alert(alertNode); // 初始化Bootstrap的Alert组件
-                setTimeout(() => {
-                    const alertInstance = bootstrap.Alert.getInstance(alertNode);
-                    if (alertInstance) {
-                        alertInstance.close();
-                    }
-                }, 7000); // 7秒后自动关闭
-            });
-
-            // 初始化 Bootstrap Tooltips (如果使用 data-bs-toggle="tooltip")
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            })
-        });
-    </script>
-</th:block>
+</div>
 
 </body>
-</html>
+</html> 
