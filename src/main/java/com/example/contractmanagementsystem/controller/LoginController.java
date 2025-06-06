@@ -1,10 +1,10 @@
-// Path: src/main/java/com/example/contractmanagementsystem/controller/LoginController.java
 package com.example.contractmanagementsystem.controller;
 
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.service.ContractService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,15 +15,21 @@ import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.databind.ObjectMapper; // 新增导入
+import com.fasterxml.jackson.core.JsonProcessingException; // 新增导入
 
 @Controller
 public class LoginController {
 
     private final ContractService contractService;
+    private final ObjectMapper objectMapper; // 引入 ObjectMapper
 
     @Autowired
-    public LoginController(ContractService contractService) {
+    public LoginController(ContractService contractService, ObjectMapper objectMapper) { // 注入 ObjectMapper
         this.contractService = contractService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/login")
@@ -51,6 +57,24 @@ public class LoginController {
             String username = principal.getName();
             model.addAttribute("username", username);
 
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+            if (authentication != null && authentication.isAuthenticated()) {
+                List<String> authoritiesList = authentication.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.toList());
+                try {
+                    String authoritiesJson = objectMapper.writeValueAsString(authoritiesList);
+                    model.addAttribute("currentUserAuthoritiesJson", authoritiesJson); // 传递 JSON 字符串
+                } catch (JsonProcessingException e) {
+                    // 处理 JSON 序列化异常
+                    System.err.println("Error serializing authorities to JSON: " + e.getMessage());
+                    model.addAttribute("currentUserAuthoritiesJson", "[]"); // 序列化失败时传递空 JSON 数组
+                }
+            } else {
+                model.addAttribute("currentUserAuthoritiesJson", "[]"); // 未认证用户传递空 JSON 数组
+            }
+
             if (contractService != null) {
                 List<ContractProcess> pendingTasks = contractService.getAllPendingTasksForUser(username);
                 model.addAttribute("pendingTasks", pendingTasks);
@@ -60,8 +84,6 @@ public class LoginController {
                 systemStats.put("expiringSoonCount", contractService.countContractsExpiringSoon(username, 30));
                 model.addAttribute("systemStats", systemStats);
 
-                // 检查用户是否为管理员并添加待分配合同数量，作为独立的属性
-                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
                 if (authentication != null && authentication.getAuthorities().stream()
                         .anyMatch(ga -> ga.getAuthority().equals("ROLE_ADMIN"))) {
                     long pendingAssignmentCount = contractService.countContractsPendingAssignment();
