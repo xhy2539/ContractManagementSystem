@@ -22,19 +22,19 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-@Controller //
-@RequestMapping("/admin/approve-extension-request") //
-@PreAuthorize("hasRole('ROLE_ADMIN')") // 确保只有管理员角色可以访问此控制器的所有端点
-public class AdminContractExtensionController { //
+@Controller
+@RequestMapping("/admin/approve-extension-request")
+@PreAuthorize("hasRole('ROLE_ADMIN')")
+public class AdminContractExtensionController {
 
-    private static final Logger logger = LoggerFactory.getLogger(AdminContractExtensionController.class); //
+    private static final Logger logger = LoggerFactory.getLogger(AdminContractExtensionController.class);
 
-    private final ContractService contractService; //
+    private final ContractService contractService;
 
-    @Autowired //
-    public AdminContractExtensionController(ContractService contractService) { //
-        this.contractService = contractService; //
-    } //
+    @Autowired
+    public AdminContractExtensionController(ContractService contractService) {
+        this.contractService = contractService;
+    }
 
     /**
      * 显示待审批的合同延期请求列表。
@@ -45,24 +45,24 @@ public class AdminContractExtensionController { //
      * @param authentication 认证信息。
      * @return 模板路径。
      */
-    @GetMapping("/admin/approve-extension-request") //
-    @PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_VIEW')") //
-    public String showPendingExtensionRequests( //
-                                                @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable, //
-                                                @RequestParam(required = false) String contractNameSearch, //
-                                                Model model, //
-                                                Authentication authentication //
-    ) { //
-        String username = authentication.getName(); //
-        Page<ContractProcess> pendingRequests = contractService.getPendingProcessesForUser( //
-                username, ContractProcessType.EXTENSION_REQUEST, ContractProcessState.PENDING, contractNameSearch, pageable //
-        ); //
+    @GetMapping // 匹配 /admin/approve-extension-request
+    @PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_VIEW')")
+    public String showPendingExtensionRequests(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String contractNameSearch,
+            Model model,
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
+        Page<ContractProcess> pendingRequests = contractService.getPendingProcessesForUser(
+                username, ContractProcessType.EXTENSION_REQUEST, ContractProcessState.PENDING, contractNameSearch, pageable
+        );
 
-        model.addAttribute("pendingRequests", pendingRequests); //
-        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : ""); //
-        model.addAttribute("listTitle", "待审批延期请求"); //
-        return "approve-extension-request"; //
-    } //
+        model.addAttribute("pendingRequests", pendingRequests);
+        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
+        model.addAttribute("listTitle", "待审批延期请求");
+        return "admin/approve-extension-request"; // 此处仍然返回列表页面
+    }
 
     /**
      * 显示合同延期请求的详细信息和审批表单。
@@ -73,29 +73,28 @@ public class AdminContractExtensionController { //
      * @param redirectAttributes 重定向属性。
      * @return 模板路径。
      */
-    @GetMapping("/{processId}") //
-    @PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_VIEW') or hasAuthority('CON_EXTEND_APPROVAL_SUBMIT')") //
-    public String showApproveExtensionRequestForm( //
-                                                   @PathVariable Long processId, //
-                                                   Model model, //
-                                                   Authentication authentication, //
-                                                   RedirectAttributes redirectAttributes //
-    ) { //
-        String username = authentication.getName(); //
-        try { //
-            // 获取具体的延期请求流程，并进行权限和状态验证
-            ContractProcess requestProcess = contractService.getContractProcessByIdAndOperator( //
-                    processId, username, ContractProcessType.EXTENSION_REQUEST, ContractProcessState.PENDING //
-            ); //
-            model.addAttribute("requestProcess", requestProcess); //
-            model.addAttribute("contract", requestProcess.getContract()); //
-            return "admin/approve-extension-request"; //
-        } catch (Exception e) { //
-            logger.error("加载延期请求审批表单失败 (Process ID: {}): {}", processId, e.getMessage(), e); //
-            redirectAttributes.addFlashAttribute("errorMessage", "加载延期请求详情失败: " + e.getMessage()); //
-            return "redirect:/admin/admin/approve-extension-request"; //
-        } //
-    } //
+    @GetMapping("/{processId}") // 匹配 /admin/approve-extension-request/{processId}
+    @PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_VIEW') or hasAuthority('CON_EXTEND_APPROVAL_SUBMIT')")
+    public String showApproveExtensionRequestForm(
+            @PathVariable Long processId,
+            Model model,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes
+    ) {
+        String username = authentication.getName();
+        try {
+            ContractProcess requestProcess = contractService.getContractProcessByIdAndOperator(
+                    processId, username, ContractProcessType.EXTENSION_REQUEST, ContractProcessState.PENDING
+            );
+            model.addAttribute("requestProcess", requestProcess);
+            model.addAttribute("contract", requestProcess.getContract());
+            return "admin/approve-extension-request-detail"; // **修改行：返回新的详情页面模板**
+        } catch (Exception e) {
+            logger.error("加载延期请求审批表单失败 (Process ID: {}): {}", processId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("errorMessage", "加载延期请求详情失败: " + e.getMessage());
+            return "redirect:/admin/approve-extension-request"; // 重定向回列表页面
+        }
+    }
 
     /**
      * 处理合同延期请求的审批操作（批准或拒绝）。
@@ -107,35 +106,36 @@ public class AdminContractExtensionController { //
      * @param redirectAttributes 重定向属性。
      * @return 重定向路径。
      */
-    @PostMapping("/{processId}") //
-    @PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_SUBMIT')") //
-    public String approveExtensionRequest( //
-                                           @PathVariable Long processId, //
-                                           @Valid @ModelAttribute ContractExtensionApprovalRequest request, //
-                                           BindingResult bindingResult, //
-                                           Authentication authentication, //
-                                           RedirectAttributes redirectAttributes //
-    ) { //
-        if (bindingResult.hasErrors()) { //
-            redirectAttributes.addFlashAttribute("errorMessage", "审批决定不能为空。"); //
-            return "redirect:/admin/approve-extension-request/" + processId; //
-        } //
+    @PostMapping("/{processId}") // 匹配 /admin/approve-extension-request/{processId}
+    @PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_SUBMIT')")
+    public String approveExtensionRequest(
+            @PathVariable Long processId,
+            @Valid @ModelAttribute ContractExtensionApprovalRequest request,
+            BindingResult bindingResult,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes
+    ) {
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("errorMessage", "审批决定不能为空。");
+            // 当表单校验失败时，应返回到详情页，并重新加载数据，而不是重定向
+            return "redirect:/admin/approve-extension-request/" + processId; // 保持重定向，但下次会加载详情页
+        }
 
-        String username = authentication.getName(); //
-        boolean isApproved = "APPROVED".equalsIgnoreCase(request.getDecision()); //
-        String comments = request.getComments(); //
+        String username = authentication.getName();
+        boolean isApproved = "APPROVED".equalsIgnoreCase(request.getDecision());
+        String comments = request.getComments();
 
-        try { //
-            contractService.processExtensionRequest(processId, username, isApproved, comments); //
-            redirectAttributes.addFlashAttribute("successMessage", //
-                    "延期请求 (ID: " + processId + ") 已成功" + (isApproved ? "批准" : "拒绝") + "。"); //
-        } catch (AccessDeniedException e) { //
-            logger.warn("用户 '{}' 无权审批延期请求 {}: {}", username, processId, e.getMessage()); //
-            redirectAttributes.addFlashAttribute("errorMessage", "权限不足: " + e.getMessage()); //
-        } catch (Exception e) { //
-            logger.error("处理延期请求 {} 失败: {}", processId, e.getMessage(), e); //
-            redirectAttributes.addFlashAttribute("errorMessage", "处理延期请求失败: " + e.getMessage()); //
-        } //
-        return "redirect:/admin/approve-extension-request"; //
-    } //
+        try {
+            contractService.processExtensionRequest(processId, username, isApproved, comments);
+            redirectAttributes.addFlashAttribute("successMessage",
+                    "延期请求 (ID: " + processId + ") 已成功" + (isApproved ? "批准" : "拒绝") + "。");
+        } catch (AccessDeniedException e) {
+            logger.warn("用户 '{}' 无权审批延期请求 {}: {}", username, processId, e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", "权限不足: " + e.getMessage());
+        } catch (Exception e) {
+            logger.error("处理延期请求 {} 失败: {}", processId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("errorMessage", "处理延期请求失败: " + e.getMessage());
+        }
+        return "redirect:/admin/approve-extension-request"; // 重定向回列表页
+    }
 }
