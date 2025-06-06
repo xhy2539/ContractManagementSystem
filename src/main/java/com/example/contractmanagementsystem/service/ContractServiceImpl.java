@@ -143,7 +143,7 @@ public class ContractServiceImpl implements ContractService {
     @Override
     @Transactional
     public Contract finalizeContract(Long contractId, String finalizationComments, List<String> attachmentServerFileNames, String updatedContent, String username) throws IOException {
-        Contract contract = getContractForFinalization(contractId, username);
+        Contract contract = getContractForFinalization(contractId, username); // 该方法已经做了权限和状态校验
         User finalizer = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Finalizing user '" + username + "' not found."));
 
@@ -182,33 +182,61 @@ public class ContractServiceImpl implements ContractService {
             logger.info("Contract {} finalized, content updated.", contractId);
         }
 
-        contract.setStatus(ContractStatus.PENDING_APPROVAL);
-        contract.setUpdatedAt(LocalDateTime.now());
+        // 标记当前定稿流程为完成
+        // 首先找到当前用户对应的定稿流程
+        ContractProcess currentFinalizeProcess = contractProcessRepository.findByContractIdAndOperatorUsernameAndTypeAndState(
+                contractId, username, ContractProcessType.FINALIZE, ContractProcessState.PENDING
+        ).orElseThrow(() -> new BusinessLogicException("您不是该合同的定稿人或定稿任务不处于待处理状态。"));
 
-        ContractProcess finalizationProcessRecord = new ContractProcess();
-        finalizationProcessRecord.setContract(contract);
-        finalizationProcessRecord.setContractNumber(contract.getContractNumber());
-        finalizationProcessRecord.setType(ContractProcessType.FINALIZE);
-        finalizationProcessRecord.setState(ContractProcessState.COMPLETED);
-        finalizationProcessRecord.setOperator(finalizer);
-        finalizationProcessRecord.setOperatorUsername(finalizer.getUsername());
-        finalizationProcessRecord.setComments(finalizationComments);
-        finalizationProcessRecord.setProcessedAt(LocalDateTime.now());
-        finalizationProcessRecord.setCompletedAt(LocalDateTime.now());
-        contractProcessRepository.save(finalizationProcessRecord);
 
-        Contract savedContract = contractRepository.save(contract);
+        currentFinalizeProcess.setState(ContractProcessState.COMPLETED); // 标记为已完成
+        currentFinalizeProcess.setComments(finalizationComments); // 保存定稿意见
+        currentFinalizeProcess.setProcessedAt(LocalDateTime.now());
+        currentFinalizeProcess.setCompletedAt(LocalDateTime.now());
+        contractProcessRepository.save(currentFinalizeProcess); // 保存当前定稿流程记录
 
-        String details = "Contract ID " + contractId + " (" + contract.getContractName() + ") finalized by user " + username + ", status changed to pending approval.";
-        if (StringUtils.hasText(finalizationComments)) {
-            details += " Finalization comments: " + finalizationComments + ".";
+        contract.setUpdatedAt(LocalDateTime.now()); // 更新合同的更新时间
+
+        // --- 新增逻辑：检查所有定稿人员是否都已完成定稿 ---
+        List<ContractProcess> allFinalizeProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.FINALIZE);
+
+        // 检查是否有任何定稿流程被拒绝 (如果业务允许定稿拒绝)
+        boolean anyFinalizeRejected = allFinalizeProcesses.stream()
+                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED);
+
+        if (anyFinalizeRejected) {
+            contract.setStatus(ContractStatus.REJECTED);
+            String logDetails = "A finalize process was rejected, contract status changed to Rejected.";
+            auditLogService.logAction(username, "CONTRACT_FINALIZE_REJECTED", logDetails);
+            contractRepository.save(contract);
+            return contract; // 拒绝后，直接返回
         }
-        if (StringUtils.hasText(savedContract.getAttachmentPath()) && !savedContract.getAttachmentPath().equals("[]") && !savedContract.getAttachmentPath().equals("null")) {
-            details += " Current attachments: " + savedContract.getAttachmentPath() + ".";
-        }
-        auditLogService.logAction(username, "CONTRACT_FINALIZED", details);
 
-        return savedContract;
+        // 检查所有定稿流程是否都已完成
+        boolean allFinalizeProcessesCompleted = allFinalizeProcesses.stream()
+                .allMatch(p -> p.getState() == ContractProcessState.COMPLETED);
+
+        if (allFinalizeProcessesCompleted) {
+            // 所有定稿流程都已完成，合同进入待审批状态
+            contract.setStatus(ContractStatus.PENDING_APPROVAL);
+            String logDetails = "Contract ID " + contractId + " (" + contract.getContractName() + ") finalized by user " + username + ", status changed to pending approval. All finalizers completed.";
+            if (StringUtils.hasText(finalizationComments)) {
+                logDetails += " Finalization comments: " + finalizationComments + ".";
+            }
+            auditLogService.logAction(username, "CONTRACT_FINALIZED", logDetails);
+        } else {
+            // 仍有其他定稿人员未完成定稿，合同状态保持不变
+            String logDetails = "Contract ID " + contractId + " (" + contract.getContractName() + ") finalized by user " + username + ", status remains pending finalization. Waiting for other finalizers.";
+            if (StringUtils.hasText(finalizationComments)) {
+                logDetails += " Finalization comments: " + finalizationComments + ".";
+            }
+            auditLogService.logAction(username, "CONTRACT_FINALIZE_PARTIAL", logDetails); // 新增日志类型
+        }
+        // --- 结束新增逻辑 ---
+
+        // 保存合同最终状态
+
+        return contractRepository.save(contract);
     }
 
     @Override
@@ -230,54 +258,62 @@ public class ContractServiceImpl implements ContractService {
                 contract.getId() + " (" + contract.getContractName() + "). Comments: " +
                 (StringUtils.hasText(comments) ? comments : "None");
 
+        // 如果有人拒绝，直接将合同状态设置为 REJECTED
         if (!isApproved) {
             contract.setStatus(ContractStatus.REJECTED);
             logDetails += " Contract rejected due to countersign, status changed to Rejected.";
             auditLogService.logAction(username, logActionType, logDetails);
             contractRepository.save(contract);
+            return; // 拒绝后立即返回，不再检查其他会签
+        }
+
+        // 获取所有会签流程，并重新检查状态
+        List<ContractProcess> allCountersignProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.COUNTERSIGN);
+
+        // 检查是否有任何会签被拒绝 (包括刚处理的，以及之前可能有的)
+        boolean anyCountersignRejected = allCountersignProcesses.stream()
+                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED);
+
+        if (anyCountersignRejected) {
+            // 如果存在任何拒绝，将合同状态设置为 REJECTED
+            contract.setStatus(ContractStatus.REJECTED);
+            logDetails += " A countersign was rejected, contract status changed to Rejected.";
+            auditLogService.logAction(username, logActionType, logDetails);
+            contractRepository.save(contract);
             return;
         }
 
-        List<ContractProcess> allCountersignProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.COUNTERSIGN);
-        boolean allRelevantCountersignsApproved = allCountersignProcesses.stream()
+        // 只有所有会签都已完成 (不是 PENDING 状态) 且都为 APPROVED，才能推进
+        boolean allCountersignsCompletedAndApproved = allCountersignProcesses.stream()
                 .allMatch(p -> p.getState() == ContractProcessState.APPROVED || p.getState() == ContractProcessState.COMPLETED);
 
-        if (allRelevantCountersignsApproved) {
+        if (allCountersignsCompletedAndApproved) {
             contract.setStatus(ContractStatus.PENDING_FINALIZATION);
             logDetails += " All countersigns completed and approved, contract enters pending finalization status.";
 
             auditLogService.logAction(username, "CONTRACT_ALL_COUNTERSIGNED_TO_FINALIZE", logDetails);
-            User drafter = contract.getDrafter();
-            if (drafter == null) {
-                logger.error("Contract (ID: {}) countersign completed, but drafter is null, cannot create finalization task.", contract.getId());
-                throw new BusinessLogicException("Contract drafter information missing, cannot proceed with finalization process.");
-            }
+            User drafter = contract.getDrafter(); // 定稿人由 assignContractPersonnel 分配，这里需要获取
+            // 应该找 FINALIZE 类型的 PENDING 流程的 operator，而不是 drafter
+            // 这里我们假设 ContractProcessType.FINALIZE 的操作员就是最初分配的
+            // 所以，这里需要查找合同对应的 FINALIZE 流程，并确保其操作员存在
+            Optional<ContractProcess> finalizeTaskOptional = contractProcessRepository
+                    .findByContractIdAndTypeAndState(contract.getId(), ContractProcessType.FINALIZE, ContractProcessState.PENDING)
+                    .stream()
+                    .findFirst(); // 查找第一个待定稿任务
 
-            Optional<ContractProcess> existingFinalizeTask = contractProcessRepository
-                    .findByContractIdAndOperatorUsernameAndTypeAndState(
-                            contract.getId(),
-                            drafter.getUsername(),
-                            ContractProcessType.FINALIZE,
-                            ContractProcessState.PENDING
-                    );
-
-            if (existingFinalizeTask.isEmpty()) {
-                ContractProcess finalizeTask = new ContractProcess();
-                finalizeTask.setContract(contract);
-                finalizeTask.setContractNumber(contract.getContractNumber());
-                finalizeTask.setType(ContractProcessType.FINALIZE);
-                finalizeTask.setState(ContractProcessState.PENDING);
-                finalizeTask.setOperator(drafter);
-                finalizeTask.setOperatorUsername(drafter.getUsername());
-                finalizeTask.setComments("Waiting for drafter to finalize contract content.");
-                contractProcessRepository.save(finalizeTask);
-                auditLogService.logAction(drafter.getUsername(), "FINALIZE_TASK_CREATED",
-                        "Created pending finalization task for Contract ID " + contract.getId() + " (" + contract.getContractName() + ").");
-                logger.info("Finalization task created for contract {} (ID: {}) for drafter {}.", contract.getContractName(), contract.getId(), drafter.getUsername());
+            if (finalizeTaskOptional.isPresent()) {
+                // 如果定稿任务存在，就用它原来的操作员
+                ContractProcess existingFinalizeTask = finalizeTaskOptional.get();
+                logger.info("Found existing pending finalization task for contract {} (ID: {}) for user {}. No new task created.", contract.getContractName(), contract.getId(), existingFinalizeTask.getOperatorUsername());
+                // 这里不需要再次保存 existingFinalizeTask，因为它状态已经是 PENDING
             } else {
-                logger.warn("Contract {} (ID: {}) already has a pending finalization task for drafter {}, skipping creation.", contract.getContractName(), contract.getId(), drafter.getUsername());
+                // 异常情况：会签都通过了，但没有找到待定稿任务。
+                // 这种情况不应该发生，除非分配阶段出问题，或者定稿任务被意外删除/完成。
+                logger.error("Contract (ID: {}) all countersigns completed, but no pending finalization task found. This indicates a workflow inconsistency.", contract.getId());
+                throw new BusinessLogicException("会签流程已完成，但未能找到待定稿任务。请联系管理员。");
             }
         } else {
+            // 仍有未处理的会签，状态保持不变
             logDetails += " Current countersign approved, but other countersign processes are still pending. Contract status remains pending countersign.";
             auditLogService.logAction(username, logActionType, logDetails);
         }
@@ -619,20 +655,41 @@ public class ContractServiceImpl implements ContractService {
                 " (" + contract.getContractName() + "). Approval comments: " +
                 (StringUtils.hasText(comments) ? comments : "None");
 
-        if (approved) {
-            List<ContractProcess> allApprovalProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.APPROVAL);
-            boolean allRelevantApprovalsCompletedAndApproved = allApprovalProcesses.stream()
-                    .allMatch(p -> p.getState() == ContractProcessState.APPROVED || p.getState() == ContractProcessState.COMPLETED);
-
-            if (allRelevantApprovalsCompletedAndApproved) {
-                contract.setStatus(ContractStatus.PENDING_SIGNING);
-                logDetails += " All approvals passed, contract enters pending signing status.";
-            } else {
-                logDetails += " Other approval processes are still pending or not all approved. Contract status remains pending approval.";
-            }
-        } else {
+        // 如果有人拒绝，直接将合同状态设置为 REJECTED
+        if (!approved) {
             contract.setStatus(ContractStatus.REJECTED);
             logDetails += " Contract rejected, status updated to Rejected.";
+            auditLogService.logAction(username, logActionType, logDetails);
+            contractRepository.save(contract);
+            return; // 拒绝后立即返回，不再检查其他审批
+        }
+
+        // 获取所有审批流程，并重新检查状态
+        List<ContractProcess> allApprovalProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.APPROVAL);
+
+        // 检查是否有任何审批被拒绝 (包括刚处理的，以及之前可能有的)
+        boolean anyApprovalRejected = allApprovalProcesses.stream()
+                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED);
+
+        if (anyApprovalRejected) {
+            // 如果存在任何拒绝，将合同状态设置为 REJECTED
+            contract.setStatus(ContractStatus.REJECTED);
+            logDetails += " An approval was rejected, contract status changed to Rejected.";
+            auditLogService.logAction(username, logActionType, logDetails);
+            contractRepository.save(contract);
+            return;
+        }
+
+        // 只有所有审批都已完成 (不是 PENDING 状态) 且都为 APPROVED，才能推进
+        boolean allApprovalsCompletedAndApproved = allApprovalProcesses.stream()
+                .allMatch(p -> p.getState() == ContractProcessState.APPROVED || p.getState() == ContractProcessState.COMPLETED);
+
+        if (allApprovalsCompletedAndApproved) {
+            contract.setStatus(ContractStatus.PENDING_SIGNING);
+            logDetails += " All approvals passed, contract enters pending signing status.";
+        } else {
+            // 仍有未处理的审批，状态保持不变
+            logDetails += " Other approval processes are still pending or not all approved. Contract status remains pending approval.";
         }
         contractRepository.save(contract);
         auditLogService.logAction(username, logActionType, logDetails);
@@ -654,16 +711,15 @@ public class ContractServiceImpl implements ContractService {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         // **修改结束**
 
-        if (process.getType() != ContractProcessType.EXTENSION_REQUEST && !process.getOperator().equals(currentUser)) {
+        // 如果不是管理员，且操作员不匹配，则拒绝访问
+        // 对于 EXTENSION_REQUEST 类型，管理员可以查看所有请求，不需要是指定操作员
+        if (!isAdmin && process.getType() != ContractProcessType.EXTENSION_REQUEST && !process.getOperator().equals(currentUser)) {
             throw new AccessDeniedException("您 (" + username + ") 不是此合同流程的指定操作员 (ID: " + contractProcessId +
                     ", 操作员: " + process.getOperator().getUsername() + ")，无权操作。");
         }
-        if (process.getType() == ContractProcessType.EXTENSION_REQUEST) {
-            // 对于 EXTENSION_REQUEST 类型，如果用户不是管理员，抛出 AccessDeniedException
-            if (!isAdmin) {
-                throw new AccessDeniedException("只有管理员才能处理延期请求。");
-            }
-            // 如果是管理员，则允许继续执行（无需判断 operator，因为管理员可以处理任何人的请求）
+        // 如果是 EXTENSION_REQUEST 类型，且不是管理员，则拒绝访问
+        if (process.getType() == ContractProcessType.EXTENSION_REQUEST && !isAdmin) {
+            throw new AccessDeniedException("只有管理员才能处理延期请求。");
         }
 
 
@@ -719,6 +775,20 @@ public class ContractServiceImpl implements ContractService {
                 (StringUtils.hasText(signingOpinion) ? signingOpinion : "无");
 
         List<ContractProcess> allSigningProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.SIGNING);
+
+        // 检查是否有任何签订被拒绝（尽管签订流程通常只有“完成”状态，这里做防御性检查）
+        boolean anySigningRejected = allSigningProcesses.stream()
+                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED); // 签订流程通常不会有REJECTED状态，但为通用性保留
+
+        if (anySigningRejected) {
+            // 如果存在任何拒绝，将合同状态设置为 REJECTED
+            contract.setStatus(ContractStatus.REJECTED);
+            logDetails += " A signing process was rejected, contract status changed to Rejected.";
+            auditLogService.logAction(username, "CONTRACT_SIGNING_REJECTED", logDetails); // 新增日志类型
+            contractRepository.save(contract);
+            return;
+        }
+
         boolean allRelevantSigningsCompleted = allSigningProcesses.stream()
                 .allMatch(p -> p.getState() == ContractProcessState.COMPLETED);
 
@@ -743,7 +813,20 @@ public class ContractServiceImpl implements ContractService {
         Specification<Contract> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("status"), ContractStatus.PENDING_FINALIZATION));
-            predicates.add(cb.equal(root.get("drafter"), currentUser));
+            //predicates.add(cb.equal(root.get("drafter"), currentUser)); // 这一行是原代码的起草人过滤，需要移除或修改
+
+            // 新增：检查当前用户是否是FINALIZE类型流程的PENDING状态的操作员
+            Subquery<Long> subquery = query.subquery(Long.class);
+            Root<ContractProcess> processRoot = subquery.from(ContractProcess.class);
+            subquery.select(processRoot.get("contract").get("id"));
+            Predicate processPredicate = cb.and(
+                    cb.equal(processRoot.get("contract").get("id"), root.get("id")),
+                    cb.equal(processRoot.get("type"), ContractProcessType.FINALIZE),
+                    cb.equal(processRoot.get("state"), ContractProcessState.PENDING),
+                    cb.equal(processRoot.get("operator"), currentUser)
+            );
+            subquery.where(processPredicate);
+            predicates.add(cb.exists(subquery)); // 添加子查询作为条件
 
 
             if (StringUtils.hasText(contractNameSearch)) {
@@ -782,11 +865,28 @@ public class ContractServiceImpl implements ContractService {
 
         User currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("当前用户 '" + username + "' 未找到。"));
-        if (contract.getDrafter() == null || !contract.getDrafter().equals(currentUser)) {
-            logger.warn("用户 '{}' 尝试定稿合同 ID {}，但此合同由 '{}' 起草，或起草人为空。访问被拒绝。",
-                    username, contractId, (contract.getDrafter() != null ? contract.getDrafter().getUsername() : "未知"));
-            throw new AccessDeniedException("您 ("+username+") 不是此合同的起草人，无权定稿。");
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        // **修改开始：定稿权限校验逻辑**
+        // 1. 如果是管理员，则直接允许（管理员可以处理任何定稿任务）
+        if (isAdmin) {
+            logger.info("管理员 '{}' 访问合同 ID {} 进行定稿操作，允许。", username, contractId);
+        } else {
+            // 2. 如果不是管理员，则检查当前用户是否被分配为该合同的定稿操作员且流程处于 PENDING 状态
+            Optional<ContractProcess> finalizeProcess = contractProcessRepository.findByContractIdAndOperatorUsernameAndTypeAndState(
+                    contractId, username, ContractProcessType.FINALIZE, ContractProcessState.PENDING
+            );
+
+            if (finalizeProcess.isEmpty()) {
+                logger.warn("用户 '{}' 尝试定稿合同 ID {}，但未被分配为定稿人员或任务不处于待处理状态。访问被拒绝。", username, contractId);
+                throw new AccessDeniedException("您 (" + username + ") 未被指定为该合同的定稿人员，或该定稿任务不处于待处理状态，无权定稿。");
+            }
+            logger.info("用户 '{}' 被指定为合同 ID {} 的定稿人员，允许操作。", username, contractId);
         }
+        // **修改结束**
 
         User drafter = contract.getDrafter();
         if (drafter != null) {
@@ -1253,6 +1353,14 @@ public class ContractServiceImpl implements ContractService {
             }
         }
 
+        // 获取所有待审批的延期请求流程
+        List<ContractProcess> allPendingExtensionRequests = contractProcessRepository.findByContractIdAndTypeAndState(
+                contract.getId(), ContractProcessType.EXTENSION_REQUEST, ContractProcessState.PENDING
+        );
+
+        // 检查是否有任何延期请求被拒绝 (包括刚处理的，以及之前可能有的)
+        boolean anyExtensionRequestRejected = allPendingExtensionRequests.stream()
+                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED);
 
         requestProcess.setProcessedAt(LocalDateTime.now());
         requestProcess.setCompletedAt(LocalDateTime.now());
@@ -1271,24 +1379,37 @@ public class ContractServiceImpl implements ContractService {
         String auditLogDetails;
 
         if (isApproved) {
-            if (requestedNewEndDate.isBefore(contract.getEndDate()) || requestedNewEndDate.isEqual(contract.getEndDate())) {
-                throw new BusinessLogicException("批准的延期日期 (" + requestedNewEndDate + ") 必须晚于合同当前到期日期 (" + contract.getEndDate() + ")。");
-            }
-            if (requestedNewEndDate.isBefore(LocalDate.now())) {
-                throw new BusinessLogicException("批准的延期日期不能是过去的日期。");
-            }
-
-            contract.setEndDate(requestedNewEndDate);
-            if (contract.getStatus() == ContractStatus.EXPIRED) {
-                contract.setStatus(ContractStatus.ACTIVE);
-            }
-            contract.setUpdatedAt(LocalDateTime.now());
-            contractRepository.save(contract);
-
             requestProcess.setState(ContractProcessState.APPROVED);
-            auditLogAction = "CONTRACT_EXTENSION_APPROVED";
-            auditLogDetails = "管理员批准合同 ID: " + contract.getId() + " (" + contract.getContractName() +
-                    ") 的延期请求，新到期日期: " + requestedNewEndDate + "。审批意见: " + (comments != null ? comments : "无");
+
+            if (requestedNewEndDate.isBefore(contract.getEndDate()) || requestedNewEndDate.isEqual(contract.getEndDate())) {
+                auditLogAction = "CONTRACT_EXTENSION_APPROVAL_INVALID_DATE"; // 定义新的日志类型
+                auditLogDetails = "管理员批准延期请求，但新日期早于或等于原日期，合同未延期。合同 ID: " + contract.getId() + " (" + contract.getContractName() + ")，请求新日期: " + requestedNewEndDate + "，原日期: " + contract.getEndDate() + "。审批意见: " + (comments != null ? comments : "无");
+                // 审批通过，但日期不合法，不更新合同日期，流程仍然标记为APPROVED（表示审批已完成）
+                logger.warn("管理员批准延期请求，但新日期 {} 早于或等于原日期 {}，合同 ID: {} 未延期。", requestedNewEndDate, contract.getEndDate(), contract.getId());
+            } else if (requestedNewEndDate.isBefore(LocalDate.now())) {
+                auditLogAction = "CONTRACT_EXTENSION_APPROVAL_PAST_DATE"; // 定义新的日志类型
+                auditLogDetails = "管理员批准延期请求，但新日期是过去日期，合同未延期。合同 ID: " + contract.getId() + " (" + contract.getContractName() + ")，请求新日期: " + requestedNewEndDate + "。审批意见: " + (comments != null ? comments : "无");
+                logger.warn("管理员批准延期请求，但新日期 {} 是过去日期，合同 ID: {} 未延期。", requestedNewEndDate, contract.getId());
+            }
+            else if (anyExtensionRequestRejected) {
+                // 如果在任何延期请求被拒绝之后，即使当前的请求被批准，也不应该延期合同
+                auditLogAction = "CONTRACT_EXTENSION_APPROVAL_REJECTED_PREVIOUSLY"; // 定义新的日志类型
+                auditLogDetails = "管理员批准延期请求，但此前有其他延期请求被拒绝，合同未延期。合同 ID: " + contract.getId() + " (" + contract.getContractName() + ")，请求新日期: " + requestedNewEndDate + "。审批意见: " + (comments != null ? comments : "无");
+                logger.warn("合同 ID: {} 延期请求批准，但此前有其他请求被拒绝，合同未延期。", contract.getId());
+            }
+            else {
+                contract.setEndDate(requestedNewEndDate);
+                if (contract.getStatus() == ContractStatus.EXPIRED) {
+                    contract.setStatus(ContractStatus.ACTIVE);
+                }
+                contract.setUpdatedAt(LocalDateTime.now());
+                contractRepository.save(contract);
+
+                auditLogAction = "CONTRACT_EXTENSION_APPROVED";
+                auditLogDetails = "管理员批准合同 ID: " + contract.getId() + " (" + contract.getContractName() +
+                        ") 的延期请求，新到期日期: " + requestedNewEndDate + "。审批意见: " + (comments != null ? comments : "无");
+            }
+
         } else {
             requestProcess.setState(ContractProcessState.REJECTED);
             auditLogAction = "CONTRACT_EXTENSION_REJECTED";
@@ -1353,6 +1474,8 @@ public class ContractServiceImpl implements ContractService {
                     }
                 } else {
                     // 没有“附加备注”部分，原因取到字符串末尾
+                    // 将此行从 `reason = comments.substring(reasonStartIdx).trim();`
+                    // 修改为 `reason = comments.substring(reasonStartKeywordIdx).trim();`
                     reason = comments.substring(reasonStartKeywordIdx).trim();
                     // 移除原因末尾的句号，如果存在
                     if (reason.endsWith("。")) {

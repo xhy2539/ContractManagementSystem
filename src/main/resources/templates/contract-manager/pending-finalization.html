@@ -104,32 +104,32 @@
                     <th scope="col" class="action-column" style="width: 12%;">操作</th> </tr>
                 </thead>
                     <tbody>
-                    <tr th:each="contract : ${pendingFinalizationContracts.content}">
-                        <td th:text="${contract.contractNumber}">CON-XYZ-001</td>
+                    <tr th:each="process : ${pendingFinalizationContracts.content}">
+                        <td th:text="${process.contract.contractNumber}">CON-XYZ-001</td>
                         <td>
                             <a th:if="${#authorization.expression('hasAuthority(''CON_FINAL_SUBMIT'')')}"
-                               th:href="@{${finalizeBaseUrl} + '/' + ${contract.id}}"
-                               th:text="${contract.contractName}"
-                               th:title="'点击进入定稿合同: ' + ${contract.contractName}"
+                               th:href="@{${finalizeBaseUrl} + '/' + ${process.contract.id}}"
+                               th:text="${process.contract.contractName}"
+                               th:title="'点击进入定稿合同: ' + ${process.contract.contractName}"
                                class="fw-semibold">合同示例名称</a>
                             <span th:unless="${#authorization.expression('hasAuthority(''CON_FINAL_SUBMIT'')')}"
-                                  th:text="${contract.contractName}"></span>
+                                  th:text="${process.contract.contractName}"></span>
                         </td>
-                        <td th:text="${contract.customer?.customerName ?: '-'}">示例客户公司</td>
-                        <td th:text="${contract.drafter?.username ?: '-'}">张三</td>
+                        <td th:text="${process.contract.customer?.customerName ?: '-'}">示例客户公司</td>
+                        <td th:text="${process.operatorUsername ?: '-'}">张三</td>
                         <td class="text-center">
-                                <span th:if="${contract.status != null}"
-                                      th:text="${contract.status.description}"
-                                      class="status-badge"
-                                      th:classappend="'status-' + ${contract.status.name()}">待定稿</span>
+        <span th:if="${process.state != null}"
+              th:text="${process.state.description}"
+              class="status-badge"
+              th:classappend="'status-' + ${process.state.name()}">待处理</span>
                         </td>
-                        <td th:text="${#temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm')}">2025-06-01 10:30</td>
+                        <td th:text="${#temporals.format(process.createdAt, 'yyyy-MM-dd HH:mm')}">2025-06-01 10:30</td>
                         <td class="action-column">
-                            <a th:href="@{${finalizeBaseUrl} + '/' + ${contract.id}}" class="btn btn-success btn-sm" title="定稿此合同"
+                            <a th:href="@{${finalizeBaseUrl} + '/' + ${process.contract.id}}" class="btn btn-success btn-sm" title="定稿此合同"
                                sec:authorize="hasAuthority('CON_FINAL_SUBMIT')">
                                 <i class="bi bi-check2-square"></i> 定稿
                             </a>
-                            <a th:href="@{'/contracts/view/' + ${contract.id}}" target="_blank" class="btn btn-info btn-sm ms-1" title="查看合同详情"
+                            <a th:href="@{'/contracts/' + ${process.contract.id} + '/detail'}" target="_blank" class="btn btn-info btn-sm ms-1" title="查看合同详情"
                                sec:authorize="hasAuthority('CON_VIEW_MY') or hasAuthority('CON_MANAGE_VIEW_ALL') or hasRole('ROLE_ADMIN')">
                                 <i class="bi bi-eye"></i>
                             </a>

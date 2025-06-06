@@ -326,6 +326,7 @@ public class ContractController {
             Model model,
             Principal principal) {
         String username = principal.getName();
+        // 修改此行，将 Page<ContractProcess> 更改为 Page<Contract>
         Page<Contract> pendingFinalizationContracts = contractService.getContractsPendingFinalizationForUser(username, contractNameSearch, pageable);
         model.addAttribute("pendingFinalizationContracts", pendingFinalizationContracts);
 
@@ -596,7 +597,8 @@ public class ContractController {
         } catch (ResourceNotFoundException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "无法加载审批详情：" + e.getMessage());
             return "redirect:/contract-manager/pending-approval";
-        } catch (AccessDeniedException e) {
+        }
+        catch (AccessDeniedException e) {
             redirectAttributes.addFlashAttribute("errorMessage","权限不足，无法查看审批详情。");
             return "redirect:/dashboard"; // 或者返回到待审批列表
         }
