@@ -83,7 +83,8 @@ public class AttachmentServiceImpl implements AttachmentService {
         String timestamp = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(java.time.LocalDateTime.now());
 
 // 2. 获取一个简短的唯一ID，防止同一秒内上传同名文件
-        String shortUuid = UUID.randomUUID().toString().substring(0, 6);
+        String shortUuid = UUID.randomUUID().toString().substring(0, 6
+        );
 
 // 3. 安全地处理原始文件名，移除非法字符，保留扩展名
         String fileExtension = "";
