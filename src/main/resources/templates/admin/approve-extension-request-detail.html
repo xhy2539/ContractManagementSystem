@@ -86,7 +86,7 @@
                 </a>
                 <a th:if="${contract != null and contract.id != null}"
                    th:href="@{/contracts/{id}/detail(id=${contract.id})}"
-                   class="btn btn-info" target="_blank" title="查看合同详情">
+                   class="btn btn-info" title="查看合同详情">
                     <i class="bi bi-eye"></i> 查看合同
                 </a>
             </div>
@@ -139,7 +139,7 @@
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">期望新日期：</span>
-                    <span class="detail-value" th:text="${parsedComments?.get('requestedNewEndDate') ?: '-'}"></span>
+                    <span class="detail-value" th:text="${requestProcess.requestedNewEndDate != null ? #temporals.format(requestProcess.requestedNewEndDate, 'yyyy-MM-dd') : '-'}"></span>
                 </div>
 
                 <div class="request-details-card">
@@ -147,19 +147,25 @@
                     <div class="detail-row">
                         <span class="detail-label">延期原因：</span>
                         <span class="detail-value">
-                            <p th:text="${parsedComments?.get('reason') ?: '-'}"></p>
+                            <p th:text="${requestProcess.requestReason ?: '-'}"></p>
                         </span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">附加备注：</span>
                         <span class="detail-value">
-                            <p th:text="${parsedComments?.get('additionalComments') ?: '-'}"></p>
+                            <p th:text="${requestProcess.requestAdditionalComments ?: '-'}"></p>
+                        </span>
+                    </div>
+                    <div th:if="${requestProcess.state.name() == 'APPROVED' or requestProcess.state.name() == 'REJECTED'}" class="detail-row">
+                        <span class="detail-label">审批意见：</span>
+                        <span class="detail-value">
+                            <p th:text="${requestProcess.adminApprovalComments ?: '无'}"></p>
                         </span>
                     </div>
                 </div>
             </div>
 
-            <div class="approval-form-card">
+            <div class="approval-form-card" th:if="${requestProcess.state.name() == 'PENDING'}">
                 <h2 class="section-title">审批操作</h2>
                 <form th:action="@{/admin/approve-extension-request/{processId}(processId=${requestProcess.id})}" method="post">
                     <div class="mb-3">
@@ -186,6 +192,9 @@
                         <a th:href="@{/admin/approve-extension-request}" class="btn btn-outline-secondary ms-2">取消</a>
                     </div>
                 </form>
+            </div>
+            <div th:unless="${requestProcess.state.name() == 'PENDING'}" class="alert alert-info text-center mt-4">
+                <i class="bi bi-info-circle-fill me-2"></i> 该请求已处理，无需再次审批。
             </div>
         </div>
     </div>

@@ -449,15 +449,15 @@ public class ContractController {
                         !contractToDisplay.getAttachmentPath().equalsIgnoreCase("null")) {
                     try {
                         currentAttachmentFileNames = objectMapper.readValue(contractToDisplay.getAttachmentPath(), new TypeReference<List<String>>(){});
-                    } catch (JsonProcessingException e) {
-                        logger.warn("校验失败后重新加载附件JSON时出错 (Contract ID: {}): {}", contractId, e.getMessage());
+                    } catch (JsonProcessingException jsonEx) {
+                        logger.warn("校验失败后重新加载附件JSON时出错 (Contract ID: {}): {}", contractId, jsonEx.getMessage());
                     }
                 }
                 model.addAttribute("currentAttachmentFileNames", currentAttachmentFileNames); // 用于前端显示
                 // 再次将初始附件列表序列化为 JSON 字符串，传递给前端JS
                 try {
                     model.addAttribute("initialAttachmentsJson", objectMapper.writeValueAsString(currentAttachmentFileNames));
-                } catch (JsonProcessingException e) {
+                } catch (JsonProcessingException jsonEx) {
                     model.addAttribute("initialAttachmentsJson", "[]");
                 }
 
@@ -717,24 +717,21 @@ public class ContractController {
             Contract contract = contractService.getContractById(contractId);
             List<ContractProcess> contractProcesses = contractService.getContractProcessHistory(contractId);
 
-            // 按创建时间倒序排序处理记录
-            contractProcesses.sort((a, b) -> b.getCreatedAt().compareTo(b.getCreatedAt()));
+            // 由于 getContractProcessHistory 已经在服务层完成了排序，这里不再需要手动排序
+            // contractProcesses.sort((a, b) -> b.getCreatedAt().compareTo(b.getCreatedAt()));
 
             model.addAttribute("contract", contract);
             model.addAttribute("contractProcesses", contractProcesses);
 
-            // --- 开始添加的代码 ---
             List<String> attachmentPaths = new ArrayList<>();
             if (contract.getAttachmentPath() != null && !contract.getAttachmentPath().trim().isEmpty()) {
                 try {
-                    // 使用 ObjectMapper 解析JSON字符串为List<String>
                     attachmentPaths = objectMapper.readValue(contract.getAttachmentPath(), new TypeReference<List<String>>() {});
                 } catch (JsonProcessingException e) {
                     logger.error("解析附件路径失败，合同ID {}: {}", contractId, e.getMessage());
                     model.addAttribute("errorMessage", "附件信息解析失败。");
                 }
             }
-            // 将解析后的列表添加到模型中
             model.addAttribute("attachmentPaths", attachmentPaths);
 
 

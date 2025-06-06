@@ -90,6 +90,9 @@
                         <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/functionalities')) ? 'active' : ''}" th:href="@{/admin/functionalities}"><i class="bi bi-gear-wide-connected"></i> 功能管理</a></li>
                         <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/contract-assignments')) ? 'active' : ''}" th:href="@{/admin/contract-assignments}"><i class="bi bi-person-lines-fill"></i> 合同分配</a></li>
                         <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/audit-logs')) ? 'active' : ''}" th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i> 审计日志</a></li>
+                        <li sec:authorize="hasAuthority('CON_EXTEND_APPROVAL_VIEW')">
+                            <a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/approve-extension-request')) ? 'active' : ''}" th:href="@{/admin/approve-extension-request}"><i class="bi bi-calendar-plus-fill"></i> 延期请求审批</a>
+                        </li>
                     </ul>
                 </li>
             </ul>

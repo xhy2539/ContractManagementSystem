@@ -9,7 +9,6 @@ import com.example.contractmanagementsystem.repository.ContractRepository;
 import com.example.contractmanagementsystem.repository.CustomerRepository;
 import com.example.contractmanagementsystem.repository.UserRepository;
 
-// Jackson imports for JSON processing
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -522,6 +521,8 @@ public class ContractServiceImpl implements ContractService {
                         cb.equal(root.get("type"), ContractProcessType.EXTENSION_REQUEST),
                         cb.equal(root.get("state"), ContractProcessState.PENDING)
                         // 不再限制操作员，管理员可以看所有待审批的延期请求
+                        // ⭐ 注：AdminController.java 中 admin/approve-extension-request 路径的 PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_VIEW')") 允许管理员查看所有延期请求
+                        //    所以这里不限制 operator 是正确的
                 );
                 allOrConditions.add(allPendingExtensionRequests);
             }
@@ -654,25 +655,25 @@ public class ContractServiceImpl implements ContractService {
         // **修改结束**
 
         if (process.getType() != ContractProcessType.EXTENSION_REQUEST && !process.getOperator().equals(currentUser)) {
-            throw new AccessDeniedException("You (" + username + ") are not the designated operator for this contract process (ID: " + contractProcessId +
-                    ", Operator: " + process.getOperator().getUsername() + "), no permission to operate.");
+            throw new AccessDeniedException("您 (" + username + ") 不是此合同流程的指定操作员 (ID: " + contractProcessId +
+                    ", 操作员: " + process.getOperator().getUsername() + ")，无权操作。");
         }
         if (process.getType() == ContractProcessType.EXTENSION_REQUEST) {
             // 对于 EXTENSION_REQUEST 类型，如果用户不是管理员，抛出 AccessDeniedException
             if (!isAdmin) {
-                throw new AccessDeniedException("Only an Administrator can process Extension Requests.");
+                throw new AccessDeniedException("只有管理员才能处理延期请求。");
             }
             // 如果是管理员，则允许继续执行（无需判断 operator，因为管理员可以处理任何人的请求）
         }
 
 
         if (process.getType() != expectedType) {
-            throw new BusinessLogicException("Contract process type mismatch. Expected type: " + expectedType.getDescription() +
-                    ", Actual type: " + process.getType().getDescription());
+            throw new BusinessLogicException("合同流程类型不匹配。预期类型: " + expectedType.getDescription() +
+                    ", 实际类型: " + process.getType().getDescription());
         }
         if (process.getState() != expectedState) {
-            throw new BusinessLogicException("Contract process status incorrect. Expected status: " + expectedState.getDescription() +
-                    ", Actual status: " + process.getState().getDescription());
+            throw new BusinessLogicException("合同流程状态不正确。预期状态: " + expectedState.getDescription() +
+                    ", 实际状态: " + process.getState().getDescription());
         }
 
         Hibernate.initialize(process.getContract());
@@ -703,7 +704,7 @@ public class ContractServiceImpl implements ContractService {
 
         Contract contract = process.getContract();
         if (contract.getStatus() != ContractStatus.PENDING_SIGNING) {
-            throw new BusinessLogicException("Contract current status is " + contract.getStatus().getDescription() + ", cannot be signed. Must be in pending signing status.");
+            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法签订。必须处于待签订状态。");
         }
 
         process.setState(ContractProcessState.COMPLETED);
@@ -713,9 +714,9 @@ public class ContractServiceImpl implements ContractService {
         contractProcessRepository.save(process);
 
         contract.setUpdatedAt(LocalDateTime.now());
-        String logDetails = "User " + username + " completed signing for Contract ID " + contract.getId() +
-                " (" + contract.getContractName() + "). Signing comments: " +
-                (StringUtils.hasText(signingOpinion) ? signingOpinion : "None");
+        String logDetails = "用户 " + username + " 完成了合同 ID " + contract.getId() +
+                " (" + contract.getContractName() + ") 的签订。签订意见: " +
+                (StringUtils.hasText(signingOpinion) ? signingOpinion : "无");
 
         List<ContractProcess> allSigningProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.SIGNING);
         boolean allRelevantSigningsCompleted = allSigningProcesses.stream()
@@ -723,10 +724,10 @@ public class ContractServiceImpl implements ContractService {
 
         if (allRelevantSigningsCompleted) {
             contract.setStatus(ContractStatus.ACTIVE);
-            logDetails += " All signing processes completed, contract status updated to Active.";
+            logDetails += " 所有签订流程已完成，合同状态更新为有效。";
             auditLogService.logAction(username, "CONTRACT_ALL_SIGNED_ACTIVE", logDetails);
         } else {
-            logDetails += " Other signing processes are still pending. Contract status remains pending signing.";
+            logDetails += " 其他签订流程仍在进行中。合同状态保持待签订。";
             auditLogService.logAction(username, "CONTRACT_PARTIALLY_SIGNED", logDetails);
         }
         contractRepository.save(contract);
@@ -772,7 +773,7 @@ public class ContractServiceImpl implements ContractService {
     @Transactional(readOnly = true)
     public Contract getContractForFinalization(Long contractId, String username) {
         Contract contract = contractRepository.findByIdWithCustomerAndDrafter(contractId)
-                .orElseThrow(() -> new ResourceNotFoundException("Contract not found, ID: " + contractId));
+                .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
 
         if (contract.getStatus() != ContractStatus.PENDING_FINALIZATION) {
             throw new BusinessLogicException("合同当前状态为" + contract.getStatus().getDescription() +
@@ -780,10 +781,10 @@ public class ContractServiceImpl implements ContractService {
         }
 
         User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Current user '" + username + "' not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("当前用户 '" + username + "' 未找到。"));
         if (contract.getDrafter() == null || !contract.getDrafter().equals(currentUser)) {
-            logger.warn("User '{}' attempted to finalize contract ID {}, but this contract was drafted by '{}', or drafter is null. Access denied.",
-                    username, contractId, (contract.getDrafter() != null ? contract.getDrafter().getUsername() : "unknown"));
+            logger.warn("用户 '{}' 尝试定稿合同 ID {}，但此合同由 '{}' 起草，或起草人为空。访问被拒绝。",
+                    username, contractId, (contract.getDrafter() != null ? contract.getDrafter().getUsername() : "未知"));
             throw new AccessDeniedException("您 ("+username+") 不是此合同的起草人，无权定稿。");
         }
 
@@ -799,7 +800,7 @@ public class ContractServiceImpl implements ContractService {
     @Transactional(readOnly = true)
     public List<ContractProcess> getContractCountersignOpinions(Long contractId) {
         Contract contract = contractRepository.findById(contractId)
-                .orElseThrow(() -> new ResourceNotFoundException("Failed to get countersign opinions: Contract not found, ID: " + contractId));
+                .orElseThrow(() -> new ResourceNotFoundException("获取会签意见失败：合同未找到，ID: " + contractId));
 
         List<ContractProcess> countersignProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.COUNTERSIGN);
 
@@ -821,7 +822,7 @@ public class ContractServiceImpl implements ContractService {
                 .orElse(null);
 
         if (currentUser == null) {
-            logger.warn("Username '{}' provided for user-specific contract statistics, but user not found in database. Statistics will return zero.", username);
+            logger.warn("为用户特定合同统计提供了用户名 '{}'，但在数据库中未找到该用户。统计将返回零。", username);
             return criteriaBuilder.disjunction();
         }
 
@@ -924,9 +925,9 @@ public class ContractServiceImpl implements ContractService {
                 contractRepository.save(contract);
                 updatedCount++;
                 auditLogService.logAction("SYSTEM", "CONTRACT_AUTO_EXPIRED",
-                        "Contract " + contract.getContractNumber() + " (ID: " + contract.getId() +
-                                ") automatically updated to EXPIRED status from " + contract.getStatus().name() + " on " + today);
-                logger.info("Contract {} (ID: {}) automatically updated to EXPIRED status.", contract.getContractName(), contract.getId());
+                        "合同 " + contract.getContractNumber() + " (ID: " + contract.getId() +
+                                ") 自动更新为过期状态，原状态: " + contract.getStatus().name() + "，时间: " + today);
+                logger.info("合同 {} (ID: {}) 自动更新为过期状态。", contract.getContractName(), contract.getId());
             }
         }
         return updatedCount;
@@ -998,7 +999,7 @@ public class ContractServiceImpl implements ContractService {
     @Transactional(readOnly = true)
     public List<ContractProcess> getContractProcessHistory(Long contractId) {
         Contract contract = contractRepository.findById(contractId)
-                .orElseThrow(() -> new ResourceNotFoundException("Contract not found, ID: " + contractId));
+                .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
 
         List<ContractProcess> processes = contractProcessRepository.findByContractOrderByCreatedAtDesc(contract);
 
@@ -1009,6 +1010,13 @@ public class ContractServiceImpl implements ContractService {
             }
         });
 
+        // ⭐ MODIFICATION START: Custom sorting for process history
+        // 按照 ContractProcessType 的 code 升序排序，然后按照创建时间升序排序
+        processes.sort(Comparator
+                .comparing((ContractProcess p) -> p.getType().getCode()) // 根据类型代码排序
+                .thenComparing(ContractProcess::getCreatedAt)); // 然后根据创建时间排序
+
+        // ⭐ MODIFICATION END
         return processes;
     }
     @Override
@@ -1105,6 +1113,8 @@ public class ContractServiceImpl implements ContractService {
         process.setOperator(adminUser);
         process.setOperatorUsername(username);
         process.setComments("管理员直接延期。原到期日期: " + contract.getEndDate() + ", 新到期日期: " + newEndDate + (StringUtils.hasText(comments) ? ". 备注: " + comments : ""));
+        // ⭐ 修改点：将管理员直接延期意见存储到新字段中 ⭐
+        process.setAdminApprovalComments(comments); // 将管理员的备注存储到该字段
         process.setProcessedAt(LocalDateTime.now());
         process.setCompletedAt(LocalDateTime.now());
         contractProcessRepository.save(process);
@@ -1158,7 +1168,13 @@ public class ContractServiceImpl implements ContractService {
         process.setState(ContractProcessState.PENDING);
         process.setOperator(requestingUser);
         process.setOperatorUsername(username);
-        // 构建comments字符串时，明确包含所有部分，即使某些部分为空
+
+        // ⭐ 修改点：将延期请求的详细信息存储到新字段中 ⭐
+        process.setRequestedNewEndDate(requestedNewEndDate);
+        process.setRequestReason(reason);
+        process.setRequestAdditionalComments(comments); // 这里的 comments 就是附加备注
+
+        // comments 字段可以保留原始拼接字符串作为日志或概要，但详细数据在新字段
         StringBuilder commentsBuilder = new StringBuilder();
         commentsBuilder.append("请求将合同到期日期从 ").append(contract.getEndDate()).append(" 延期至 ").append(requestedNewEndDate).append("。");
         commentsBuilder.append("原因: ").append(StringUtils.hasText(reason) ? reason : "无").append(".");
@@ -1204,27 +1220,52 @@ public class ContractServiceImpl implements ContractService {
             throw new BusinessLogicException("延期请求关联的合同不存在。流程ID: " + processId);
         }
 
-        // 使用新的解析方法来获取期望新日期，避免重复的解析逻辑
-        Map<String, String> parsedComments = parseExtensionRequestComments(requestProcess.getComments());
-        LocalDate requestedNewEndDate = null;
-        try {
-            if (parsedComments.get("requestedNewEndDate") != null && !parsedComments.get("requestedNewEndDate").isEmpty()) {
-                requestedNewEndDate = LocalDate.parse(parsedComments.get("requestedNewEndDate"), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-            }
-        } catch (Exception e) {
-            logger.error("从解析后的延期请求评论中获取期望的新到期日期失败：'{}'", parsedComments.get("requestedNewEndDate"), e);
-            throw new BusinessLogicException("延期请求内容格式错误，无法解析期望的到期日期。");
-        }
+        // ⭐ 移除解析原始 comments 字段的逻辑，因为现在数据存在新字段中 ⭐
+        // Map<String, String> parsedComments = parseExtensionRequestComments(requestProcess.getComments());
+        // LocalDate requestedNewEndDate = null;
+        // try {
+        //     if (parsedComments.get("requestedNewEndDate") != null && !parsedComments.get("requestedNewEndDate").isEmpty()) {
+        //         requestedNewEndDate = LocalDate.parse(parsedComments.get("requestedNewEndDate"), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        //     }
+        // } catch (Exception e) {
+        //     logger.error("从解析后的延期请求评论中获取期望的新到期日期失败：'{}'", parsedComments.get("requestedNewEndDate"), e);
+        //     throw new BusinessLogicException("延期请求内容格式错误，无法解析期望的到期日期。");
+        // }
+
+        // ⭐ 修改点：直接从 requestProcess.getRequestedNewEndDate() 获取日期 ⭐
+        LocalDate requestedNewEndDate = requestProcess.getRequestedNewEndDate();
 
         if (requestedNewEndDate == null) {
-            throw new BusinessLogicException("延期请求中未包含有效的期望到期日期。");
+            // 如果旧数据没有requestedNewEndDate，或者通过某种方式丢失了，这里可以回退到解析旧comments
+            // 但理想情况是，有了新字段后，此处不应再是null
+            logger.warn("延期请求记录 (ID: {}) 中的 requestedNewEndDate 字段为 null，尝试从旧 comments 字段解析。", processId);
+            Map<String, String> oldParsedComments = parseExtensionRequestComments(requestProcess.getComments());
+            try {
+                if (oldParsedComments.get("requestedNewEndDate") != null && !oldParsedComments.get("requestedNewEndDate").isEmpty() && !"(无)".equals(oldParsedComments.get("requestedNewEndDate"))) {
+                    requestedNewEndDate = LocalDate.parse(oldParsedComments.get("requestedNewEndDate"), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                    logger.info("成功从旧 comments 字段解析出 requestedNewEndDate: {}", requestedNewEndDate);
+                }
+            } catch (Exception e) {
+                logger.error("回退到旧 comments 字段解析 requestedNewEndDate 失败: {}", oldParsedComments.get("requestedNewEndDate"), e);
+            }
+            if (requestedNewEndDate == null) {
+                throw new BusinessLogicException("延期请求中未包含有效的期望到期日期。");
+            }
         }
+
 
         requestProcess.setProcessedAt(LocalDateTime.now());
         requestProcess.setCompletedAt(LocalDateTime.now());
         requestProcess.setOperator(adminUser);
         requestProcess.setOperatorUsername(username);
-        requestProcess.setComments("管理员审批意见: " + (StringUtils.hasText(comments) ? comments : "无。"));
+
+        // ⭐ 修改点：将管理员的审批意见存储到新字段中 ⭐
+        requestProcess.setAdminApprovalComments(comments); // 将管理员的comments存储到新字段
+
+        // 更新 comments 字段，以反映审批结果和意见，不再包含请求的详细信息
+        String newCommentsForProcessRecord = "管理员审批" + (isApproved ? "批准" : "拒绝") + "：";
+        newCommentsForProcessRecord += (StringUtils.hasText(comments) ? comments : "无。");
+        requestProcess.setComments(newCommentsForProcessRecord); // 更新主要comments字段为审批结果和意见
 
         String auditLogAction;
         String auditLogDetails;
@@ -1264,6 +1305,10 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     public Map<String, String> parseExtensionRequestComments(String comments) {
+        // ⭐ 修改点：此方法在新的数据模型下，不再是提取延期请求信息的主要方式。
+        //    它现在主要用于兼容旧数据，或者在 comments 字段仍然存储拼接字符串时进行解析。
+        //    如果所有数据都已迁移到新字段，此方法可以简化或移除。
+        //    为了兼容性，暂时保留解析逻辑。
         Map<String, String> parsed = new HashMap<>();
         String requestedNewEndDate = null;
         String reason = null;
