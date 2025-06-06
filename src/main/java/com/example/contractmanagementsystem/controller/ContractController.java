@@ -17,14 +17,19 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-// import org.springframework.security.core.GrantedAuthority; // 未在此控制器中直接使用，可移除
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -34,15 +39,22 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.mvc.method.annotation.MvcUriComponentsBuilder;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.Principal;
 import java.util.ArrayList;
-// import java.util.Collections; // 未在此控制器中直接使用，可移除
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import com.example.contractmanagementsystem.dto.PendingApprovalItemDto;
+
 
 @Controller
 @RequestMapping({"/contract-manager", "/contracts"})
@@ -52,11 +64,81 @@ public class ContractController {
     private final ContractService contractService;
     private final ObjectMapper objectMapper;
 
+    // TODO: 替换为你的附件存储的实际根路径
+    // 例如：private final Path attachmentStorageLocation = Paths.get("/path/to/your/attachments").toAbsolutePath().normalize();
+    // 假设附件存储在项目根目录下的 uploads/attachments 文件夹
+    private final Path attachmentStorageLocation = Paths.get("uploads/attachments").toAbsolutePath().normalize();
+
     @Autowired
     public ContractController(ContractService contractService, ObjectMapper objectMapper) {
         this.contractService = contractService;
         this.objectMapper = objectMapper;
     }
+
+    // 新增：附件下载接口
+    // 使用 @ResponseBody 表示直接将返回值写入HTTP响应体，而不是解析为视图
+    @GetMapping("/api/attachments/download/{filename:.+}") // {filename:.+} 允许文件名包含点，匹配完整文件名
+    @ResponseBody
+    public ResponseEntity<Resource> downloadAttachment(@PathVariable String filename) {
+        logger.info("收到附件下载请求，文件名: {}", filename);
+        try {
+            // 确保文件名是安全的，防止路径遍历攻击
+            Path filePath = attachmentStorageLocation.resolve(filename).normalize();
+
+            // 打印解析后的文件绝对路径，用于调试
+            logger.debug("解析附件路径: {}", filePath.toString());
+
+            if (!filePath.startsWith(attachmentStorageLocation)) {
+                // 如果尝试访问 attachmentStorageLocation 之外的路径，则拒绝
+                logger.warn("尝试非法访问附件路径: {}", filename);
+                return ResponseEntity.badRequest().build();
+            }
+
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (resource.exists() && resource.isReadable()) {
+                logger.info("附件文件找到并可读: {}", filePath.toString());
+                // 尝试根据文件扩展名设置MIME类型
+                String contentType = null;
+                try {
+                    // 实际项目中，更推荐使用 Files.probeContentType(filePath)
+                    // 或 ServletContext.getMimeType(resource.getFilename())
+                    if (filename.toLowerCase().endsWith(".pdf")) {
+                        contentType = "application/pdf";
+                    } else if (filename.toLowerCase().endsWith(".png")) {
+                        contentType = "image/png";
+                    } else if (filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg")) {
+                        contentType = "image/jpeg";
+                    } else if (filename.toLowerCase().endsWith(".doc")) {
+                        contentType = "application/msword";
+                    } else if (filename.toLowerCase().endsWith(".docx")) {
+                        contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    } else {
+                        contentType = "application/octet-stream"; // 默认二进制流
+                    }
+                    logger.debug("推断出的MIME类型: {}", contentType);
+                } catch (Exception e) {
+                    logger.warn("无法确定文件 {} 的 MIME 类型，使用默认类型。错误: {}", filename, e.getMessage());
+                    contentType = "application/octet-stream";
+                }
+
+                return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                        .body(resource);
+            } else {
+                logger.warn("请求的附件文件不存在或不可读: {}", filePath.toString());
+                return ResponseEntity.notFound().build();
+            }
+        } catch (MalformedURLException ex) {
+            logger.error("附件文件名 {} 格式不正确: {}", filename, ex.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (Exception ex) {
+            logger.error("下载附件 {} 时发生服务器内部错误: {}", filename, ex.getMessage(), ex);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
 
     @GetMapping("/draft-contract")
     @PreAuthorize("hasAuthority('CON_DRAFT_NEW')")
@@ -315,7 +397,8 @@ public class ContractController {
         } catch (BusinessLogicException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "操作失败：" + e.getMessage());
             return "redirect:/contract-manager/pending-finalization";
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             logger.error("加载定稿合同表单时发生未知错误 (Contract ID: {})", contractId, e);
             redirectAttributes.addFlashAttribute("errorMessage", "加载定稿页面时发生内部错误。");
             return "redirect:/contract-manager/pending-finalization";
@@ -371,7 +454,7 @@ public class ContractController {
 
             } catch (Exception loadEx) {
                 logger.error("表单校验失败后重新加载合同信息失败 (Contract ID: {})", contractId, loadEx);
-                redirectAttributes.addFlashAttribute("errorMessage", "表单校验失败，且重新加载合同信息时也发生错误：" + loadEx.getMessage());
+                redirectAttributes.addFlashAttribute("errorMessage", "表单校验失败，且重新加载合同信息以显示错误时也发生错误：" + loadEx.getMessage());
                 return "redirect:/contract-manager/pending-finalization"; // 重定向到列表页
             }
             model.addAttribute("errorMessage", "表单提交无效，请检查输入。"); // 添加通用错误消息
@@ -455,9 +538,33 @@ public class ContractController {
             Principal principal
     ) {
         String username = principal.getName();
-        Page<ContractProcess> pendingApprovals = contractService.getPendingProcessesForUser(
+        Page<ContractProcess> pendingProcessesPage = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.APPROVAL, ContractProcessState.PENDING, contractNameSearch, pageable);
-        model.addAttribute("pendingApprovals", pendingApprovals);
+
+        // 创建一个用于前端的新列表，其中包含解析后的附件文件名
+        List<PendingApprovalItemDto> itemsWithAttachments = new ArrayList<>();
+        for (ContractProcess process : pendingProcessesPage.getContent()) {
+            List<String> attachmentPaths = new ArrayList<>();
+            // 尝试解析合同的附件路径JSON字符串
+            if (process.getContract() != null && process.getContract().getAttachmentPath() != null &&
+                    !process.getContract().getAttachmentPath().trim().isEmpty() &&
+                    !process.getContract().getAttachmentPath().equals("[]") &&
+                    !process.getContract().getAttachmentPath().equalsIgnoreCase("null")) {
+                try {
+                    attachmentPaths = objectMapper.readValue(process.getContract().getAttachmentPath(), new TypeReference<List<String>>() {});
+                } catch (JsonProcessingException e) {
+                    logger.warn("解析待审批合同附件路径失败，合同ID {}: {}", process.getContract().getId(), e.getMessage());
+                    // 即使解析失败，也继续处理，附件列表为空
+                }
+            }
+            itemsWithAttachments.add(new PendingApprovalItemDto(process, attachmentPaths));
+        }
+
+        // 将包含DTO的Page对象传递给模型，保持分页结构
+        Page<PendingApprovalItemDto> pendingApprovalsDtoPage = new PageImpl<>(
+                itemsWithAttachments, pageable, pendingProcessesPage.getTotalElements());
+
+        model.addAttribute("pendingApprovals", pendingApprovalsDtoPage); // 现在前端将接收到这个包含DTO的Page
         model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
         model.addAttribute("listTitle", "待审批合同");
         return "contract-manager/pending-approval";
@@ -577,7 +684,7 @@ public class ContractController {
 
         String currentUsername = authentication.getName();
         boolean isAdmin = authentication.getAuthorities().stream()
-                .anyMatch(ga -> ga.getAuthority().equals("ROLE_ADMIN"));
+                .anyMatch(ga -> ga.getAuthority().equals("ROLE_ADMIN")); // <-- 修正：移除了多余的单引号
 
         Page<Contract> contractsPage = contractService.searchContracts(currentUsername, isAdmin, contractName, contractNumber, status, pageable);
 

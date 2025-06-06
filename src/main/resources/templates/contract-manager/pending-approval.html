@@ -20,9 +20,10 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
+        /* 如果 h1 的默认样式被 Bootstrap 覆盖，可能需要调整 mb-0 或 h2 类 */
         h1 {
             color: #333;
-            margin-bottom: 20px;
+            /* Bootstrap 的 h1 默认就有 mb，这里可能不需要额外的 margin-bottom: 0; */
         }
         .search-form {
             margin-bottom: 20px;
@@ -86,8 +87,13 @@
 </head>
 <body>
 
-<div class="container">
-    <h1>待审批合同</h1>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 h2">待审批合同</h1>
+        <a th:href="@{/dashboard}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i>返回仪表盘
+        </a>
+    </div>
     <p>以下是需要您进行审批的合同列表。</p>
 
     <form th:action="@{/contracts/pending-approval}" method="get" class="search-form">
@@ -114,26 +120,30 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="process : ${pendingApprovals.content}">
-                <td th:text="${process.contract.id}"></td>
-                <td th:text="${process.contract.contractNumber}"></td>
-                <td th:text="${process.contract.contractName}"></td>
-                <td th:text="${process.contract.customer.customerName}"></td>
-                <td th:text="${process.contract.drafter.username}"></td>
-                <td th:text="${#temporals.format(process.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
-                <td th:text="${process.state.description}"></td>
+            <tr th:each="item : ${pendingApprovals.content}">
+                <td th:text="${item.contractProcess.contract.id}"></td>
+                <td th:text="${item.contractProcess.contract.contractNumber}"></td>
+                <td th:text="${item.contractProcess.contract.contractName}"></td>
+                <td th:text="${item.contractProcess.contract.customer.customerName}"></td>
+                <td th:text="${item.contractProcess.contract.drafter.username}"></td>
+                <td th:text="${#temporals.format(item.contractProcess.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+                <td th:text="${item.contractProcess.state.description}"></td>
                 <td>
-                    <a th:href="@{/contracts/approval-details/{id}(id=${process.contract.id})}" class="btn-action">审批</a>
-                    <a th:href="@{/contracts/view/{id}(id=${process.contract.id})}" class="btn-view">查看</a>
-                    <span th:if="${process.contract.attachmentPath}">
-                        <a th:href="@{'/attachments/' + ${process.contract.attachmentPath}}" target="_blank" class="btn-view">附件</a>
+                    <a th:href="@{/contracts/approval-details/{id}(id=${item.contractProcess.contract.id})}" class="btn-action">审批</a>
+                    <!-- 修改此处：将查看链接指向后端对应的 /contracts/{id}/detail 路径 -->
+                    <a th:href="@{/contracts/{id}/detail(id=${item.contractProcess.contract.id})}" class="btn-view">查看</a>
+                    <span th:if="${!#lists.isEmpty(item.attachmentFileNames)}">
+                        <span th:each="filename : ${item.attachmentFileNames}">
+                            <a th:href="@{/api/attachments/download/{filename}(filename=${filename})}"
+                               th:download="${filename}"
+                               class="btn-view" style="margin-right: 5px;">附件</a>
+                        </span>
                     </span>
                 </td>
             </tr>
             </tbody>
         </table>
 
-        <!-- 分页控件 -->
         <div class="pagination" th:if="${pendingApprovals.totalPages > 1}">
             <span th:each="i : ${#numbers.sequence(0, pendingApprovals.totalPages - 1)}">
                 <a th:href="@{/contracts/pending-approval(page=${i}, contractNameSearch=${contractNameSearch})}"
@@ -145,4 +155,4 @@
 </div>
 
 </body>
-</html> 
+</html>
