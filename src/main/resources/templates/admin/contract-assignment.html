@@ -77,7 +77,7 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h1><i class="bi bi-person-lines-fill"></i> 合同人员分配</h1>
     </div>
-    <p class="text-muted">请从左侧列表中选择一个待分配的合同，然后在右侧为其指定会签、审批和签订人员。</p>
+    <p class="text-muted">请从左侧列表中选择一个待分配的合同，然后在右侧为其指定处理人员。</p>
     <div id="globalAlertContainer"></div>
 
     <div class="row g-4">
@@ -151,7 +151,7 @@
             </div>
 
             <div class="assignment-section">
-              <h5><i class="bi bi-people text-primary"></i> 会签人员</h5>
+              <h5><i class="bi bi-people text-primary"></i> 会签人员 <span class="text-danger">*</span></h5>
               <div class="user-selection-container mt-2">
                 <div class="user-list-box">
                   <h6>可选用户</h6>
@@ -169,7 +169,25 @@
             </div>
 
             <div class="assignment-section">
-              <h5><i class="bi bi-person-check text-success"></i> 审批人员</h5>
+              <h5><i class="bi bi-pencil-square text-warning"></i> 定稿人员 <span class="text-danger">*</span></h5>
+              <div class="user-selection-container mt-2">
+                <div class="user-list-box">
+                  <h6>可选用户</h6>
+                  <select multiple class="form-select" id="availableFinalizerUsers" size="6"></select>
+                </div>
+                <div class="user-selection-buttons">
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="addFinalizerUserBtn" title="添加选中用户到定稿列表">&gt;&gt;</button>
+                  <button type="button" class="btn btn-outline-danger btn-sm" id="removeFinalizerUserBtn" title="从定稿列表移除选中用户">&lt;&lt;</button>
+                </div>
+                <div class="user-list-box">
+                  <h6>已选定稿人</h6>
+                  <select multiple class="form-select" id="assignedFinalizerUsers" size="6"></select>
+                </div>
+              </div>
+            </div>
+
+            <div class="assignment-section">
+              <h5><i class="bi bi-person-check text-success"></i> 审批人员 <span class="text-danger">*</span></h5>
               <div class="user-selection-container mt-2">
                 <div class="user-list-box">
                   <h6>可选用户</h6>
@@ -187,7 +205,7 @@
             </div>
 
             <div class="assignment-section">
-              <h5><i class="bi bi-pen text-info"></i> 签订人员</h5>
+              <h5><i class="bi bi-pen text-info"></i> 签订人员 <span class="text-danger">*</span></h5>
               <div class="user-selection-container mt-2">
                 <div class="user-list-box">
                   <h6>可选用户</h6>

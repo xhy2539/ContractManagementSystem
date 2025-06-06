@@ -37,12 +37,13 @@ public interface SystemManagementService {
     /**
      * 为合同分配处理人员 (会签、审批、签订)。
      * @param contractId 合同ID。
+     * @param finalizerUserIds 定稿人员ID列表。
      * @param countersignUserIds 会签人员ID列表。
      * @param approvalUserIds 审批人员ID列表。
      * @param signUserIds 签订人员ID列表。
      * @return boolean 分配是否成功。
      */
-    boolean assignContractPersonnel(Long contractId, List<Long> countersignUserIds, List<Long> approvalUserIds, List<Long> signUserIds);
+    boolean assignContractPersonnel(Long contractId, List<Long> finalizerUserIds, List<Long> countersignUserIds, List<Long> approvalUserIds, List<Long> signUserIds);
 
     // --- 用户管理 (3.7.2.1) ---
     /**

@@ -60,6 +60,7 @@ public class ContractAssignmentController {
         // 并将合同状态从 PENDING_ASSIGNMENT 更新为 PENDING_COUNTERSIGN
         systemManagementService.assignContractPersonnel(
                 contractId,
+                request.getFinalizerUserIds(),
                 request.getCountersignUserIds(),
                 request.getApprovalUserIds(),
                 request.getSignUserIds()

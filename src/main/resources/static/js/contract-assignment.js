@@ -7,6 +7,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const selectedContractNameSpan = document.getElementById('selectedContractName');
     const selectedContractIdInput = document.getElementById('selectedContractId');
 
+    // Updated to support dual listbox for finalizers
+    const availableFinalizerUsersSelect = document.getElementById('availableFinalizerUsers');
+    const assignedFinalizerUsersSelect = document.getElementById('assignedFinalizerUsers');
+    const addFinalizerUserBtn = document.getElementById('addFinalizerUserBtn');
+    const removeFinalizerUserBtn = document.getElementById('removeFinalizerUserBtn');
+
     const availableCountersignUsersSelect = document.getElementById('availableCountersignUsers');
     const assignedCountersignUsersSelect = document.getElementById('assignedCountersignUsers');
     const availableApprovalUsersSelect = document.getElementById('availableApprovalUsers');
@@ -28,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const globalAlertContainerId = 'globalAlertContainer';
     const contractsTableSpinnerId = 'contractsTableSpinner';
 
-    const userFetchSpinnerGlobal = document.getElementById('userFetchSpinnerGlobal'); // 新增：全局用户加载spinner的引用
+    const userFetchSpinnerGlobal = document.getElementById('userFetchSpinnerGlobal');
 
     const contractNameSearchInput = document.getElementById('contractNameSearch');
     const contractNumberSearchInput = document.getElementById('contractNumberSearch');
@@ -56,10 +62,16 @@ document.addEventListener('DOMContentLoaded', function () {
             contractsTableBody.addEventListener('click', handleContractRowClickDelegation);
         }
 
+        // Add event listeners for all dual listboxes
+        if (addFinalizerUserBtn) addFinalizerUserBtn.addEventListener('click', () => moveOptions(availableFinalizerUsersSelect, assignedFinalizerUsersSelect));
+        if (removeFinalizerUserBtn) removeFinalizerUserBtn.addEventListener('click', () => moveOptions(assignedFinalizerUsersSelect, availableFinalizerUsersSelect));
+
         if (addCountersignUserBtn) addCountersignUserBtn.addEventListener('click', () => moveOptions(availableCountersignUsersSelect, assignedCountersignUsersSelect));
         if (removeCountersignUserBtn) removeCountersignUserBtn.addEventListener('click', () => moveOptions(assignedCountersignUsersSelect, availableCountersignUsersSelect));
+
         if (addApprovalUserBtn) addApprovalUserBtn.addEventListener('click', () => moveOptions(availableApprovalUsersSelect, assignedApprovalUsersSelect));
         if (removeApprovalUserBtn) removeApprovalUserBtn.addEventListener('click', () => moveOptions(assignedApprovalUsersSelect, availableApprovalUsersSelect));
+
         if (addSigningUserBtn) addSigningUserBtn.addEventListener('click', () => moveOptions(availableSigningUsersSelect, assignedSigningUsersSelect));
         if (removeSigningUserBtn) removeSigningUserBtn.addEventListener('click', () => moveOptions(assignedSigningUsersSelect, availableSigningUsersSelect));
 
@@ -96,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Data Fetching and Rendering ---
     async function loadAllUsersForAssignment() {
-        if (userFetchSpinnerGlobal) userFetchSpinnerGlobal.style.display = 'block'; // 显示全局 spinner
+        if (userFetchSpinnerGlobal) userFetchSpinnerGlobal.style.display = 'block';
         try {
             const pageData = await authenticatedFetch(`${API_ALL_USERS_URL}?page=0&size=1000&sort=username,asc`, {}, globalAlertContainerId);
             allUsers = pageData && pageData.content ? pageData.content : [];
@@ -107,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error("为合同分配加载用户列表失败。");
             allUsers = [];
         } finally {
-            if (userFetchSpinnerGlobal) userFetchSpinnerGlobal.style.display = 'none'; // 隐藏全局 spinner
+            if (userFetchSpinnerGlobal) userFetchSpinnerGlobal.style.display = 'none';
         }
     }
 
@@ -181,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function () {
         selectElement.innerHTML = '';
         if (usersToPopulate && usersToPopulate.length > 0) {
             usersToPopulate.forEach(user => {
-                const isAssigned = initiallyAssignedUserIdsSet.has(user.id.toString());
+                const isAssigned = initiallyAssignedUserIdsSet.has(user.id);
                 if ((selectElement.id.startsWith('available') && !isAssigned) || (selectElement.id.startsWith('assigned') && isAssigned)) {
                     const option = document.createElement('option');
                     option.value = user.id;
@@ -192,7 +204,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function repopulateUserSelectionLists(assignedIdsByType = { countersign: new Set(), approval: new Set(), signing: new Set() }) {
+    function repopulateUserSelectionLists(assignedIdsByType = { finalizer: new Set(), countersign: new Set(), approval: new Set(), signing: new Set() }) {
+        populateUserSelect(availableFinalizerUsersSelect, allUsers, assignedIdsByType.finalizer);
+        populateUserSelect(assignedFinalizerUsersSelect, allUsers, assignedIdsByType.finalizer);
         populateUserSelect(availableCountersignUsersSelect, allUsers, assignedIdsByType.countersign);
         populateUserSelect(assignedCountersignUsersSelect, allUsers, assignedIdsByType.countersign);
         populateUserSelect(availableApprovalUsersSelect, allUsers, assignedIdsByType.approval);
@@ -209,7 +223,8 @@ document.addEventListener('DOMContentLoaded', function () {
             currentSelectedContractRow.classList.remove('table-active');
             currentSelectedContractRow = null;
         }
-        [availableCountersignUsersSelect, assignedCountersignUsersSelect,
+        [availableFinalizerUsersSelect, assignedFinalizerUsersSelect,
+            availableCountersignUsersSelect, assignedCountersignUsersSelect,
             availableApprovalUsersSelect, assignedApprovalUsersSelect,
             availableSigningUsersSelect, assignedSigningUsersSelect].forEach(sel => sel.innerHTML = '');
         assignmentPanel.style.display = 'none';
@@ -252,15 +267,24 @@ document.addEventListener('DOMContentLoaded', function () {
             showAlert('请先从左侧列表中选择一个合同！', 'warning', globalAlertContainerId);
             return;
         }
+
+        const finalizerUserIds = Array.from(assignedFinalizerUsersSelect.options).map(opt => parseInt(opt.value));
         const countersignUserIds = Array.from(assignedCountersignUsersSelect.options).map(opt => parseInt(opt.value));
         const approvalUserIds = Array.from(assignedApprovalUsersSelect.options).map(opt => parseInt(opt.value));
         const signUserIds = Array.from(assignedSigningUsersSelect.options).map(opt => parseInt(opt.value));
 
-        if (countersignUserIds.length === 0 && approvalUserIds.length === 0 && signUserIds.length === 0) {
-            showAlert('请至少为合同分配一种类型的处理人员（会签、审批或签订）。', 'warning', globalAlertContainerId);
+        if (finalizerUserIds.length === 0 || countersignUserIds.length === 0 || approvalUserIds.length === 0 || signUserIds.length === 0) {
+            let missing = [];
+            if (finalizerUserIds.length === 0) missing.push("定稿人员");
+            if (countersignUserIds.length === 0) missing.push("会签人员");
+            if (approvalUserIds.length === 0) missing.push("审批人员");
+            if (signUserIds.length === 0) missing.push("签订人员");
+            showAlert(`提交失败：必须为合同指定 ${missing.join('、')}。`, 'warning', globalAlertContainerId);
             return;
         }
+
         const assignmentData = {
+            finalizerUserIds,
             countersignUserIds,
             approvalUserIds,
             signUserIds
@@ -275,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function () {
             fetchPendingContracts(currentPageContract);
             resetAssignmentPanel();
         } catch (error) {
-            // Error handled
+
         } finally {
             toggleLoading(false, submitAssignmentBtn);
         }
