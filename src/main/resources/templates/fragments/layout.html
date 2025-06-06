@@ -10,56 +10,55 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/> <style>
-    html, body {
-        height: 100%;
-    }
-    body {
-        display: flex;
-        flex-direction: column;
-        padding-top: 56px; /* Navbar height, adjust if navbar height changes */
-        background-color: #f8f9fa; /* 淡灰色背景 */
-        color: #212529; /* Bootstrap default text color */
-    }
-    .navbar {
-        box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
-        /* Consider a slightly different dark color for more modern feel if desired */
-        /* background-color: #212529; */
-    }
-    .navbar-brand {
-        font-weight: 500;
-    }
-    .nav-link {
-        font-size: 0.95rem;
-    }
-    .nav-link.active {
-        font-weight: 500;
-    }
-    main.content-wrapper { /* Renamed for clarity, and applied to the <main> tag */
-        flex: 1 0 auto; /* Fill available space and don't shrink */
-        padding-top: 1.5rem;
-        padding-bottom: 1.5rem; /* Space before footer */
-    }
-    .main-container { /* Specific container for the content within the wrapper */
-        background-color: #ffffff;
-        padding: 2rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05);
-        min-height: calc(100vh - 56px - 70px - 3rem); /* Full height minus navbar, footer, and main padding */
-    }
-    .footer {
-        flex-shrink: 0; /* Prevent footer from shrinking */
-        background-color: #e9ecef;
-        padding: 1.5rem 0;
-        color: #6c757d;
-        font-size: 0.9em;
-    }
-    /* User dropdown styling */
-    .dropdown-menu-dark .dropdown-item:hover,
-    .dropdown-menu-dark .dropdown-item:focus {
-        background-color: rgba(255, 255, 255, 0.15);
-    }
-</style>
+    <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/>
+    <style>
+        html, body {
+            height: 100%;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            padding-top: 56px; /* Navbar height, adjust if navbar height changes */
+            background-color: #f8f9fa; /* 淡灰色背景 */
+            color: #212529; /* Bootstrap default text color */
+        }
+        .navbar {
+            box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
+        }
+        .navbar-brand {
+            font-weight: 500;
+        }
+        .nav-link {
+            font-size: 0.95rem;
+        }
+        .nav-link.active {
+            font-weight: 500;
+        }
+        main.content-wrapper {
+            flex: 1 0 auto;
+            padding-top: 1.5rem;
+            padding-bottom: 1.5rem; /* Space before footer */
+        }
+        /*
+         main-container 样式现在将由 layout:fragment="content" 元素的父容器 .container 和其子元素（在具体页面中定义）共同实现
+         主要的白色背景和阴影效果现在应用在具体页面的根 div 上
+        */
+        .footer {
+            flex-shrink: 0;
+            background-color: #e9ecef;
+            padding: 1.5rem 0;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .dropdown-menu-dark .dropdown-item:hover,
+        .dropdown-menu-dark .dropdown-item:focus {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        .dropdown-item i {
+            margin-right: .5rem;
+            width: 1.25em; /* Ensure icons align */
+        }
+    </style>
     <th:block layout:fragment="css-links"></th:block>
     <style layout:fragment="inline-css"></style>
 </head>
@@ -78,18 +77,38 @@
                 <li class="nav-item">
                     <a class="nav-link"
                        th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/dashboard')) ? 'active' : ''}"
-                       aria-current="page" th:href="@{/dashboard}"><i class="bi bi-house-door-fill"></i> 仪表盘</a>
+                       aria-current="page" th:href="@{/dashboard}"><i class="bi bi-house-door-fill me-1"></i>仪表盘</a>
                 </li>
+
+                <li class="nav-item dropdown" sec:authorize="hasAnyAuthority('CON_DRAFT_NEW', 'CON_CSIGN_VIEW', 'CON_FINAL_VIEW', 'CON_APPROVE_VIEW', 'CON_SIGN_VIEW') or hasRole('ROLE_ADMIN')">
+                    <a class="nav-link dropdown-toggle" href="#" id="contractMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-file-earmark-text-fill me-1"></i>合同管理
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="contractMenuDropdown">
+                        <li sec:authorize="hasAuthority('CON_DRAFT_NEW')"><a class="dropdown-item" th:href="@{/contract-manager/draft-contract}"><i class="bi bi-file-earmark-plus-fill"></i>起草合同</a></li>
+                        <li sec:authorize="hasAuthority('CON_CSIGN_VIEW')"><a class="dropdown-item" th:href="@{/contract-manager/pending-countersign}"><i class="bi bi-person-check-fill"></i>待会签</a></li>
+                        <li sec:authorize="hasAuthority('CON_FINAL_VIEW')"><a class="dropdown-item" th:href="@{/contract-manager/pending-finalization}"><i class="bi bi-file-earmark-check-fill"></i>待定稿</a></li>
+                        <li sec:authorize="hasAuthority('CON_APPROVE_VIEW')"><a class="dropdown-item" th:href="@{/contract-manager/pending-approval}"><i class="bi bi-clipboard-check-fill"></i>待审批</a></li>
+                        <li sec:authorize="hasAuthority('CON_SIGN_VIEW')"><a class="dropdown-item" th:href="@{/contract-manager/pending-signing}"><i class="bi bi-pen-fill"></i>待签订</a></li>
+                        <li><hr class="dropdown-divider" sec:authorize="hasAuthority('CON_VIEW_MY')"></li>
+                        <li sec:authorize="hasAuthority('CON_VIEW_MY')"><a class="dropdown-item" th:href="@{/reports/contract-search}"><i class="bi bi-search"></i>我的合同查询</a></li>
+                    </ul>
+                </li>
+
                 <li class="nav-item dropdown" sec:authorize="hasRole('ROLE_ADMIN')">
                     <a class="nav-link dropdown-toggle" href="#" id="adminMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-gear-fill"></i> 系统管理
+                        <i class="bi bi-gear-fill me-1"></i>系统管理
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="adminMenuDropdown">
-                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/users')) ? 'active' : ''}" th:href="@{/admin/users}"><i class="bi bi-people-fill"></i> 用户管理</a></li>
-                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/roles')) ? 'active' : ''}" th:href="@{/admin/roles}"><i class="bi bi-shield-lock-fill"></i> 角色管理</a></li>
-                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/functionalities')) ? 'active' : ''}" th:href="@{/admin/functionalities}"><i class="bi bi-gear-wide-connected"></i> 功能管理</a></li>
-                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/contract-assignments')) ? 'active' : ''}" th:href="@{/admin/contract-assignments}"><i class="bi bi-person-lines-fill"></i> 合同分配</a></li>
-                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/audit-logs')) ? 'active' : ''}" th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i> 审计日志</a></li>
+                        <li><a class="dropdown-item" th:href="@{/admin/users}"><i class="bi bi-people-fill"></i>用户管理</a></li>
+                        <li><a class="dropdown-item" th:href="@{/admin/roles}"><i class="bi bi-shield-lock-fill"></i>角色管理</a></li>
+                        <li><a class="dropdown-item" th:href="@{/admin/functionalities}"><i class="bi bi-gear-wide-connected"></i>功能管理</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" th:href="@{/admin/contract-assignments}"><i class="bi bi-person-lines-fill"></i>合同分配</a></li>
+                        <li><a class="dropdown-item" th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i>审计日志</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" th:href="@{/customers}"><i class="bi bi-person-badge-fill"></i>客户数据</a></li>
+                        <li><a class="dropdown-item" th:href="@{/reports/contract-status}"><i class="bi bi-pie-chart-fill"></i>合同状态统计</a></li>
                     </ul>
                 </li>
             </ul>
@@ -100,11 +119,11 @@
                         <i class="bi bi-person-circle"></i> <span sec:authentication="name">User</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="userDropdown">
-                        <li><a class="dropdown-item" th:href="@{/profile}"><i class="bi bi-person-gear me-2"></i>个人设置</a></li>
+                        <li><a class="dropdown-item" th:href="@{/profile}"><i class="bi bi-person-gear"></i>个人设置</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form th:action="@{/perform_logout}" method="post" class="d-inline">
-                                <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right me-2"></i>注销</button>
+                                <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right"></i>注销</button>
                             </form>
                         </li>
                     </ul>
@@ -121,12 +140,13 @@
 </nav>
 
 <main role="main" class="content-wrapper">
-    <div class="container main-container"> <div layout:fragment="content">
+    <div class="container"> <div layout:fragment="content">
         <h2>欢迎来到合同管理系统</h2>
         <p>请从导航栏选择一个功能模块开始操作。</p>
     </div>
     </div>
 </main>
+
 
 <footer class="footer">
     <div class="container text-center">

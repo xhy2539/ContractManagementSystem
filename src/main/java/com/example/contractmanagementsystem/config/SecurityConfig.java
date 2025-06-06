@@ -48,13 +48,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/", "/register", "/api/auth/register", "/login", "/perform_login", "/css/**", "/js/**", "/error/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
-                        // 确保 /api/attachments/** 路径需要认证，但不要重复
+                        // Ensure /api/attachments/** paths require authentication, but don't duplicate
                         .requestMatchers("/api/attachments/**").authenticated()
-                        // /contract-manager/** 路径应该由控制器处理，这里不需要特殊配置，
-                        // anyRequest().authenticated() 会确保其需要认证
+                        // /contract-manager/** paths should be handled by controllers, no special config needed here,
+                        // anyRequest().authenticated() will ensure they require authentication
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/system/**").authenticated()
-                        .anyRequest().authenticated() // 任何其他请求都需要认证
+                        .requestMatchers("/api/contracts/*/extend").hasAuthority("CON_EXTEND") // Secure new endpoint
+                        .anyRequest().authenticated() // Any other request requires authentication
                 )
                 .authenticationManager(authenticationManager)
                 .formLogin(formLogin -> formLogin
@@ -71,13 +72,13 @@ public class SecurityConfig {
                         .invalidateHttpSession(true)
                         .permitAll()
                 )
-                // --- 并发会话控制配置开始 ---
+                // --- Concurrent Session Control Configuration Start ---
                 .sessionManagement(session -> session
-                        .maximumSessions(1) // 每个用户最多允许一个活动会话
-                        .expiredUrl("/login?expired") // 当由于新登录导致旧会话过期时，重定向到此URL
-                        .maxSessionsPreventsLogin(true) // 可选：如果设置为true，则在达到最大会话数时阻止新登录，而不是使旧会话无效。默认为false。
+                        .maximumSessions(1) // Max one active session per user
+                        .expiredUrl("/login?expired") // Redirect URL when old session expires due to new login
+                        .maxSessionsPreventsLogin(true) // Optional: If true, new logins are blocked when max sessions reached, instead of invalidating old session. Defaults to false.
                 );
-        // --- 并发会话控制配置结束 ---
+        // --- Concurrent Session Control Configuration End ---
         return http.build();
     }
 
@@ -89,7 +90,7 @@ public class SecurityConfig {
 
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
-        // 确保这里只忽略真正的静态资源目录，不包含动态路由
+        // Ensure only real static resource directories are ignored here, not dynamic routes
         return (web) -> web.ignoring().requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico");
     }
 }

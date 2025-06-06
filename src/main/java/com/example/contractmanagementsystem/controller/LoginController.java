@@ -1,3 +1,4 @@
+// Path: src/main/java/com/example/contractmanagementsystem/controller/LoginController.java
 package com.example.contractmanagementsystem.controller;
 
 import com.example.contractmanagementsystem.entity.ContractProcess;
@@ -55,9 +56,9 @@ public class LoginController {
                 model.addAttribute("pendingTasks", pendingTasks);
 
                 Map<String, Object> systemStats = new HashMap<>();
-                systemStats.put("activeContractsCount", contractService.countActiveContracts());
-                systemStats.put("expiringSoonCount", contractService.countContractsExpiringSoon(30));
-                model.addAttribute("systemStats", systemStats); // systemStats 仍然可以保留，用于其他全局统计
+                systemStats.put("activeContractsCount", contractService.countActiveContracts(username));
+                systemStats.put("expiringSoonCount", contractService.countContractsExpiringSoon(username, 30));
+                model.addAttribute("systemStats", systemStats);
 
                 // 检查用户是否为管理员并添加待分配合同数量，作为独立的属性
                 Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

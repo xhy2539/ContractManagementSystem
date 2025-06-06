@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate; // Import LocalDate
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -203,16 +204,18 @@ public interface ContractService {
     // --- 新增：为仪表盘统计信息添加方法声明 ---
     /**
      * 统计当前系统中所有状态为 ACTIVE 的合同数量。
+     * @param username 当前用户的用户名，用于过滤。
      * @return 有效合同的总数。
      */
-    long countActiveContracts();
+    long countActiveContracts(String username);
 
     /**
      * 统计在未来指定天数内即将到期的有效合同数量。
+     * @param username 当前用户的用户名，用于过滤。
      * @param days 指定的天数（例如 30 天）。
      * @return 即将到期的有效合同数量。
      */
-    long countContractsExpiringSoon(int days);
+    long countContractsExpiringSoon(String username, int days);
 
     /**
      * Counts the number of contracts currently pending assignment.
@@ -282,4 +285,16 @@ public interface ContractService {
      */
     List<ContractProcess> getContractProcessHistory(Long contractId);
 
+    /**
+     * 延期合同的到期日期。
+     * @param contractId 要延期的合同ID。
+     * @param newEndDate 新的到期日期。
+     * @param reason 延期原因。
+     * @param username 执行延期操作的用户名。
+     * @return 更新后的合同实体。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果业务逻辑不允许延期（如新日期早于旧日期，或合同状态不允许）。
+     * @throws org.springframework.security.access.AccessDeniedException 如果用户没有延期权限。
+     */
+    Contract extendContract(Long contractId, LocalDate newEndDate, String reason, String username);
 }

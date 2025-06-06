@@ -7,6 +7,7 @@
     <meta charset="UTF-8">
     <title>仪表盘</title>
     <style layout:fragment="inline-css">
+        /* Specific dashboard styles can remain here */
         .dashboard-card {
             margin-bottom: 1.5rem;
             box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
@@ -16,68 +17,66 @@
             transform: translateY(-5px);
         }
         .dashboard-card .card-header {
-            background-color: #e9ecef; /* 卡片头部浅色背景 */
+            background-color: #e9ecef;
             font-weight: 500;
             border-bottom: 1px solid rgba(0,0,0,.125);
         }
         .dashboard-card .list-group-item a,
-        .dashboard-card .list-group-item .badge a { /* 确保徽章内的链接也有样式 */
+        .dashboard-card .list-group-item .badge a {
             text-decoration: none;
-            color: #0d6efd; /* Bootstrap 主色蓝 */
+            color: #0d6efd;
         }
         .dashboard-card .list-group-item a:hover,
-        .dashboard-card .list-group-item .badge a:hover { /* 确保徽章内的链接悬停样式 */
-            color: #0a58ca; /* 悬停时深蓝色 */
+        .dashboard-card .list-group-item .badge a:hover {
+            color: #0a58ca;
             text-decoration: underline;
         }
-        .dashboard-card .list-group-item i.action-icon { /* 待办事项列表中图标的特定类 */
-            margin-right: 0.75rem; /* 图标与文字间距增大 */
-            width: 1.5em; /* 图标宽度略微增大 */
-            font-size: 1.1rem; /* 图标大小略微增大 */
+        .dashboard-card .list-group-item i.action-icon {
+            margin-right: 0.75rem;
+            width: 1.5em;
+            font-size: 1.1rem;
         }
-        .dashboard-card .card-header i { /* 卡片头部图标 */
+        .dashboard-card .card-header i {
             margin-right: 0.5rem;
         }
         .welcome-message {
             padding: 1.5rem;
             margin-bottom: 2rem;
-            background-color: #cfe2ff; /* 淡蓝色背景 */
+            background-color: #cfe2ff;
             border-radius: 0.375rem;
             border: 1px solid #b6d4fe;
         }
         .welcome-message h1 {
             color: #07408c;
         }
-        .pending-tasks-header { /* 待处理任务卡片头部的特定样式 */
-            background-color: #fff3cd; /* Bootstrap 警告色（浅黄） */
-            color: #664d03; /* Bootstrap 警告色对应深色文字 */
+        .pending-tasks-header {
+            background-color: #fff3cd;
+            color: #664d03;
             border-color: #ffecb5;
         }
-        .pending-tasks-header i { /* 待处理任务卡片头部图标颜色 */
-            color: #ffc107; /* Bootstrap 警告色 */
+        .pending-tasks-header i {
+            color: #ffc107;
         }
-        .list-group-item .task-details { /* 任务详情文字样式 */
+        .list-group-item .task-details {
             font-size: 0.85em;
-            color: #6c757d; /* Bootstrap 次要文字颜色 */
+            color: #6c757d;
         }
-        .btn-process-task { /* “去处理”按钮样式 */
+        .btn-process-task {
             padding: 0.25rem 0.5rem;
             font-size: 0.875rem;
         }
-        /* 为统计数字徽章内的链接去除下划线，除非悬停 */
         .stats-badge-link {
             text-decoration: none !important;
         }
         .stats-badge-link:hover {
             text-decoration: underline !important;
         }
-
     </style>
 </head>
 <body>
 
 <section layout:fragment="content">
-    <div class="container-fluid mt-4">
+    <div class="bg-white p-4 p-md-5 rounded shadow-sm">
 
         <div class="welcome-message text-center">
             <h1 class="display-5">欢迎, <span sec:authentication="name" class="fw-bold">用户</span>!</h1>
@@ -154,11 +153,11 @@
             <i class="bi bi-check-circle-fill me-2"></i>您当前没有待处理事项。
         </div>
 
-        <hr class="my-4" th:if="${(pendingTasks != null && not #lists.isEmpty(pendingTasks)) || (adminPendingAssignmentCount != null && adminPendingAssignmentCount > 0)}">
-
+        <hr class="my-4">
 
         <h2 class="mb-3" th:if="${#authorization.expression('isAuthenticated()')}">快速访问</h2>
         <div class="row">
+
             <div class="col-lg-6 col-xl-4" sec:authorize="hasRole('ROLE_ADMIN')">
                 <div class="card dashboard-card">
                     <div class="card-header">
@@ -174,7 +173,7 @@
                 </div>
             </div>
 
-            <div class="col-lg-6 col-xl-4" sec:authorize="isAuthenticated()">
+            <div class="col-md-6">
                 <div class="card dashboard-card">
                     <div class="card-header">
                         <i class="bi bi-file-earmark-text-fill me-2"></i>合同管理
@@ -186,13 +185,13 @@
                         <li class="list-group-item" sec:authorize="hasAuthority('CON_APPROVE_VIEW')"><a th:href="@{/contract-manager/pending-approval}"><i class="bi bi-clipboard-check-fill"></i>待审批合同</a></li>
                         <li class="list-group-item" sec:authorize="hasAuthority('CON_SIGN_VIEW')"><a th:href="@{/contract-manager/pending-signing}"><i class="bi bi-pen-fill"></i>待签订合同</a></li>
                         <li class="list-group-item" sec:authorize="hasAuthority('CON_VIEW_MY') or hasRole('ROLE_ADMIN')">
-                            <a th:href="@{/contract-manager/view-all}"><i class="bi bi-folder-fill"></i>我的合同查询</a>
+                            <a th:href="@{/reports/contract-search}"><i class="bi bi-folder-fill"></i>我的合同查询</a>
                         </li>
                     </ul>
                 </div>
             </div>
 
-            <div class="col-lg-6 col-xl-4" sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_DATA_MANAGER', 'ROLE_CUSTOMER_MANAGER')">
+            <div class="col-lg-6 col-xl-4" sec:authorize="hasRole('ROLE_ADMIN')">
                 <div class="card dashboard-card">
                     <div class="card-header">
                         <i class="bi bi-database-fill-gear me-2"></i>基础数据管理
@@ -205,7 +204,7 @@
                 </div>
             </div>
 
-            <div class="col-lg-6 col-xl-4" sec:authorize="hasAnyRole('ROLE_ADMIN', 'ROLE_CONTRACT_OPERATOR', 'ROLE_REPORTER')">
+            <div class="col-lg-6 col-xl-4" sec:authorize="hasRole('ROLE_ADMIN')">
                 <div class="card dashboard-card">
                     <div class="card-header">
                         <i class="bi bi-search me-2"></i>查询统计
@@ -221,27 +220,27 @@
                 </div>
             </div>
 
-            <div class="col-lg-6 col-xl-4" sec:authorize="isAuthenticated()">
+            <div class="col-md-6">
                 <div class="card dashboard-card">
                     <div class="card-header">
                         <i class="bi bi-bar-chart-line-fill me-2"></i>系统概览
                     </div>
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            有效合同总数
+                            与我相关的有效合同
                             <span class="badge bg-primary rounded-pill">
-                                <a th:href="@{/contract-manager/view-all(status='ACTIVE')}"
+                                <a th:href="@{/reports/contract-search(status='ACTIVE')}"
                                    class="stats-badge-link text-white"
-                                   title="点击查看所有有效合同"
+                                   title="点击查看所有与我相关的有效合同"
                                    th:text="${systemStats?.activeContractsCount != null ? systemStats.activeContractsCount : 'N/A'}">0</a>
                             </span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            即将到期合同 (30天内)
+                            与我相关且即将到期 (30天内)
                             <span class="badge bg-warning rounded-pill">
-                                <a th:href="@{/contract-manager/view-all(expiringSoon='true', status='ACTIVE')}"
+                                <a th:href="@{/reports/contract-search(expiringSoon='true', status='ACTIVE')}"
                                    class="stats-badge-link text-dark"
-                                   title="点击查看即将到期的有效合同"
+                                   title="点击查看与我相关的、即将到期的有效合同"
                                    th:text="${systemStats?.expiringSoonCount != null ? systemStats.expiringSoonCount : 'N/A'}">0</a>
                             </span>
                         </li>
@@ -250,6 +249,7 @@
             </div>
 
         </div>
+
     </div>
 </section>
 
