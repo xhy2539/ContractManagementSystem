@@ -9,9 +9,13 @@ import com.example.contractmanagementsystem.entity.ContractStatus;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.service.ContractService;
-// import com.example.contractmanagementsystem.service.ContractServiceImpl; // ContractServiceImpl 通常不直接在Controller中引用其实现类
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +23,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+// import org.springframework.security.core.GrantedAuthority; // 未在此控制器中直接使用，可移除
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -28,26 +34,34 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-// import org.springframework.web.multipart.MultipartFile; // 不再需要这个导入
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.io.IOException; // 保留给其他可能抛出IOException的方法
+import java.io.IOException;
 import java.security.Principal;
+import java.util.ArrayList;
+// import java.util.Collections; // 未在此控制器中直接使用，可移除
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 @Controller
-@RequestMapping("/contract-manager")
+@RequestMapping({"/contract-manager", "/contracts"})
 public class ContractController {
 
+    private static final Logger logger = LoggerFactory.getLogger(ContractController.class);
     private final ContractService contractService;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public ContractController(ContractService contractService) {
+    public ContractController(ContractService contractService, ObjectMapper objectMapper) {
         this.contractService = contractService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping("/draft-contract")
     @PreAuthorize("hasAuthority('CON_DRAFT_NEW')")
     public String showDraftContractPage(Model model) {
+        // 如果模型中不包含 contractDraftRequest，则添加一个新的空对象
         if (!model.containsAttribute("contractDraftRequest")) {
             model.addAttribute("contractDraftRequest", new ContractDraftRequest());
         }
@@ -59,31 +73,32 @@ public class ContractController {
     public String draftContract(
             @ModelAttribute("contractDraftRequest") @Valid ContractDraftRequest contractDraftRequest,
             BindingResult bindingResult,
-            // @RequestParam(value = "attachment", required = false) MultipartFile attachment, // <--- 移除此参数
             RedirectAttributes redirectAttributes,
-            Model model,
+            Model model, // 用于在当前请求中添加错误信息（如果发生校验错误）
             Principal principal
     ) {
+        // 如果存在JSR-303/380验证错误
         if (bindingResult.hasErrors()) {
-            // 如果前端没有正确传递 selectedCustomerId，这里可能会报错
-            // 如果 attachmentServerFileName 是必需的（比如业务逻辑要求必须有附件），也需要校验
-            // 但当前附件是可选的，所以 contractDraftRequest.getAttachmentServerFileName() 可以为 null 或空
-            model.addAttribute("contractDraftRequest", contractDraftRequest); // 将包含错误的对象放回模型
+            // 将包含错误的请求对象重新添加到模型中，以便前端显示错误信息
+            model.addAttribute("contractDraftRequest", contractDraftRequest);
+            // 返回到起草合同页面，Thymeleaf会根据 bindingResult 显示错误
             return "contract-manager/draft-contract";
         }
         try {
             String username = principal.getName();
-            // 调用 ContractService.draftContract，它现在不直接处理 MultipartFile
-            // 它会依赖 contractDraftRequest 中的 attachmentServerFileName (如果前端已通过分块上传并设置了此值)
-            Contract draftedContract = contractService.draftContract(contractDraftRequest, username); // <--- 修改了调用
-            redirectAttributes.addFlashAttribute("successMessage", "合同 “" + draftedContract.getContractName() + "” (编号: " + draftedContract.getContractNumber() + ") 已成功起草，等待分配！");
-            return "redirect:/contract-manager/draft-contract"; // 成功后重定向到起草页，显示成功消息
+            Contract draftedContract = contractService.draftContract(contractDraftRequest, username);
+            // 使用 Flash Attributes 在重定向后传递成功消息
+            redirectAttributes.addFlashAttribute("successMessage", "合同 " + draftedContract.getContractName() + " (编号: " + draftedContract.getContractNumber() + ") 已成功起草，等待分配！");
+            // 重定向回起草页面或某个成功页面
+            return "redirect:/contract-manager/draft-contract";
         } catch (BusinessLogicException e) {
+            // 业务逻辑异常，在当前请求中显示错误信息
             model.addAttribute("errorMessage", e.getMessage());
-            // 如果错误与附件相关（虽然现在附件名是预设的，但保留以防万一）
+            // 如果错误信息与附件相关，可以添加特定属性以便前端针对性显示
             if (e.getMessage() != null && e.getMessage().toLowerCase().contains("附件")) {
                 model.addAttribute("attachmentError", e.getMessage());
             }
+            // 重新添加请求对象以保留用户输入
             model.addAttribute("contractDraftRequest", contractDraftRequest);
             return "contract-manager/draft-contract";
         } catch (ResourceNotFoundException e) {
@@ -91,23 +106,22 @@ public class ContractController {
             model.addAttribute("contractDraftRequest", contractDraftRequest);
             return "contract-manager/draft-contract";
         }
-        // IOException 现在不太可能由 draftContract 直接抛出，因为文件处理已移至 AttachmentService
-        // 但如果 ContractService 的其他部分可能抛出，可以保留
-        catch (IOException e) { // 这个 catch 块可能不再那么相关，除非 service 层还有其他IO操作
+        catch (IOException e) {
             model.addAttribute("errorMessage", "处理请求时发生I/O错误：" + e.getMessage());
             model.addAttribute("contractDraftRequest", contractDraftRequest);
             return "contract-manager/draft-contract";
         }
         catch (Exception e) {
+            // 捕获其他未知异常，并记录到日志
             model.addAttribute("errorMessage", "起草合同失败，发生未知系统错误。");
             model.addAttribute("contractDraftRequest", contractDraftRequest);
-            e.printStackTrace(); // 打印堆栈以供调试
+            logger.error("起草合同未知错误", e);
             return "contract-manager/draft-contract";
         }
     }
 
     @GetMapping("/pending-countersign")
-    @PreAuthorize("hasAuthority('CON_CSIGN_VIEW')")
+    @PreAuthorize("hasAuthority('CON_CSIGN_VIEW')") // 仅允许拥有 "CON_CSIGN_VIEW" 权限的用户访问
     public String pendingCountersignContracts(
             @PageableDefault(size = 10, sort = "contract.updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String contractNameSearch,
@@ -118,34 +132,13 @@ public class ContractController {
         Page<ContractProcess> pendingCountersigns = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.COUNTERSIGN, ContractProcessState.PENDING, contractNameSearch, pageable);
         model.addAttribute("pendingCountersigns", pendingCountersigns);
-        model.addAttribute("contractNameSearch", contractNameSearch);
+        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
         model.addAttribute("listTitle", "待会签合同");
         return "contract-manager/pending-countersign";
     }
 
-    // 显示会签操作页面
-    @GetMapping("/countersign/{contractProcessId}")
-    @PreAuthorize("hasAuthority('CON_CSIGN_SUBMIT')")
-    public String showCountersignForm(@PathVariable Long contractProcessId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
-        try {
-            ContractProcess process = contractService.getContractProcessByIdAndOperator(
-                    contractProcessId,
-                    principal.getName(),
-                    ContractProcessType.COUNTERSIGN,
-                    ContractProcessState.PENDING
-            );
-            model.addAttribute("contractProcess", process);
-            model.addAttribute("contract", process.getContract());
-            return "contract-manager/countersign-contract"; // 假设会签页面名为 countersign-contract.html
-        } catch (ResourceNotFoundException | BusinessLogicException | AccessDeniedException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "加载会签页面失败: " + e.getMessage());
-            return "redirect:/contract-manager/pending-countersign";
-        }
-    }
-
-    // 处理会签提交
-    @PostMapping("/countersign/submit")
-    @PreAuthorize("hasAuthority('CON_CSIGN_SUBMIT')")
+    @PostMapping("/contract-manager/countersign-form")
+    @PreAuthorize("hasAuthority('CON_CSIGN_SUBMIT')") // 仅允许拥有 "CON_CSIGN_SUBMIT" 权限的用户提交
     public String processCountersignAction(
             @RequestParam Long contractProcessId,
             @RequestParam String decision, // "APPROVED" 或 "REJECTED"
@@ -154,32 +147,88 @@ public class ContractController {
             RedirectAttributes redirectAttributes) {
         try {
             boolean isApproved = "APPROVED".equalsIgnoreCase(decision);
-            // 这里需要调用 ContractService 中的一个方法来处理会签逻辑
-            // 假设 ContractService 有一个 processCountersign 方法
-            // ((ContractServiceImpl) contractService).processCountersign(contractProcessId, comments, principal.getName(), isApproved);
-            // 由于不能直接转型，我们需要确保 ContractService 接口有相应方法，或者 ContractServiceImpl 有一个公共方法被正确调用
-            // 暂时注释掉这一行，因为我们没有修改 ContractService 接口来添加 processCountersign
-            // 你需要在 ContractService 和 ContractServiceImpl 中添加类似下面的方法：
-            // void processCountersign(Long contractProcessId, String comments, String username, boolean isApproved);
-            // 并由 ContractController 调用。鉴于我们之前关注的是附件上传，这里暂时不实现会签的具体逻辑。
-
-            // 模拟成功
-            // 注意：实际的会签逻辑需要在 ContractServiceImpl 中实现，包括更新 ContractProcess 和 Contract 状态
-            redirectAttributes.addFlashAttribute("successMessage", "会签意见已成功提交 (模拟)。实际逻辑需在服务层实现。");
+            contractService.processCountersign(contractProcessId, comments, principal.getName(), isApproved);
+            redirectAttributes.addFlashAttribute("successMessage", "会签意见已成功提交。");
             return "redirect:/contract-manager/pending-countersign";
         } catch (BusinessLogicException | ResourceNotFoundException | AccessDeniedException e) {
+            // 如果发生业务逻辑、资源未找到或权限异常，重定向回会签详情页并显示错误
             redirectAttributes.addFlashAttribute("errorMessage", "会签操作失败: " + e.getMessage());
-            return "redirect:/contract-manager/countersign/" + contractProcessId;
+            return "redirect:/contract-manager/countersign-form/" + contractProcessId;
         } catch (Exception e) {
+            // 捕获其他未知异常
             redirectAttributes.addFlashAttribute("errorMessage", "会签过程中发生未知系统错误。");
-            e.printStackTrace();
+            logger.error("处理会签提交未知错误", e);
+            return "redirect:/contract-manager/pending-countersign";
+        }
+    }
+    @GetMapping("/countersign-form/{contractId}") // 路径变量使用 contractId
+    @PreAuthorize("hasAuthority('CON_CSIGN_VIEW')or hasAuthority('CON_CSIGN_SUBMIT')")
+    public String showCountersignForm(
+            @PathVariable Long contractId, // 获取合同ID
+            Authentication authentication,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+
+        String currentUsername = authentication.getName();
+        try {
+            // 1. 获取合同详情
+            Contract contract = contractService.getContractById(contractId);
+
+            // 2. 获取当前用户对应的待会签流程记录
+            Optional<ContractProcess> currentProcessOpt = contractService.getContractProcessDetails(
+                    contractId, currentUsername, ContractProcessType.COUNTERSIGN, ContractProcessState.PENDING
+            );
+
+            if (currentProcessOpt.isEmpty()) {
+                redirectAttributes.addFlashAttribute("errorMessage", "未找到您需要会签的该合同流程，或您已完成会签。");
+                return "redirect:/contract-manager/pending-countersign";
+            }
+            ContractProcess currentProcess = currentProcessOpt.get();
+
+
+            // 3. 验证当前用户是否可以会签此合同
+            if (!contractService.canUserCountersignContract(contract.getId(), currentUsername)) {
+                redirectAttributes.addFlashAttribute("errorMessage", "您无权会签此合同或该合同不处于待会签状态。");
+                return "redirect:/contract-manager/pending-countersign";
+            }
+
+            // 4. 获取所有会签意见（已完成和待完成的）
+            List<ContractProcess> allCountersignProcesses = contractService.getAllContractProcessesByContractAndType(contract, ContractProcessType.COUNTERSIGN);
+
+            // 5. 解析附件路径 (如果存在)
+            List<String> attachmentPaths = Collections.emptyList();
+            if (contract.getAttachmentPath() != null && !contract.getAttachmentPath().isEmpty()) {
+                try {
+                    attachmentPaths = objectMapper.readValue(contract.getAttachmentPath(), new TypeReference<List<String>>() {});
+                } catch (JsonProcessingException e) {
+                    logger.error("Error parsing attachment paths for contract ID {}: {}", contractId, e.getMessage());
+                    model.addAttribute("errorMessage", "解析附件信息失败。");
+                }
+            }
+
+
+            model.addAttribute("contract", contract);
+            model.addAttribute("currentProcess", currentProcess); // 传递当前待处理的流程实例
+            model.addAttribute("allCountersignProcesses", allCountersignProcesses); // 传递所有会签意见
+            model.addAttribute("attachmentPaths", attachmentPaths);
+            model.addAttribute("listTitle", "合同会签"); // 页面标题
+
+            return "contract-manager/countersign-form"; // 返回新的会签表单页面
+        } catch (ResourceNotFoundException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return "redirect:/contract-manager/pending-countersign";
+        } catch (AccessDeniedException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "访问被拒绝: " + e.getMessage());
+            return "redirect:/contract-manager/pending-countersign";
+        } catch (Exception e) {
+            logger.error("Error showing countersign form for contract ID {}: {}", contractId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("errorMessage", "加载会签表单时发生未知错误。");
             return "redirect:/contract-manager/pending-countersign";
         }
     }
 
-
     @GetMapping("/pending-finalization")
-    @PreAuthorize("hasAuthority('CON_FINAL_VIEW')")
+    @PreAuthorize("hasAuthority('CON_FINAL_VIEW')") // 仅允许拥有 "CON_FINAL_VIEW" 权限的用户访问
     public String showPendingFinalizationContracts(
             @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String contractNameSearch,
@@ -188,22 +237,74 @@ public class ContractController {
         String username = principal.getName();
         Page<Contract> pendingFinalizationContracts = contractService.getContractsPendingFinalizationForUser(username, contractNameSearch, pageable);
         model.addAttribute("pendingFinalizationContracts", pendingFinalizationContracts);
-        model.addAttribute("contractNameSearch", contractNameSearch);
+
+        // 为了在分页链接中保留搜索条件，将搜索参数放入 Map
+        java.util.Map<String, Object> additionalParamsMap = new java.util.HashMap<>();
+        if (contractNameSearch != null && !contractNameSearch.isEmpty()) {
+            additionalParamsMap.put("contractNameSearch", contractNameSearch);
+        }
+        model.addAttribute("additionalParamsMap", additionalParamsMap); // 将Map传递给模板
+        // 为了向后兼容或如果其他地方仍然直接使用 contractNameSearch, 可以保留它
+        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
+
+
         model.addAttribute("listTitle", "待定稿合同");
-        model.addAttribute("finalizeBaseUrl", "/contract-manager/finalize"); // 用于构建链接
+        model.addAttribute("finalizeBaseUrl", "/contract-manager/finalize"); // 定稿操作的基路径
         return "contract-manager/pending-finalization";
     }
 
     @GetMapping("/finalize/{contractId}")
-    @PreAuthorize("hasAuthority('CON_FINAL_VIEW') or hasAuthority('CON_FINAL_SUBMIT')")
+    @PreAuthorize("hasAuthority('CON_FINAL_VIEW') or hasAuthority('CON_FINAL_SUBMIT')") // 允许查看或提交定稿的用户访问
     public String showFinalizeContractForm(@PathVariable Long contractId,
                                            Model model,
                                            Principal principal,
                                            RedirectAttributes redirectAttributes) {
         try {
             String username = principal.getName();
+            // 获取合同详情，该方法会进行权限和状态检查
             Contract contract = contractService.getContractForFinalization(contractId, username);
             model.addAttribute("contract", contract);
+
+            // 获取所有会签意见，用于在定稿页面显示
+            List<ContractProcess> countersignOpinions = contractService.getContractCountersignOpinions(contractId);
+            model.addAttribute("countersignOpinions", countersignOpinions);
+
+            // 创建一个 ContractDraftRequest DTO 来预填充表单
+            ContractDraftRequest draftRequest = new ContractDraftRequest();
+            List<String> currentAttachmentFileNames = new ArrayList<>();
+
+            // 预填充合同内容
+            if (contract != null) {
+                draftRequest.setUpdatedContent(contract.getContent());
+
+                // 解析附件路径 JSON 字符串，预填充到 attachmentServerFileNames
+                String attachmentPathJson = contract.getAttachmentPath();
+                if (attachmentPathJson != null && !attachmentPathJson.trim().isEmpty() &&
+                        !attachmentPathJson.equals("[]") && !attachmentPathJson.equalsIgnoreCase("null")) {
+                    try {
+                        // 使用 ObjectMapper 将 JSON 字符串反序列化为 List<String>
+                        currentAttachmentFileNames = objectMapper.readValue(attachmentPathJson, new TypeReference<List<String>>(){});
+                        logger.debug("加载定稿表单时解析附件JSON成功。合同ID: {}, 附件: {}", contractId, currentAttachmentFileNames);
+                    } catch (JsonProcessingException e) {
+                        logger.warn("加载定稿表单时解析附件JSON失败 (Contract ID: {}): {}", contractId, e.getMessage());
+                        // 解析失败则清空附件列表，避免前端显示错误
+                        currentAttachmentFileNames = new ArrayList<>();
+                        // 可以选择向用户显示一个警告
+                        model.addAttribute("attachmentError", "加载现有附件时遇到问题，请检查附件格式。");
+                    }
+                }
+            }
+            // 将解析出的附件文件名列表设置到 DTO 中
+            draftRequest.setAttachmentServerFileNames(new ArrayList<>(currentAttachmentFileNames));
+            model.addAttribute("contractDraftRequest", draftRequest);
+            // 额外传递一个用于前端JS初始化的JSON字符串
+            try {
+                model.addAttribute("initialAttachmentsJson", objectMapper.writeValueAsString(currentAttachmentFileNames));
+            } catch (JsonProcessingException e) {
+                logger.warn("序列化初始附件列表到JSON时出错 (Contract ID: {}): {}", contractId, e.getMessage());
+                model.addAttribute("initialAttachmentsJson", "[]"); // 序列化失败则传空数组
+            }
+
             return "contract-manager/finalize-contract";
         } catch (ResourceNotFoundException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "无法加载定稿页面：指定的合同未找到。");
@@ -214,77 +315,139 @@ public class ContractController {
         } catch (BusinessLogicException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "操作失败：" + e.getMessage());
             return "redirect:/contract-manager/pending-finalization";
+        } catch (Exception e) {
+            logger.error("加载定稿合同表单时发生未知错误 (Contract ID: {})", contractId, e);
+            redirectAttributes.addFlashAttribute("errorMessage", "加载定稿页面时发生内部错误。");
+            return "redirect:/contract-manager/pending-finalization";
         }
     }
 
     @PostMapping("/finalize/{contractId}")
-    @PreAuthorize("hasAuthority('CON_FINAL_SUBMIT')")
+    @PreAuthorize("hasAuthority('CON_FINAL_SUBMIT')") // 仅允许拥有 "CON_FINAL_SUBMIT" 权限的用户提交定稿
     public String processFinalizeContract(@PathVariable Long contractId,
                                           @RequestParam(required = false) String finalizationComments,
-                                          // MultipartFile 参数已在前端处理，后端通过 DTO 中的 attachmentServerFileName 获取
-                                          // @RequestParam(value = "newAttachment", required = false) MultipartFile newAttachment,
-                                          @ModelAttribute ContractDraftRequest contractDraftRequest, // 假设我们复用此DTO的部分字段或创建一个新的
+                                          @ModelAttribute("contractDraftRequest") @Valid ContractDraftRequest contractDraftRequest,
+                                          BindingResult bindingResult,
                                           RedirectAttributes redirectAttributes,
                                           Principal principal,
-                                          Model model) {
-        try {
-            String username = principal.getName();
-            // finalizeContract 方法的签名需要调整，不再直接接收 MultipartFile
-            // 它应该从 contractDraftRequest (或一个专门的 FinalizeRequest DTO) 中获取附件信息 (如果附件在定稿时可被替换)
-            // 如果附件在定稿时不应改变，则从数据库加载合同，并使用其现有的 attachmentPath.
-            // 如果附件可以在定稿时通过分块上传替换，则 AttachmentService 应处理，并通过一个标识符传给 finalizeContract
+                                          Model model) { // Model 用于在校验失败时保留数据和显示错误
 
-            // 简化：假设定稿时不直接处理文件上传，而是使用之前通过分块上传并记录在
-            // contractDraftRequest.attachmentServerFileName (或类似字段) 的附件名
-            // 这意味着 finalizeContract 方法可能需要新的参数或 DTO
-            // Contract finalizedContract = contractService.finalizeContract(contractId, finalizationComments, newAttachment, username);
-
-            // **临时修改：假设 finalizeContract 接收 ContractDraftRequest 来获取 attachmentServerFileName **
-            // **这需要 ContractService.finalizeContract 接口和实现进行相应修改**
-            // **或者，更合理的做法是，finalizeContract 应该只关心定稿意见，附件的替换应该是另一个独立的操作或通过 AttachmentService 完成**
-            // **这里我们假设如果前端上传了新文件并通过JS设置了 contractDraftRequest.attachmentServerFileName，
-            // 则 ContractService.finalizeContract 内部会使用它。否则使用合同已有的附件。**
-            // **这是一个需要您根据具体业务逻辑完善的地方。**
-
-            Contract finalizedContract = contractService.finalizeContract(
-                    contractId,
-                    finalizationComments,
-                    contractDraftRequest.getAttachmentServerFileNames(),
-                    username
-            );
-
-
-            redirectAttributes.addFlashAttribute("successMessage", "合同 “" + finalizedContract.getContractName() + "” (ID: " + contractId + ") 已成功定稿，并进入下一审批流程。");
-            return "redirect:/contract-manager/pending-finalization";
-        } catch (BusinessLogicException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "定稿失败: " + e.getMessage());
-            return "redirect:/contract-manager/finalize/" + contractId;
-        } catch (AccessDeniedException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "定稿失败: 权限不足。");
-            return "redirect:/contract-manager/finalize/" + contractId;
-        } catch (ResourceNotFoundException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "定稿失败: " + e.getMessage());
-            return "redirect:/contract-manager/pending-finalization";
-        } catch (IOException e) { // 这个 catch 块现在更可能与 finalizeContract 内部逻辑有关（如果它还尝试了I/O）
-            model.addAttribute("errorMessage", "附件处理失败: " + e.getMessage());
+        // 如果存在JSR-303/380验证错误
+        if (bindingResult.hasErrors()) {
+            logger.warn("Contract finalization form validation failed for contractId: {}", contractId); // 添加警告日志
+            bindingResult.getAllErrors().forEach(error -> { // 遍历所有验证错误
+                if (error instanceof org.springframework.validation.FieldError fieldError) {
+                    logger.warn("Validation error in field '{}': {}", fieldError.getField(), fieldError.getDefaultMessage()); // 打印字段错误
+                } else {
+                    logger.warn("Validation error: {}", error.getDefaultMessage()); // 打印全局错误
+                }
+            });
+            // 重新加载合同数据，以便在返回表单时显示完整信息和会签意见
             try {
                 Contract contractToDisplay = contractService.getContractForFinalization(contractId, principal.getName());
                 model.addAttribute("contract", contractToDisplay);
+                List<ContractProcess> countersignOpinions = contractService.getContractCountersignOpinions(contractId);
+                model.addAttribute("countersignOpinions", countersignOpinions);
+
+                // 重新解析并传递附件列表，以便前端JS可以重新渲染文件列表
+                List<String> currentAttachmentFileNames = new ArrayList<>();
+                if (contractToDisplay != null && contractToDisplay.getAttachmentPath() != null &&
+                        !contractToDisplay.getAttachmentPath().trim().isEmpty() &&
+                        !contractToDisplay.getAttachmentPath().equals("[]") &&
+                        !contractToDisplay.getAttachmentPath().equalsIgnoreCase("null")) {
+                    try {
+                        currentAttachmentFileNames = objectMapper.readValue(contractToDisplay.getAttachmentPath(), new TypeReference<List<String>>(){});
+                    } catch (JsonProcessingException e) {
+                        logger.warn("校验失败后重新加载附件JSON时出错 (Contract ID: {}): {}", contractId, e.getMessage());
+                    }
+                }
+                model.addAttribute("currentAttachmentFileNames", currentAttachmentFileNames); // 用于前端显示
+                // 再次将初始附件列表序列化为 JSON 字符串，传递给前端JS
+                try {
+                    model.addAttribute("initialAttachmentsJson", objectMapper.writeValueAsString(currentAttachmentFileNames));
+                } catch (JsonProcessingException e) {
+                    model.addAttribute("initialAttachmentsJson", "[]");
+                }
+
             } catch (Exception loadEx) {
-                redirectAttributes.addFlashAttribute("errorMessage", "附件处理失败，且重新加载合同信息以显示错误时也发生错误：" + loadEx.getMessage());
-                return "redirect:/contract-manager/pending-finalization";
+                logger.error("表单校验失败后重新加载合同信息失败 (Contract ID: {})", contractId, loadEx);
+                redirectAttributes.addFlashAttribute("errorMessage", "表单校验失败，且重新加载合同信息时也发生错误：" + loadEx.getMessage());
+                return "redirect:/contract-manager/pending-finalization"; // 重定向到列表页
             }
-            return "contract-manager/finalize-contract";
+            model.addAttribute("errorMessage", "表单提交无效，请检查输入。"); // 添加通用错误消息
+            model.addAttribute("contractDraftRequest", contractDraftRequest); // 保持用户输入
+            return "contract-manager/finalize-contract"; // 返回到定稿页面
+        }
+
+        try {
+            String username = principal.getName();
+            String updatedContent = contractDraftRequest.getUpdatedContent(); // 获取更新后的合同内容
+
+            // 调用 ContractService 执行定稿操作，传递所有必要参数
+            Contract finalizedContract = contractService.finalizeContract(
+                    contractId,
+                    finalizationComments,
+                    contractDraftRequest.getAttachmentServerFileNames(), // 传递附件文件名列表
+                    updatedContent, // 传递更新后的内容
+                    username
+            );
+
+            redirectAttributes.addFlashAttribute("successMessage", "合同 " + finalizedContract.getContractName() + " (ID: " + contractId + ") 已成功定稿，并进入下一审批流程。");
+            return "redirect:/contract-manager/pending-finalization";
+        } catch (BusinessLogicException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "定稿失败: " + e.getMessage());
+            return "redirect:/contract-manager/finalize/" + contractId; // 返回到定稿页面
+        } catch (AccessDeniedException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "定稿失败: 权限不足。");
+            return "redirect:/contract-manager/finalize/" + contractId; // 返回到定稿页面
+        } catch (ResourceNotFoundException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "定稿失败: " + e.getMessage());
+            return "redirect:/contract-manager/pending-finalization"; // 返回到列表页
+        } catch (IOException e) {
+            // 如果附件处理（例如删除临时文件）发生IO错误，应在当前页面显示错误，并重新加载数据
+            logger.error("合同定稿附件处理失败 (Contract ID: {}): {}", contractId, e.getMessage(), e);
+            model.addAttribute("errorMessage", "附件处理失败: " + e.getMessage());
+            // 重新加载合同数据以便在当前页面显示错误
+            try {
+                Contract contractToDisplay = contractService.getContractForFinalization(contractId, principal.getName());
+                model.addAttribute("contract", contractToDisplay);
+                List<ContractProcess> countersignOpinions = contractService.getContractCountersignOpinions(contractId);
+                model.addAttribute("countersignOpinions", countersignOpinions);
+
+                // 重新解析并传递附件列表，以便前端JS可以重新渲染文件列表
+                List<String> currentAttachmentFileNames = new ArrayList<>();
+                if (contractToDisplay != null && contractToDisplay.getAttachmentPath() != null &&
+                        !contractToDisplay.getAttachmentPath().trim().isEmpty() &&
+                        !contractToDisplay.getAttachmentPath().equals("[]") &&
+                        !contractToDisplay.getAttachmentPath().equalsIgnoreCase("null")) {
+                    try {
+                        currentAttachmentFileNames = objectMapper.readValue(contractToDisplay.getAttachmentPath(), new TypeReference<List<String>>(){});
+                    } catch (JsonProcessingException jsonEx) {
+                        logger.warn("IO异常后重新加载附件JSON时出错 (Contract ID: {}): {}", contractId, jsonEx.getMessage());
+                    }
+                }
+                model.addAttribute("currentAttachmentFileNames", currentAttachmentFileNames);
+                try {
+                    model.addAttribute("initialAttachmentsJson", objectMapper.writeValueAsString(currentAttachmentFileNames));
+                } catch (JsonProcessingException jsonEx) {
+                    model.addAttribute("initialAttachmentsJson", "[]");
+                }
+            } catch (Exception loadEx) {
+                logger.error("附件IO异常后重新加载合同信息失败 (Contract ID: {})", contractId, loadEx);
+                redirectAttributes.addFlashAttribute("errorMessage", "附件处理失败，且重新加载合同信息以显示错误时也发生错误：" + loadEx.getMessage());
+                return "redirect:/contract-manager/pending-finalization"; // 重定向到列表页
+            }
+            return "contract-manager/finalize-contract"; // 返回到定稿页面
         } catch (Exception e) {
+            // 捕获其他未知异常
+            logger.error("合同定稿过程中发生未知系统错误 (Contract ID: {})", contractId, e);
             redirectAttributes.addFlashAttribute("errorMessage", "合同定稿过程中发生未知系统错误。");
-            e.printStackTrace();
-            return "redirect:/contract-manager/finalize/" + contractId;
+            return "redirect:/contract-manager/finalize/" + contractId; // 返回到定稿页面
         }
     }
 
-    // --- 待审批合同 ---
     @GetMapping("/pending-approval")
-    @PreAuthorize("hasAuthority('CON_APPROVE_VIEW')")
+    @PreAuthorize("hasAuthority('CON_APPROVE_VIEW')") // 仅允许拥有 "CON_APPROVE_VIEW" 权限的用户访问
     public String pendingApprovalContracts(
             @PageableDefault(size = 10, sort = "contract.updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String contractNameSearch,
@@ -295,21 +458,22 @@ public class ContractController {
         Page<ContractProcess> pendingApprovals = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.APPROVAL, ContractProcessState.PENDING, contractNameSearch, pageable);
         model.addAttribute("pendingApprovals", pendingApprovals);
-        model.addAttribute("contractNameSearch", contractNameSearch);
+        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
         model.addAttribute("listTitle", "待审批合同");
         return "contract-manager/pending-approval";
     }
 
     @GetMapping("/approval-details/{contractId}")
-    @PreAuthorize("hasAuthority('CON_APPROVE_VIEW') or hasAuthority('CON_APPROVE_SUBMIT')")
+    @PreAuthorize("hasAuthority('CON_APPROVE_VIEW') or hasAuthority('CON_APPROVE_SUBMIT')") // 允许查看或提交审批的用户访问
     public String showApprovalDetails(@PathVariable Long contractId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
         try {
-            Contract contract = contractService.getContractById(contractId);
+            Contract contract = contractService.getContractById(contractId); // 获取合同详情
             boolean canActuallyApprove = contractService.canUserApproveContract(principal.getName(), contractId);
-            model.addAttribute("canActuallyApprove", canActuallyApprove);
+            model.addAttribute("canActuallyApprove", canActuallyApprove); // 用于前端按钮的启用/禁用
 
-            if (contract.getStatus() != ContractStatus.PENDING_APPROVAL && contract.getStatus() != ContractStatus.REJECTED) {
-                model.addAttribute("infoMessage", "提示：此合同当前状态为 “" + contract.getStatus().getDescription() + "”，可能并非处于标准的待审批环节。");
+            // 提示信息，如果合同状态不是标准的待审批状态
+            if (contract.getStatus() != ContractStatus.PENDING_APPROVAL && contract.getStatus() != ContractStatus.REJECTED ) {
+                model.addAttribute("infoMessage", "提示：此合同当前状态为 " + contract.getStatus().getDescription() + "，可能并非处于标准的待审批环节。");
             }
             model.addAttribute("contract", contract);
             return "contract-manager/approval-details";
@@ -318,12 +482,13 @@ public class ContractController {
             return "redirect:/contract-manager/pending-approval";
         } catch (AccessDeniedException e) {
             redirectAttributes.addFlashAttribute("errorMessage","权限不足，无法查看审批详情。");
-            return "redirect:/dashboard";
+            return "redirect:/dashboard"; // 或者返回到待审批列表
         }
     }
 
+
     @PostMapping("/approve/{contractId}")
-    @PreAuthorize("hasAuthority('CON_APPROVE_SUBMIT')")
+    @PreAuthorize("hasAuthority('CON_APPROVE_SUBMIT')") // 仅允许拥有 "CON_APPROVE_SUBMIT" 权限的用户提交审批
     public String approveContract(
             @PathVariable Long contractId,
             @RequestParam String decision, // "APPROVED" 或 "REJECTED"
@@ -335,20 +500,19 @@ public class ContractController {
             boolean isApproved = "APPROVED".equalsIgnoreCase(decision);
             contractService.processApproval(contractId, principal.getName(), isApproved, comments);
             redirectAttributes.addFlashAttribute("successMessage", "合同 (ID: " + contractId + ") 已成功" + (isApproved ? "批准" : "拒绝") + "。");
-            return "redirect:/contract-manager/pending-approval";
+            return "redirect:/contract-manager/pending-approval"; // 重定向回待审批列表
         } catch (BusinessLogicException | AccessDeniedException | ResourceNotFoundException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "审批操作失败: " + e.getMessage());
-            return "redirect:/contract-manager/approval-details/" + contractId;
+            return "redirect:/contract-manager/approval-details/" + contractId; // 返回到审批详情页
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "审批过程中发生未知系统错误。");
-            e.printStackTrace();
-            return "redirect:/contract-manager/approval-details/" + contractId;
+            logger.error("处理审批合同未知错误 (Contract ID: {})", contractId, e);
+            return "redirect:/contract-manager/approval-details/" + contractId; // 返回到审批详情页
         }
     }
 
-    // --- 待签订合同 ---
     @GetMapping("/pending-signing")
-    @PreAuthorize("hasAuthority('CON_SIGN_VIEW')")
+    @PreAuthorize("hasAuthority('CON_SIGN_VIEW')") // 仅允许拥有 "CON_SIGN_VIEW" 权限的用户访问
     public String pendingSigningContracts(
             @PageableDefault(size = 10, sort = "contract.updatedAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String contractNameSearch,
@@ -359,20 +523,20 @@ public class ContractController {
         Page<ContractProcess> pendingSignings = contractService.getPendingProcessesForUser(
                 username, ContractProcessType.SIGNING, ContractProcessState.PENDING, contractNameSearch, pageable);
         model.addAttribute("pendingSignings", pendingSignings);
-        model.addAttribute("contractNameSearch", contractNameSearch);
+        model.addAttribute("contractNameSearch", contractNameSearch != null ? contractNameSearch : "");
         model.addAttribute("listTitle", "待签订合同");
         return "contract-manager/pending-signing";
     }
 
     @GetMapping("/sign/{contractProcessId}")
-    @PreAuthorize("hasAuthority('CON_SIGN_VIEW')") // 或者 'CONTRACT_SIGN_SUBMIT' 如果查看和提交权限不同
+    @PreAuthorize("hasAuthority('CON_SIGN_VIEW') or hasAuthority('CONTRACT_SIGN_SUBMIT')") // 允许查看或提交签订的用户访问
     public String showSignContractForm(@PathVariable Long contractProcessId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
         try {
             String username = principal.getName();
             ContractProcess contractProcess = contractService.getContractProcessByIdAndOperator(
-                    contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
+                    contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING); // 获取流程记录
+
             model.addAttribute("contractProcess", contractProcess);
-            // model.addAttribute("contract", contractProcess.getContract()); // 如果页面需要合同的更多信息
             return "contract-manager/sign-contract";
         } catch (ResourceNotFoundException | BusinessLogicException | AccessDeniedException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
@@ -380,9 +544,9 @@ public class ContractController {
         }
     }
 
-    @PostMapping("/sign") // 与HTML表单的 th:action="@{/contracts/sign}" 匹配，但基础路径是 /contract-manager
-    @PreAuthorize("hasAuthority('CONTRACT_SIGN_SUBMIT')") // 对应旧版中的权限
-    public String signContract(@RequestParam Long contractProcessId, // 确保与表单中的 name="contractProcessId" 匹配
+    @PostMapping("/sign")
+    @PreAuthorize("hasAuthority('CONTRACT_SIGN_SUBMIT')") // 仅允许拥有 "CONTRACT_SIGN_SUBMIT" 权限的用户提交签订
+    public String signContract(@RequestParam Long contractProcessId,
                                @RequestParam(required = false) String signingOpinion,
                                RedirectAttributes redirectAttributes,
                                Principal principal) {
@@ -390,36 +554,81 @@ public class ContractController {
             String username = principal.getName();
             contractService.signContract(contractProcessId, signingOpinion, username);
             redirectAttributes.addFlashAttribute("successMessage", "合同已成功标记为签订！");
-            return "redirect:/contract-manager/pending-signing";
+            return "redirect:/contract-manager/pending-signing"; // 重定向回待签订列表
         } catch (ResourceNotFoundException | BusinessLogicException | AccessDeniedException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "签订失败: " + e.getMessage());
-            // 如果表单页面的路径是 /contract-manager/sign/{id}
-            return "redirect:/contract-manager/sign/" + contractProcessId;
+            return "redirect:/contract-manager/sign/" + contractProcessId; // 返回到签订页面
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "签订过程中发生未知错误。");
-            e.printStackTrace(); // 仅用于调试
-            return "redirect:/contract-manager/pending-signing";
+            logger.error("处理签订合同未知错误 (Process ID: {})", contractProcessId, e);
+            return "redirect:/contract-manager/pending-signing"; // 重定向回待签订列表
         }
     }
 
     @GetMapping("/view-all")
-    @PreAuthorize("hasAuthority('CON_VIEW_MY') or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasAuthority('CON_VIEW_MY') or hasRole('ROLE_ADMIN')") // 允许查看本人起草合同的用户或管理员访问
     public String viewAllContracts(
+            Authentication authentication, // 获取认证信息，用于判断用户角色
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String contractName,
             @RequestParam(required = false) String contractNumber,
             @RequestParam(required = false) String status,
-            Model model,
-            Principal principal) {
+            Model model) {
 
-        Page<Contract> contractsPage = contractService.searchContracts(contractName, contractNumber, status, pageable);
+        String currentUsername = authentication.getName();
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(ga -> ga.getAuthority().equals("ROLE_ADMIN"));
+
+        Page<Contract> contractsPage = contractService.searchContracts(currentUsername, isAdmin, contractName, contractNumber, status, pageable);
 
         model.addAttribute("contractsPage", contractsPage);
-        model.addAttribute("contractName", contractName); // 用于在视图中回显搜索条件
-        model.addAttribute("contractNumber", contractNumber); // 用于在视图中回显搜索条件
-        model.addAttribute("status", status); // 用于在视图中回显搜索条件
+        model.addAttribute("contractName", contractName != null ? contractName : "");
+        model.addAttribute("contractNumber", contractNumber != null ? contractNumber : "");
+        model.addAttribute("status", status != null ? status : "");
         model.addAttribute("listTitle", "合同列表查询");
-        // 这里的视图名 "reports/contract-search" 是之前报告模块的，如果需要独立的 "我的合同" 页面，可以改名
-        return "reports/contract-search";
+        // 确保指向正确的模板，根据您的项目结构，这应该是 "reports/contract-search" 或 "contract-manager/view-all-contracts" 等
+        return "reports/contract-search"; // 重用报告模块的查询页面
+    }
+
+    @GetMapping("/{contractId}/detail")
+    @PreAuthorize("hasAuthority('CON_VIEW_MY') or hasRole('ROLE_ADMIN')")
+    public String viewContractDetail(
+            @PathVariable Long contractId,
+            Model model,
+            Principal principal,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Contract contract = contractService.getContractById(contractId);
+            List<ContractProcess> contractProcesses = contractService.getContractProcessHistory(contractId);
+
+            // 按创建时间倒序排序处理记录
+            contractProcesses.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+
+            model.addAttribute("contract", contract);
+            model.addAttribute("contractProcesses", contractProcesses);
+
+            // --- 开始添加的代码 ---
+            List<String> attachmentPaths = new ArrayList<>();
+            if (contract.getAttachmentPath() != null && !contract.getAttachmentPath().trim().isEmpty()) {
+                try {
+                    // 使用 ObjectMapper 解析JSON字符串为List<String>
+                    attachmentPaths = objectMapper.readValue(contract.getAttachmentPath(), new TypeReference<List<String>>() {});
+                } catch (JsonProcessingException e) {
+                    logger.error("解析附件路径失败，合同ID {}: {}", contractId, e.getMessage());
+                    model.addAttribute("errorMessage", "附件信息解析失败。");
+                }
+            }
+            // 将解析后的列表添加到模型中
+            model.addAttribute("attachmentPaths", attachmentPaths);
+
+
+            return "contracts/detail"; // 确保返回的是这个模板
+        } catch (ResourceNotFoundException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "无法找到指定的合同：" + e.getMessage());
+            return "redirect:/reports/contract-search";
+        } catch (AccessDeniedException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "您没有权限查看此合同");
+            return "redirect:/reports/contract-search";
+        }
     }
 }

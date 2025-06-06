@@ -6,8 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
-import java.util.List; // 新增导入
-import java.util.ArrayList; // 新增导入
+import java.util.List;
+import java.util.ArrayList;
 
 public class ContractDraftRequest {
 
@@ -25,9 +25,12 @@ public class ContractDraftRequest {
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate endDate;
 
-    private String contractContent;
+    private String contractContent; // 用于起草时的初始合同内容
 
-    // 修改点：从 String 变为 List<String>
+    // 新增字段：用于定稿时传递更新后的合同内容
+    private String updatedContent;
+
+    // 用于存储附件文件名列表的JSON字符串 (在起草和定稿时都可能用到)
     private List<String> attachmentServerFileNames = new ArrayList<>();
 
     // Getters and Setters
@@ -71,12 +74,20 @@ public class ContractDraftRequest {
         this.contractContent = contractContent;
     }
 
-    // 修改点：更新 Getter 和 Setter 以处理 List<String>
     public List<String> getAttachmentServerFileNames() {
         return attachmentServerFileNames;
     }
 
     public void setAttachmentServerFileNames(List<String> attachmentServerFileNames) {
         this.attachmentServerFileNames = attachmentServerFileNames;
+    }
+
+    // 新增 updatedContent 的 Getter 和 Setter
+    public String getUpdatedContent() {
+        return updatedContent;
+    }
+
+    public void setUpdatedContent(String updatedContent) {
+        this.updatedContent = updatedContent;
     }
 }

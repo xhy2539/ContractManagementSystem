@@ -24,7 +24,7 @@ public class ContractQueryController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('CON_QUERY_VIEW')")
+    @PreAuthorize("hasAuthority('QUERY_CONTRACT_INFO')")
     public ResponseEntity<Page<Contract>> searchContracts(
             @RequestParam(required = false) String contractName,
             @RequestParam(required = false) String contractNumber,
@@ -33,7 +33,7 @@ public class ContractQueryController {
     }
 
     @GetMapping("/by-status")
-    @PreAuthorize("hasAuthority('CON_QUERY_VIEW')")
+    @PreAuthorize("hasAuthority('QUERY_CONTRACT_INFO')")
     public ResponseEntity<Page<Contract>> getContractsByStatus(
             @RequestParam(required = false) String status,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {

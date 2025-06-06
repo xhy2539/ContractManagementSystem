@@ -1,5 +1,8 @@
 package com.example.contractmanagementsystem.entity;
 
+import lombok.Getter;
+
+@Getter
 public enum ContractProcessState {
     PENDING("待处理"),
     APPROVED("已通过"),
@@ -12,7 +15,4 @@ public enum ContractProcessState {
         this.description = description;
     }
 
-    public String getDescription() {
-        return description;
-    }
 }

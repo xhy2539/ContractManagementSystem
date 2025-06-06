@@ -76,12 +76,33 @@ public class AttachmentServiceImpl implements AttachmentService {
     @Override
     @Transactional
     public FileUploadInitiateResponse initiateUpload(FileUploadInitiateRequest request, String username) throws IOException {
+        // --- 开始替换的代码 ---
         String originalFileName = StringUtils.cleanPath(request.getFileName());
+
+// 1. 获取并格式化当前时间戳
+        String timestamp = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(java.time.LocalDateTime.now());
+
+// 2. 获取一个简短的唯一ID，防止同一秒内上传同名文件
+        String shortUuid = UUID.randomUUID().toString().substring(0, 6
+        );
+
+// 3. 安全地处理原始文件名，移除非法字符，保留扩展名
         String fileExtension = "";
+        String baseName = originalFileName;
         if (originalFileName.contains(".")) {
             fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
+            baseName = originalFileName.substring(0, originalFileName.lastIndexOf("."));
         }
-        String serverSideFileName = UUID.randomUUID().toString() + fileExtension;
+// 将文件名中的非法字符替换为下划线
+        String safeBaseName = baseName.replaceAll("[^a-zA-Z0-9\\u4e00-\\u9fa5.\\-_]", "_");
+// 限制文件名长度，避免过长
+        if (safeBaseName.length() > 50) {
+            safeBaseName = safeBaseName.substring(0, 50);
+        }
+
+// 4. 拼接成新的、信息丰富的服务器端文件名
+        String serverSideFileName = String.format("%s_%s_%s%s", safeBaseName, timestamp, shortUuid, fileExtension);
+// --- 结束替换的代码 ---
         String uploadId = UUID.randomUUID().toString();
         String tempSubDirName = uploadId;
         Path chunkDirForThisUpload = this.tempUploadPath.resolve(tempSubDirName);

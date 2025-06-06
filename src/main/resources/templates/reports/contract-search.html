@@ -42,6 +42,7 @@
                             <option value="DRAFT">起草</option>
                             <option value="PENDING_ASSIGNMENT">待分配</option>
                             <option value="PENDING_COUNTERSIGN">待会签</option>
+                            <option value="PENDING_FINALIZATION">待定稿</option>
                             <option value="PENDING_APPROVAL">待审批</option>
                             <option value="PENDING_SIGNING">待签订</option>
                             <option value="ACTIVE">有效</option>
@@ -94,6 +95,7 @@
             'DRAFT': '起草',
             'PENDING_ASSIGNMENT': '待分配',
             'PENDING_COUNTERSIGN': '待会签',
+            'PENDING_FINALIZATION':'待定稿',
             'PENDING_APPROVAL': '待审批',
             'PENDING_SIGNING': '待签订',
             'ACTIVE': '有效',
@@ -266,11 +268,8 @@
         }
 
         function viewContract(contractId) {
-            // 根据您的系统，合同详情页的URL可能不同
-            // 例如，可能是 /contracts/{id} 或 /contract-manager/view/{id}
-            // 假设是 /contracts/view/{id}
             if (contractId) {
-                window.location.href = `/contracts/view/${contractId}`;
+                window.location.href = `/contracts/${contractId}/detail`;
             } else {
                 console.error("无效的合同ID: ", contractId);
                 alert("无法查看详情：合同ID无效。");

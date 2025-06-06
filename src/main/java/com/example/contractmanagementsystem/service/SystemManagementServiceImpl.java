@@ -20,10 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -201,6 +198,36 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         contract.setUpdatedAt(LocalDateTime.now());
         contractRepository.save(contract);
 
+
+
+        User drafter = contract.getDrafter();
+        if (drafter == null) {
+            throw new BusinessLogicException("合同起草人信息缺失，无法推进定稿流程。");
+        }
+
+// 检查是否已经存在未完成的定稿任务，避免重复创建 (尽管此时不应存在)
+        Optional<ContractProcess> existingFinalizeTask = contractProcessRepository
+                .findByContractIdAndOperatorUsernameAndTypeAndState(
+                        contract.getId(),
+                        drafter.getUsername(),
+                        ContractProcessType.FINALIZE,
+                        ContractProcessState.PENDING
+                );
+
+        if (existingFinalizeTask.isEmpty()) {
+            ContractProcess finalizeTask = new ContractProcess();
+            finalizeTask.setContract(contract);
+            finalizeTask.setContractNumber(contract.getContractNumber());
+            finalizeTask.setType(ContractProcessType.FINALIZE);
+            finalizeTask.setState(ContractProcessState.PENDING); // 关键：设置为 PENDING
+            finalizeTask.setOperator(drafter);
+            finalizeTask.setOperatorUsername(drafter.getUsername());
+            finalizeTask.setComments("请对合同内容进行最终定稿。"); // 可选的默认备注
+
+            contractProcessRepository.save(finalizeTask);
+            auditLogService.logAction(drafter.getUsername(), "FINALIZE_TASK_CREATED",
+                    "为合同 ID: " + contract.getId() + " (“" + contract.getContractName() + "”) 创建了待定稿任务。");
+        }
         auditLogService.logAction(getCurrentUsername(), "ASSIGN_CONTRACT_PERSONNEL_STRICT",
                 "为合同 ID: " + contract.getId() + " (" + contract.getContractName() + ") 分配了会签、审批及签订人员，合同进入待会签状态。");
         return true;

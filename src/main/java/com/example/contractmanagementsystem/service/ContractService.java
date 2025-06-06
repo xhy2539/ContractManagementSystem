@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-
+import java.util.Optional;
 /**
  * 合同管理业务接口。
  * 定义合同起草、查询、状态统计、定稿等核心业务操作。
@@ -44,13 +44,15 @@ public interface ContractService {
     /**
      * 根据多种条件搜索和分页查询合同。
      *
+     * @param currentUsername   执行查询的当前用户名，如果非null且用户非管理员，则用于过滤"我的合同"。
+     * @param isAdmin           标记当前用户是否为管理员。
      * @param contractName   合同名称的模糊搜索关键字（可选）。
      * @param contractNumber 合同编号的模糊搜索关键字（可选）。
      * @param status         合同状态的精确匹配（可选，应为ContractStatus枚举的字符串表示）。
      * @param pageable       分页和排序信息。
      * @return 包含合同列表的分页结果。
      */
-    Page<Contract> searchContracts(String contractName, String contractNumber, String status, Pageable pageable);
+    Page<Contract> searchContracts(String currentUsername, boolean isAdmin, String contractName, String contractNumber, String status, Pageable pageable);
 
     /**
      * 查询指定用户、指定类型和指定状态的合同流程（如待会签、待审批、待签订等），并支持按合同名称搜索和分页。
@@ -129,7 +131,7 @@ public interface ContractService {
      * @return 验证通过的合同流程实体。
      * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录或用户未找到。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果流程类型或状态不匹配。
-     * @throws AccessDeniedException 如果当前用户不是该流程记录的指定操作员。
+     * @throws AccessDeniedException 如果当前用户不是该流程记录的指定操作员，无权操作。
      */
     ContractProcess getContractProcessByIdAndOperator(Long contractProcessId, String username, ContractProcessType expectedType, ContractProcessState expectedState) throws AccessDeniedException;
 
@@ -177,6 +179,7 @@ public interface ContractService {
      * @param contractId 要定稿的合同ID。
      * @param finalizationComments 用户在定稿时提交的意见或备注 (可选)。
      * @param attachmentServerFileNames 已上传的附件在服务器上的文件名列表 (可选, 如果有附件或替换附件)。
+     * @param updatedContent 用户在定稿时修改后的合同主要内容 (可选)。
      * @param username 执行定稿操作的用户名。
      * @return 已定稿并更新状态后的合同实体。
      * @throws IOException 如果（例如在服务层实现中仍有其他）I/O错误。
@@ -184,9 +187,16 @@ public interface ContractService {
      * @throws AccessDeniedException 如果当前用户无权定稿此合同。
      * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果合同状态不适合定稿，或发生其他业务校验失败。
      */
-    Contract finalizeContract(Long contractId, String finalizationComments, List<String> attachmentServerFileNames, String username) throws IOException, AccessDeniedException;
+    Contract finalizeContract(Long contractId, String finalizationComments, List<String> attachmentServerFileNames, String updatedContent, String username) throws IOException, AccessDeniedException;
 
-    // 新增会签处理方法声明 (如果之前没有)
+    /**
+     * 处理会签操作。
+     * @param contractProcessId 会签流程记录ID。
+     * @param comments 会签意见。
+     * @param username 执行会签操作的用户名。
+     * @param isApproved 会签是否通过 (true为通过，false为拒绝)。
+     * @throws AccessDeniedException 如果用户无权执行此操作。
+     */
     void processCountersign(Long contractProcessId, String comments, String username, boolean isApproved) throws AccessDeniedException;
 
 
@@ -208,5 +218,68 @@ public interface ContractService {
      * Counts the number of contracts currently pending assignment.
      * @return The count of contracts with status PENDING_ASSIGNMENT.
      */
-    long countContractsPendingAssignment(); // <-- 新增方法声明
+    long countContractsPendingAssignment();
+
+    /**
+     * (可选) 获取指定合同的所有会签意见。
+     * @param contractId 合同ID。
+     * @return 与该合同关联的、类型为COUNTERSIGN的ContractProcess列表。
+     */
+    List<ContractProcess> getContractCountersignOpinions(Long contractId);
+    /**
+     * 获取当前用户待会签的合同列表。
+     * @param username 当前用户的用户名。
+     * @param contractNameSearch 合同名称搜索关键词（可选）。
+     * @param pageable 分页参数。
+     * @return 待会签合同流程的Page。
+     */
+    Page<ContractProcess> getPendingCountersignContracts(String username, String contractNameSearch, Pageable pageable);
+
+    /**
+     * 获取特定合同流程的详细信息。
+     * @param contractId 合同ID。
+     * @param username 操作用户。
+     * @param type 流程类型。
+     * @param state 流程状态。
+     * @return 匹配的合同流程Optional，如果不存在则为empty。
+     */
+    Optional<ContractProcess> getContractProcessDetails(Long contractId, String username, ContractProcessType type, ContractProcessState state);
+
+
+    /**
+     * 获取指定合同和指定类型的所有合同流程记录。
+     * 用于在详情页展示所有会签意见。
+     * @param contract 合同实体。
+     * @param type 流程类型（例如COUNTERSIGN）。
+     * @return 该合同和类型的所有流程记录列表。
+     */
+    List<ContractProcess> getAllContractProcessesByContractAndType(Contract contract, ContractProcessType type);
+
+
+    /**
+     * 判断当前用户是否可以会签指定合同。
+     * @param contractId 合同ID。
+     * @param username 用户名。
+     * @return 如果用户可以会签则为 true，否则为 false。
+     */
+    boolean canUserCountersignContract(Long contractId, String username);
+
+    /**
+     * 处理会签操作。
+     * @param contractProcessId 会签流程记录ID。
+     * @param comments 会签意见。
+     * @param username 操作用户。
+     * @param isApproved 是否批准（true为批准，false为拒绝）。
+     * @throws AccessDeniedException 如果用户无权操作。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录不存在。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果业务逻辑校验失败。
+     */
+
+    /**
+     * 获取合同的所有处理历史记录
+     * @param contractId 合同ID
+     * @return 合同处理历史记录列表
+     */
+    List<ContractProcess> getContractProcessHistory(Long contractId);
+
 }

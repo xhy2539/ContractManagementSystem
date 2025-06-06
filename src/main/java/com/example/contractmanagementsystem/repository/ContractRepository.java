@@ -7,15 +7,16 @@ import com.example.contractmanagementsystem.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor; // 确保导入
-import org.springframework.data.jpa.repository.Query; // 可选，用于复杂查询
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSpecificationExecutor<Contract> { // 继承 JpaSpecificationExecutor
+public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSpecificationExecutor<Contract> {
 
     Optional<Contract> findByContractNumber(String contractNumber);
     Page<Contract> findByContractNameContainingIgnoreCase(String contractName, Pageable pageable);
@@ -31,15 +32,15 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
 
     // 新增：根据合同名称和编号组合查询
     @Query("SELECT c FROM Contract c WHERE " +
-           "(:contractName IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractName, '%'))) AND " +
-           "(:contractNumber IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumber, '%')))")
+            "(:contractName IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractName, '%'))) AND " +
+            "(:contractNumber IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumber, '%')))")
     Page<Contract> findByContractNameAndNumberContaining(String contractName, String contractNumber, Pageable pageable);
 
     // 新增：根据状态和其他条件组合查询
     @Query("SELECT c FROM Contract c WHERE " +
-           "(:status IS NULL OR c.status = :status) AND " +
-           "(:contractName IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractName, '%'))) AND " +
-           "(:contractNumber IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumber, '%')))")
+            "(:status IS NULL OR c.status = :status) AND " +
+            "(:contractName IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractName, '%'))) AND " +
+            "(:contractNumber IS NULL OR LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :contractNumber, '%')))")
     Page<Contract> findByStatusAndOtherConditions(ContractStatus status, String contractName, String contractNumber, Pageable pageable);
 
     // 新增：查询特定状态的合同数量
@@ -76,5 +77,10 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
 
     @Query("SELECT c.status, COUNT(c) FROM Contract c GROUP BY c.status")
     List<Object[]> findContractCountByStatus();
+
+    // ⭐ 重点修改：更新后的急切加载方法
+    // 同时 FETCH JOIN `customer` 和 `drafter` (User)
+    @Query("SELECT c FROM Contract c LEFT JOIN FETCH c.customer LEFT JOIN FETCH c.drafter WHERE c.id = :id")
+    Optional<Contract> findByIdWithCustomerAndDrafter(@Param("id") Long id); // 方法名也更改为更具描述性
 
 }

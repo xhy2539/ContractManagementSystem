@@ -3,43 +3,53 @@ package com.example.contractmanagementsystem.repository;
 import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
-import com.example.contractmanagementsystem.entity.ContractProcessType; // 引入 ContractProcessType
+import com.example.contractmanagementsystem.entity.ContractProcessType; // <-- 确保这里没有多余的空格，并且路径正确
 import com.example.contractmanagementsystem.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor; // <-- 新增导入
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface ContractProcessRepository extends JpaRepository<ContractProcess, Long>, JpaSpecificationExecutor<ContractProcess> {
-    //                                                                                     ^-------------------- 新增此接口
 
-    List<ContractProcess> findByContract(Contract contract);
 
-    // 修改 type 参数为 ContractProcessType 枚举
     List<ContractProcess> findByContractAndType(Contract contract, ContractProcessType type);
 
-    // 修改 type 参数为 ContractProcessType 枚举
     ContractProcess findByContractAndOperatorAndType(Contract contract, User operator, ContractProcessType type);
 
     List<ContractProcess> findByOperator(User operator);
 
-    // state 参数已经正确使用了 ContractProcessState 枚举
     List<ContractProcess> findByContractAndState(Contract contract, ContractProcessState state);
 
-    // 修改 type 参数为 ContractProcessType 枚举
     List<ContractProcess> findByTypeAndState(ContractProcessType type, ContractProcessState state);
 
-    // 用于 deleteUser 检查
     long countByOperatorAndState(User operator, ContractProcessState state);
 
-    // 您可能还需要一些额外的方法，但当前的 JpaSpecificationExecutor 已经满足了 getPendingProcessesForUser 的需求。
-
+    // --- 确保这个方法也存在，因为它在 ContractController 中使用了类似查询 ---
     Optional<ContractProcess> findByContractIdAndOperatorUsernameAndTypeAndState(
-            Long contractId, 
-            String operatorUsername, 
-            ContractProcessType type, 
+            Long contractId,
+            String operatorUsername,
+            ContractProcessType type,
             ContractProcessState state);
+
+    // --- 新增方法 (为了 ContractApprovalServiceImp 中的 canUserApproveContract 逻辑更健壮，可选) ---
+    List<ContractProcess> findByContract_IdAndTypeAndStateAndOperator_Username(
+            Long contractId,
+            ContractProcessType type,
+            ContractProcessState state,
+            String operatorUsername
+    );
+
+    /**
+     * 根据合同查找所有处理记录，按创建时间倒序排序
+     */
+    List<ContractProcess> findByContractOrderByCreatedAtDesc(Contract contract);
+
+    /**
+     * 查找指定合同的所有处理记录
+     */
+    List<ContractProcess> findByContract(Contract contract);
 }
