@@ -35,4 +35,6 @@ public class AdminController {
     public String contractAssignmentPage() {
         return "admin/contract-assignment"; // 新的HTML页面
     }
+
+
 }

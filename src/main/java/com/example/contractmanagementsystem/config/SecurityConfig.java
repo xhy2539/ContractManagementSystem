@@ -53,6 +53,8 @@ public class SecurityConfig {
                         // /contract-manager/** 路径应该由控制器处理，这里不需要特殊配置，
                         // anyRequest().authenticated() 会确保其需要认证
                         .requestMatchers("/admin/**").hasRole("ADMIN")
+                        // 新增：延期请求审批的路径，仅管理员可见
+                        .requestMatchers("/admin/approve-extension-request/**").hasAuthority("CON_EXTEND_APPROVAL_VIEW") //
                         .requestMatchers("/api/system/**").authenticated()
                         .anyRequest().authenticated() // 任何其他请求都需要认证
                 )
@@ -77,7 +79,7 @@ public class SecurityConfig {
                         .expiredUrl("/login?expired") // 当由于新登录导致旧会话过期时，重定向到此URL
                         .maxSessionsPreventsLogin(true) // 可选：如果设置为true，则在达到最大会话数时阻止新登录，而不是使旧会话无效。默认为false。
                 );
-        // --- 并发会话控制配置结束 ---
+        // --- 并发会话控制结束 ---
         return http.build();
     }
 

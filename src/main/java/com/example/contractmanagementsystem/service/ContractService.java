@@ -5,13 +5,13 @@ import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
 import com.example.contractmanagementsystem.entity.ContractProcessType;
-import org.springframework.security.access.AccessDeniedException; // 确保导入
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.LocalDate; // 导入 LocalDate
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -349,4 +349,17 @@ public interface ContractService {
     ContractProcess requestExtendContract(Long contractId, LocalDate requestedNewEndDate, String reason, String comments, String username)
             throws AccessDeniedException;
 
+    /**
+     * 处理合同延期请求的审批（管理员操作）。
+     * @param processId 要审批的合同流程记录ID。
+     * @param username 执行审批操作的管理员用户名。
+     * @param isApproved 审批决定 (true为批准，false为拒绝)。
+     * @param comments 审批意见。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录、合同或用户未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果流程状态不正确或业务逻辑不符。
+     * @throws AccessDeniedException 如果用户无权执行此操作。
+     * @return 更新后的合同流程实体。
+     */
+    ContractProcess processExtensionRequest(Long processId, String username, boolean isApproved, String comments) //
+            throws AccessDeniedException; //
 }
