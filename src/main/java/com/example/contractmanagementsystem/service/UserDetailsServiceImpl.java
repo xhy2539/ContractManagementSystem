@@ -33,21 +33,21 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("用户不存在: " + username));
 
-        // Eagerly load roles and their functionalities within the transaction to avoid lazy loading exceptions
+        // 在事务内急切加载角色及其功能，以避免懒加载异常
         user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
 
         Set<GrantedAuthority> authorities = new HashSet<>();
 
-        // 1. Load role names as GrantedAuthority (e.g., "ROLE_ADMIN")
+        // 1. 加载角色名作为 GrantedAuthority (例如 "ROLE_ADMIN")
         user.getRoles().forEach(role -> {
             authorities.add(new SimpleGrantedAuthority(role.getName()));
         });
 
-        // 2. Load role-associated functionality numbers (Functionality.num) as GrantedAuthority
+        // 2. 加载角色关联的功能编号 (Functionality.num) 作为 GrantedAuthority
         user.getRoles().forEach(role -> {
             if (role.getFunctionalities() != null) {
                 role.getFunctionalities().forEach(functionality -> {
-                    // **Core change: Use functionality number (Functionality.num) as the permission string**
+                    // **核心修改：使用功能编号 (Functionality.num) 作为权限字符串**
                     if (functionality.getNum() != null && !functionality.getNum().trim().isEmpty()) {
                         authorities.add(new SimpleGrantedAuthority(functionality.getNum()));
                     }
