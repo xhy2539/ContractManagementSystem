@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -89,6 +90,16 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
      * Changed from findByStatusAndEndDateBeforeOrEqual to resolve ambiguity.
      */
     List<Contract> findByStatusAndEndDateLessThanEqual(ContractStatus status, LocalDate endDate);
+
+    /**
+     * 根据合同ID删除相关的流程记录。
+     *
+     * @param id 合同ID。
+     */
+    @Modifying
+    @Query("DELETE FROM Contract c WHERE c.id = :id")
+    void deleteById(@Param("id") Long id);
+
     /**
      * 查找在指定日期范围内即将到期的有效合同。
      * @param startDate 开始日期

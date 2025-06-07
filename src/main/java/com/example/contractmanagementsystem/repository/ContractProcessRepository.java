@@ -6,6 +6,9 @@ import com.example.contractmanagementsystem.entity.ContractProcessState;
 import com.example.contractmanagementsystem.entity.ContractProcessType;
 import com.example.contractmanagementsystem.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
@@ -36,6 +39,14 @@ public interface ContractProcessRepository extends JpaRepository<ContractProcess
      * @return 符合条件的流程记录列表
      */
     List<ContractProcess> findByContractIdAndTypeAndState(Long contractId, ContractProcessType type, ContractProcessState state);
-
+    
+    /**
+     * 根据合同ID删除相关的流程记录。
+     *
+     * @param contractId 合同ID。
+     */
+    @Modifying
+    @Query("DELETE FROM ContractProcess cp WHERE cp.contract.id = :contractId")
+    void deleteByContract(Long contractId);
 
 }

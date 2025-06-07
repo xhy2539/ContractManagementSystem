@@ -42,9 +42,16 @@ public class CustomerController {
             Model model) {
 
         try {
+            // 确保分页参数有效
+            if (page < 0) page = 0;
+            if (size <= 0) size = 10; // 防止无效的页面大小
+
             Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
             Page<Customer> customerPage = customerService.searchCustomers(keyword, pageable);
             List<Customer> customers = customerPage.getContent();
+
+            int start = (int) customerPage.getPageable().getOffset() + 1;
+            int end = Math.min(start + size - 1, (int) customerPage.getTotalElements());
 
             model.addAttribute("customers", customers);
             model.addAttribute("currentPage", page);
@@ -52,6 +59,8 @@ public class CustomerController {
             model.addAttribute("totalElements", customerPage.getTotalElements());
             model.addAttribute("pageSize", size);
             model.addAttribute("keyword", keyword);
+            model.addAttribute("start", start);
+            model.addAttribute("end", end);
 
         } catch (Exception e) {
             logger.error("Error retrieving customers", e);
@@ -59,7 +68,7 @@ public class CustomerController {
             model.addAttribute("customers", Collections.emptyList());
         }
 
-        return "customers";
+        return "baseData/customers";
     }
 
     // 用于起草合同页面模态框添加客户的API端点
