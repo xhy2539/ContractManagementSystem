@@ -109,22 +109,21 @@
                             <hr class="my-1"> </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center" th:each="task : ${pendingTasks}">
                             <div>
-                                <i th:classappend="${task.type.name() == 'COUNTERSIGN' ? 'bi-person-check-fill text-info action-icon' :
-                                                   (task.type.name() == 'APPROVAL' ? 'bi-clipboard-check-fill text-success action-icon' :
-                                                   (task.type.name() == 'SIGNING' ? 'bi-pen-fill text-primary action-icon' :
-                                                   (task.type.name() == 'FINALIZE' ? 'bi-file-earmark-check-fill text-warning action-icon' : 'bi-question-circle-fill action-icon')))}"></i>
+                                <i th:classappend="${task.type.name() == 'COUNTERSIGN' ? 'bi-person-check-fill text-info action-icon' : (task.type.name() == 'APPROVAL' ? 'bi-clipboard-check-fill text-success action-icon' : (task.type.name() == 'SIGNING' ? 'bi-pen-fill text-primary action-icon' : (task.type.name() == 'FINALIZE' ? 'bi-file-earmark-check-fill text-warning action-icon' : (task.type.name() == 'EXTENSION_REQUEST' ? 'bi-calendar-plus-fill text-warning action-icon' : 'bi-question-circle-fill action-icon'))))}"></i>
                                 <strong><span th:text="${task.contract?.contractName ?: '未知合同'}">合同名称</span></strong> -
                                 <span th:switch="${task.type.name()}">
                                     <span th:case="'COUNTERSIGN'">需要您会签</span>
                                     <span th:case="'APPROVAL'">需要您审批</span>
                                     <span th:case="'SIGNING'">需要您签订</span>
                                     <span th:case="'FINALIZE'">需要您定稿</span>
+                                    <span th:case="'EXTENSION_REQUEST'">需要您审批延期请求</span>
                                     <span th:case="*">待处理 (<span th:text="${task.type?.description ?: task.type.name()}">类型</span>)</span>
                                 </span>
                                 <div class="task-details mt-1">
                                     合同编号: <span th:text="${task.contract?.contractNumber ?: 'N/A'}"></span> |
                                     起草人: <span th:text="${task.contract?.drafter?.username ?: 'N/A'}"></span> |
                                     流程创建时间: <span th:text="${task.createdAt != null ? #temporals.format(task.createdAt, 'yyyy-MM-dd HH:mm') : 'N/A'}"></span>
+                                    <span th:if="${task.type.name() == 'EXTENSION_REQUEST'}"> | 请求延期至: <span th:text="${task.comments?.split('延期至 ')[1]?.split('。')[0] ?: 'N/A'}"></span></span>
                                 </div>
                             </div>
                             <th:block th:switch="${task.type.name()}">
@@ -139,6 +138,9 @@
                                 </a>
                                 <a th:case="'FINALIZE'" th:href="@{/contract-manager/finalize/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
                                     去处理 <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                                <a th:case="'EXTENSION_REQUEST'" th:href="@{/admin/approve-extension-request/{id}(id=${task.id})}" class="btn btn-sm btn-outline-warning btn-process-task" sec:authorize="hasAuthority('CON_EXTEND_APPROVAL_VIEW')">
+                                    去审批 <i class="bi bi-arrow-right-short"></i>
                                 </a>
                                 <a th:case="*" href="#" class="btn btn-sm btn-outline-secondary btn-process-task disabled" title="未知任务类型，无法直接处理">
                                     查看 <i class="bi bi-info-circle"></i>
@@ -170,6 +172,9 @@
                         <li class="list-group-item"><a th:href="@{/admin/functionalities}"><i class="bi bi-gear-wide-connected"></i>功能管理</a></li>
                         <li class="list-group-item"><a th:href="@{/admin/contract-assignments}"><i class="bi bi-person-lines-fill"></i>合同分配</a></li>
                         <li class="list-group-item"><a th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i>审计日志管理</a></li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CON_EXTEND_APPROVAL_VIEW')">
+                            <a th:href="@{/admin/approve-extension-request}"><i class="bi bi-calendar-plus-fill"></i>延期请求审批</a>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -231,7 +236,7 @@
                     </div>
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            有效合同总数
+                            已生效合同总数
                             <span class="badge bg-primary rounded-pill">
                                 <a th:href="@{/contract-manager/view-all(status='ACTIVE')}"
                                    class="stats-badge-link text-white"
@@ -246,6 +251,24 @@
                                    class="stats-badge-link text-dark"
                                    title="点击查看即将到期的有效合同"
                                    th:text="${systemStats?.expiringSoonCount != null ? systemStats.expiringSoonCount : 'N/A'}">0</a>
+                            </span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            已过期合同总数
+                            <span class="badge bg-danger rounded-pill">
+                                <a th:href="@{/contract-manager/view-all(status='EXPIRED')}"
+                                   class="stats-badge-link text-white"
+                                   title="点击查看所有已过期合同"
+                                   th:text="${systemStats?.expiredContractsCount != null ? systemStats.expiredContractsCount : 'N/A'}">0</a>
+                            </span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            流程中合同总数
+                            <span class="badge bg-info rounded-pill">
+                                <a th:href="@{/reports/contract-search(status='PENDING_ASSIGNMENT,PENDING_COUNTERSIGN,PENDING_APPROVAL,PENDING_SIGNING,PENDING_FINALIZATION')}"
+                                   class="stats-badge-link text-white"
+                                   title="点击查看所有流程中合同"
+                                   th:text="${systemStats?.inProcessContractsCount != null ? systemStats.inProcessContractsCount : 'N/A'}">0</a>
                             </span>
                         </li>
                     </ul>

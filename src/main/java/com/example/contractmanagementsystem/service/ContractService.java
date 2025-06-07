@@ -5,15 +5,18 @@ import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
 import com.example.contractmanagementsystem.entity.ContractProcessType;
-import org.springframework.security.access.AccessDeniedException; // 确保导入
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.HashMap; // Added import for HashMap
+
 /**
  * 合同管理业务接口。
  * 定义合同起草、查询、状态统计、定稿等核心业务操作。
@@ -194,31 +197,55 @@ public interface ContractService {
      * @param contractProcessId 会签流程记录ID。
      * @param comments 会签意见。
      * @param username 执行会签操作的用户名。
-     * @param isApproved 会签是否通过 (true为通过，false为拒绝)。
+     * @param isApproved 会签是否通过 (true为通过, false为拒绝)。
      * @throws AccessDeniedException 如果用户无权执行此操作。
      */
     void processCountersign(Long contractProcessId, String comments, String username, boolean isApproved) throws AccessDeniedException;
 
 
-    // --- 新增：为仪表盘统计信息添加方法声明 ---
+    // --- 仪表盘统计信息的方法声明 ---
     /**
      * 统计当前系统中所有状态为 ACTIVE 的合同数量。
+     *
+     * @param username 当前登录用户的用户名。
+     * @param isAdmin  当前用户是否是管理员。
      * @return 有效合同的总数。
      */
-    long countActiveContracts();
+    long countActiveContracts(String username, boolean isAdmin);
 
     /**
      * 统计在未来指定天数内即将到期的有效合同数量。
-     * @param days 指定的天数（例如 30 天）。
+     *
+     * @param days     指定的天数（例如 30 天）。
+     * @param username 当前登录用户的用户名。
+     * @param isAdmin  当前用户是否是管理员。
      * @return 即将到期的有效合同数量。
      */
-    long countContractsExpiringSoon(int days);
+    long countContractsExpiringSoon(int days, String username, boolean isAdmin);
 
     /**
      * Counts the number of contracts currently pending assignment.
      * @return The count of contracts with status PENDING_ASSIGNMENT.
      */
     long countContractsPendingAssignment();
+
+    /**
+     * 统计当前系统中所有状态为 EXPIRED 的合同数量。
+     *
+     * @param username 当前登录用户的用户名。
+     * @param isAdmin  当前用户是否是管理员。
+     * @return 已过期合同的总数。
+     */
+    long countExpiredContracts(String username, boolean isAdmin);
+
+    /**
+     * 检查所有合同的到期日期，并更新已过期合同的状态。
+     * 此方法通常由定时任务或在特定事件（如登录）时调用。
+     *
+     * @return 更新状态的合同数量。
+     */
+    int updateExpiredContractStatuses();
+
 
     /**
      * (可选) 获取指定合同的所有会签意见。
@@ -253,6 +280,7 @@ public interface ContractService {
      * @param type 流程类型（例如COUNTERSIGN）。
      * @return 该合同和类型的所有流程记录列表。
      */
+
     List<ContractProcess> getAllContractProcessesByContractAndType(Contract contract, ContractProcessType type);
 
 
@@ -262,6 +290,8 @@ public interface ContractService {
      * @param username 用户名。
      * @return 如果用户可以会签则为 true，否则为 false。
      */
+
+
     boolean canUserCountersignContract(Long contractId, String username);
 
     /**
@@ -282,4 +312,65 @@ public interface ContractService {
      */
     List<ContractProcess> getContractProcessHistory(Long contractId);
 
+    /**
+     * 统计所有流程中合同的数量。
+     * 流程中合同包括：PENDING_ASSIGNMENT, PENDING_COUNTERSIGN, PENDING_APPROVAL, PENDING_SIGNING, PENDING_FINALIZATION。
+     * 会根据用户权限（是否为管理员）进行过滤。
+     * @param username 当前用户的用户名。
+     * @param isAdmin 是否为管理员。
+     * @return 流程中合同的数量。
+     */
+    long countInProcessContracts(String username, boolean isAdmin);
+
+    /**
+     * 管理员直接延期合同。
+     * @param contractId 要延期的合同ID。
+     * @param newEndDate 新的到期日期。
+     * @param comments 延期备注。
+     * @param username 执行操作的管理员用户名。
+     * @return 更新后的合同实体。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果延期日期无效或合同状态不允许直接延期。
+     * @throws AccessDeniedException 如果用户没有管理员权限。
+     */
+    Contract extendContract(Long contractId, LocalDate newEndDate, String comments, String username)
+            throws AccessDeniedException;
+
+    /**
+     * 操作员请求延期合同。
+     * @param contractId 要延期的合同ID。
+     * @param requestedNewEndDate 期望的新的到期日期。
+     * @param reason 延期请求的原因。
+     * @param comments 附加备注。
+     * @param username 提交请求的操作员用户名。
+     * @return 创建的延期请求流程实体。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果请求日期无效或合同状态不允许请求延期。
+     * @throws AccessDeniedException 如果用户没有操作员权限。
+     */
+    ContractProcess requestExtendContract(Long contractId, LocalDate requestedNewEndDate, String reason, String comments, String username)
+            throws AccessDeniedException;
+
+    /**
+     * 处理合同延期请求的审批（管理员操作）。
+     * @param processId 要审批的合同流程记录ID。
+     * @param username 执行审批操作的管理员用户名。
+     * @param isApproved 审批决定 (true为批准，false为拒绝)。
+     * @param comments 审批意见。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果流程记录、合同或用户未找到。
+     * @throws com.example.contractmanagementsystem.exception.BusinessLogicException 如果流程状态不正确或业务逻辑不符。
+     * @throws AccessDeniedException 如果用户无权执行此操作。
+     * @return 更新后的合同流程实体。
+     */
+    ContractProcess processExtensionRequest(Long processId, String username, boolean isApproved, String comments)
+            throws AccessDeniedException;
+
+    /**
+     * 从延期请求的评论中解析出请求的期望新日期、原因和附加备注。
+     *
+     * @param comments 延期请求流程记录的评论字符串。
+     * @return 包含解析结果的Map，键包括 "requestedNewEndDate", "reason", "additionalComments"。
+     * 如果解析失败，对应的值可能为null或默认字符串。
+     */
+    Map<String, String> parseExtensionRequestComments(String comments); // 新增方法声明
 }

@@ -7,7 +7,9 @@ public enum ContractProcessType {
     COUNTERSIGN(0, "会签"),
     FINALIZE(1, "定稿"),
     APPROVAL(2, "审批"),
-    SIGNING(3, "签订");
+    SIGNING(3, "签订"),
+    EXTENSION(4, "延期"), // 新增：管理员直接延期
+    EXTENSION_REQUEST(5, "延期请求"); // 新增：操作员请求延期
 
     private final int code;
     private final String description;

@@ -2,7 +2,8 @@
 <html lang="zh-CN"
       xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{fragments/layout}">
+      layout:decorate="~{fragments/layout}"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <title>合同详情</title>
@@ -105,9 +106,9 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background-color: #0d6efd;
+            background-color: #0d6efd; /* Default dot color */
             border: 2px solid white;
-            box-shadow: 0 0 0 2px #0d6efd;
+            box-shadow: 0 0 0 2px #0d6efd; /* Default shadow color */
         }
         .timeline-item::after {
             content: '';
@@ -132,6 +133,33 @@
             border-radius: 6px;
             border: 1px solid #e9ecef;
         }
+        /* 额外样式用于不同状态的 timeline-item */
+        /* 审批通过/完成的圆点 */
+        .timeline-item.state-APPROVED::before,
+        .timeline-item.state-COMPLETED::before {
+            background-color: #28a745; /* Green for success */
+            box-shadow: 0 0 0 2px #28a745;
+        }
+        /* 审批拒绝的圆点 */
+        .timeline-item.state-REJECTED::before {
+            background-color: #dc3545; /* Red for danger */
+            box-shadow: 0 0 0 2px #dc3545;
+        }
+        /* 待处理的延期请求圆点 */
+        .timeline-item.type-EXTENSION_REQUEST.state-PENDING::before {
+            background-color: #ffc107; /* Warning yellow */
+            box-shadow: 0 0 0 2px #ffc107;
+        }
+        /* 普通待处理状态（非延期请求） */
+        .timeline-item.state-PENDING::before {
+            background-color: #0d6efd; /* Default blue for pending */
+            box-shadow: 0 0 0 2px #0d6efd;
+        }
+        /* 管理员直接延期（如果需要不同颜色标记） */
+        .timeline-item.type-EXTENSION.state-COMPLETED::before {
+            background-color: #6f42c1; /* Purple for direct extension */
+            box-shadow: 0 0 0 2px #6f42c1;
+        }
     </style>
 </head>
 <body>
@@ -139,9 +167,20 @@
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>合同详情</h1>
-            <a href="javascript:history.back()" class="btn btn-secondary">
-                <i class="bi bi-arrow-left"></i> 返回
-            </a>
+            <div>
+                <a href="javascript:history.back()" class="btn btn-secondary me-2">
+                    <i class="bi bi-arrow-left"></i> 返回
+                </a>
+            </div>
+        </div>
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
 
         <div class="contract-detail-card">
@@ -212,14 +251,36 @@
         <div class="contract-detail-card" th:if="${!#lists.isEmpty(contractProcesses)}">
             <h2 class="section-title">处理记录</h2>
             <ul class="timeline">
-                <li class="timeline-item" th:each="process : ${contractProcesses}">
-                    <div class="timeline-date" th:text="${#temporals.format(process.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></div>
+                <li th:each="process : ${contractProcesses}"
+                    th:classappend="${'type-' + process.type.name()} + ' ' + ${'state-' + process.state.name()}"
+                    class="timeline-item">
+                    <div class="timeline-date" th:text="${(process.processedAt != null ? #temporals.format(process.processedAt, 'yyyy-MM-dd HH:mm:ss') : #temporals.format(process.createdAt, 'yyyy-MM-dd HH:mm:ss'))}"></div>
                     <div class="timeline-content">
-                        <strong th:text="${process.type.description + ' - ' + process.state.description}">处理类型 - 状态</strong>
+                        <strong>
+                            <span th:text="${process.type.description}">处理类型</span>
+                            <span th:if="${process.state != null && (process.state.name() != 'PENDING' || process.type.name() == 'EXTENSION_REQUEST')}" th:text="'- ' + ${process.state.description}">- 状态</span>
+                        </strong>
                         <div th:if="${process.operator != null}">
                             处理人：<span th:text="${process.operator.username}"></span>
                         </div>
-                        <div th:if="${process.comments != null and !process.comments.isEmpty()}">
+
+                        <th:block th:if="${process.type.name() == 'EXTENSION_REQUEST'}">
+                            <div th:if="${process.requestedNewEndDate != null}">
+                                请求延期至：<span th:text="${#temporals.format(process.requestedNewEndDate, 'yyyy-MM-dd')}"></span>
+                            </div>
+                            <div th:if="${process.requestReason != null and !process.requestReason.isEmpty()}">
+                                原因：<span th:text="${process.requestReason}"></span>
+                            </div>
+                            <div th:if="${process.requestAdditionalComments != null and !process.requestAdditionalComments.isEmpty()}">
+                                附加备注：<span th:text="${process.requestAdditionalComments}"></span>
+                            </div>
+                            <div th:if="${process.state.name() == 'APPROVED' or process.state.name() == 'REJECTED'}" class="mt-2">
+                                审批意见：<span th:text="${process.adminApprovalComments != null ? process.adminApprovalComments : '无'}"></span>
+                            </div>
+                        </th:block>
+
+                        <div th:unless="${process.type.name() == 'EXTENSION_REQUEST'}"
+                             th:if="${process.comments != null and !process.comments.isEmpty()}">
                             处理意见：<span th:text="${process.comments}"></span>
                         </div>
                     </div>
@@ -227,6 +288,24 @@
             </ul>
         </div>
     </div>
+
 </section>
 </body>
+<th:block layout:fragment="scripts">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        document.addEventListener('DOMContentLoaded', function() {
+            // 自动关闭提示消息
+            const alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(alertNode => {
+                const bsAlert = new bootstrap.Alert(alertNode);
+                setTimeout(() => {
+                    bsAlert.close();
+                }, 7000); // 7 秒后自动关闭
+            });
+        });
+        /*]]>*/
+    </script>
+</th:block>
 </html>

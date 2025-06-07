@@ -10,56 +10,58 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/> <style>
-    html, body {
-        height: 100%;
-    }
-    body {
-        display: flex;
-        flex-direction: column;
-        padding-top: 56px; /* Navbar height, adjust if navbar height changes */
-        background-color: #f8f9fa; /* 淡灰色背景 */
-        color: #212529; /* Bootstrap default text color */
-    }
-    .navbar {
-        box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
-        /* Consider a slightly different dark color for more modern feel if desired */
-        /* background-color: #212529; */
-    }
-    .navbar-brand {
-        font-weight: 500;
-    }
-    .nav-link {
-        font-size: 0.95rem;
-    }
-    .nav-link.active {
-        font-weight: 500;
-    }
-    main.content-wrapper { /* Renamed for clarity, and applied to the <main> tag */
-        flex: 1 0 auto; /* Fill available space and don't shrink */
-        padding-top: 1.5rem;
-        padding-bottom: 1.5rem; /* Space before footer */
-    }
-    .main-container { /* Specific container for the content within the wrapper */
-        background-color: #ffffff;
-        padding: 2rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05);
-        min-height: calc(100vh - 56px - 70px - 3rem); /* Full height minus navbar, footer, and main padding */
-    }
-    .footer {
-        flex-shrink: 0; /* Prevent footer from shrinking */
-        background-color: #e9ecef;
-        padding: 1.5rem 0;
-        color: #6c757d;
-        font-size: 0.9em;
-    }
-    /* User dropdown styling */
-    .dropdown-menu-dark .dropdown-item:hover,
-    .dropdown-menu-dark .dropdown-item:focus {
-        background-color: rgba(255, 255, 255, 0.15);
-    }
-</style>
+    <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/>
+
+    <style>
+        html, body {
+            height: 100%;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            padding-top: 56px; /* Navbar height, adjust if navbar height changes */
+            background-color: #f8f9fa; /* 淡灰色背景 */
+            color: #212529; /* Bootstrap default text color */
+        }
+        .navbar {
+            box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
+            /* Consider a slightly different dark color for more modern feel if desired */
+            /* background-color: #212529; */
+        }
+        .navbar-brand {
+            font-weight: 500;
+        }
+        .nav-link {
+            font-size: 0.95rem;
+        }
+        .nav-link.active {
+            font-weight: 500;
+        }
+        main.content-wrapper { /* Renamed for clarity, and applied to the <main> tag */
+            flex: 1 0 auto; /* Fill available space and don't shrink */
+            padding-top: 1.5rem;
+            padding-bottom: 1.5rem; /* Space before footer */
+        }
+        .main-container { /* Specific container for the content within the wrapper */
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05);
+            min-height: calc(100vh - 56px - 70px - 3rem); /* Full height minus navbar, footer, and main padding */
+        }
+        .footer {
+            flex-shrink: 0; /* Prevent footer from shrinking */
+            background-color: #e9ecef;
+            padding: 1.5rem 0;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        /* User dropdown styling */
+        .dropdown-menu-dark .dropdown-item:hover,
+        .dropdown-menu-dark .dropdown-item:focus {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+    </style>
     <th:block layout:fragment="css-links"></th:block>
     <style layout:fragment="inline-css"></style>
 </head>
@@ -81,7 +83,7 @@
                        aria-current="page" th:href="@{/dashboard}"><i class="bi bi-house-door-fill"></i> 仪表盘</a>
                 </li>
                 <li class="nav-item dropdown" sec:authorize="hasRole('ROLE_ADMIN')">
-                    <a class="nav-link dropdown-toggle" href="#" id="adminMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle" href="#" id="adminMenuDropdown" role="button" aria-expanded="false">
                         <i class="bi bi-gear-fill"></i> 系统管理
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="adminMenuDropdown">
@@ -90,13 +92,16 @@
                         <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/functionalities')) ? 'active' : ''}" th:href="@{/admin/functionalities}"><i class="bi bi-gear-wide-connected"></i> 功能管理</a></li>
                         <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/contract-assignments')) ? 'active' : ''}" th:href="@{/admin/contract-assignments}"><i class="bi bi-person-lines-fill"></i> 合同分配</a></li>
                         <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/audit-logs')) ? 'active' : ''}" th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i> 审计日志</a></li>
+                        <li sec:authorize="hasAuthority('CON_EXTEND_APPROVAL_VIEW')">
+                            <a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/approve-extension-request')) ? 'active' : ''}" th:href="@{/admin/approve-extension-request}"><i class="bi bi-calendar-plus-fill"></i> 延期请求审批</a>
+                        </li>
                     </ul>
                 </li>
             </ul>
 
             <ul class="navbar-nav ms-auto mb-2 mb-md-0" sec:authorize="isAuthenticated()">
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" aria-expanded="false">
                         <i class="bi bi-person-circle"></i> <span sec:authentication="name">User</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="userDropdown">
@@ -138,6 +143,45 @@
 
 <th:block layout:fragment="scripts">
 </th:block>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined' && typeof bootstrap.Dropdown !== 'undefined') {
+            console.log('Bootstrap 5 JS (bootstrap.bundle.min.js) 成功加载并可用。');
+
+            // --- 新增代码：手动初始化所有下拉菜单并强制绑定点击事件 ---
+            // 延迟一小段时间，确保所有 DOM 元素都已完全渲染
+            setTimeout(function() {
+                // 获取所有下拉菜单触发元素
+                const dropdownToggleElements = document.querySelectorAll('.nav-link.dropdown-toggle');
+
+                dropdownToggleElements.forEach(function (dropdownToggleEl) {
+                    try {
+                        // 确保元素存在且未被 Bootstrap 自动初始化
+                        if (dropdownToggleEl && !bootstrap.Dropdown.getInstance(dropdownToggleEl)) {
+                            const dropdown = new bootstrap.Dropdown(dropdownToggleEl);
+                            console.log('手动初始化 Bootstrap Dropdown:', dropdownToggleEl.id || dropdownToggleEl.className);
+
+                            // 明确绑定点击事件，并阻止事件冒泡，防止外部脚本干扰
+                            dropdownToggleEl.addEventListener('click', function(event) {
+                                event.preventDefault(); // 阻止默认的链接跳转行为
+                                event.stopPropagation(); // 阻止事件冒泡，防止其他脚本捕获并干扰
+                                dropdown.toggle(); // 调用 Bootstrap 下拉菜单的切换方法
+                                console.log('Dropdown toggle attempted for:', this.id || this.className, 'Expanded:', this.getAttribute('aria-expanded'));
+                            });
+                        }
+                    } catch (e) {
+                        console.error('初始化下拉菜单失败:', dropdownToggleEl.id || dropdownToggleEl.className, e);
+                    }
+                });
+            }, 200); // 延迟 200 毫秒，确保更稳定
+
+        } else {
+            console.error('错误: Bootstrap 5 JS 未加载或不可用。下拉菜单和其他组件可能无法工作。');
+            console.trace(); // 打印调用堆栈，帮助诊断为何未加载
+        }
+    });
+</script>
 
 </body>
 </html>

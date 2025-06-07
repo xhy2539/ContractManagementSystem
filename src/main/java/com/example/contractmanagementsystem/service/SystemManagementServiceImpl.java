@@ -136,7 +136,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
 
     @Override
     @Transactional
-    public boolean assignContractPersonnel(Long contractId, List<Long> countersignUserIds, List<Long> approvalUserIds, List<Long> signUserIds) {
+    public boolean assignContractPersonnel(Long contractId, List<Long> finalizerUserIds, List<Long> countersignUserIds, List<Long> approvalUserIds, List<Long> signUserIds) {
         Contract contract = contractRepository.findById(contractId)
                 .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
 
@@ -145,6 +145,9 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                     contract.getStatus().getDescription() + "，不能进行人员分配。必须处于“待分配”状态。");
         }
 
+        if (finalizerUserIds == null || finalizerUserIds.isEmpty()) {
+            throw new BusinessLogicException("必须至少指定一名定稿人员。");
+        }
         if (countersignUserIds == null || countersignUserIds.isEmpty()) {
             throw new BusinessLogicException("必须至少指定一名会签人员。");
         }
@@ -155,6 +158,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             throw new BusinessLogicException("必须至少指定一名签订人员。");
         }
 
+        // 创建会签流程
         for (Long userId : countersignUserIds) {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("分配会签：用户未找到，ID: " + userId));
@@ -168,6 +172,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             contractProcessRepository.save(cp);
         }
 
+        // 创建审批流程
         for (Long userId : approvalUserIds) {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("分配审批：用户未找到，ID: " + userId));
@@ -181,6 +186,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             contractProcessRepository.save(cp);
         }
 
+        // 创建签订流程
         for (Long userId : signUserIds) {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("分配签订：用户未找到，ID: " + userId));
@@ -194,42 +200,29 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             contractProcessRepository.save(cp);
         }
 
+        // 创建定稿流程
+        for (Long userId : finalizerUserIds) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResourceNotFoundException("分配定稿：用户未找到，ID: " + userId));
+            ContractProcess cp = new ContractProcess();
+            cp.setContract(contract);
+            cp.setContractNumber(contract.getContractNumber());
+            cp.setOperator(user);
+            cp.setOperatorUsername(user.getUsername());
+            cp.setType(ContractProcessType.FINALIZE);
+            cp.setState(ContractProcessState.PENDING);
+            cp.setComments("请对合同内容进行最终定稿。");
+            contractProcessRepository.save(cp);
+        }
+
+
+        // 更新合同状态并记录日志
         contract.setStatus(ContractStatus.PENDING_COUNTERSIGN);
         contract.setUpdatedAt(LocalDateTime.now());
         contractRepository.save(contract);
 
-
-
-        User drafter = contract.getDrafter();
-        if (drafter == null) {
-            throw new BusinessLogicException("合同起草人信息缺失，无法推进定稿流程。");
-        }
-
-// 检查是否已经存在未完成的定稿任务，避免重复创建 (尽管此时不应存在)
-        Optional<ContractProcess> existingFinalizeTask = contractProcessRepository
-                .findByContractIdAndOperatorUsernameAndTypeAndState(
-                        contract.getId(),
-                        drafter.getUsername(),
-                        ContractProcessType.FINALIZE,
-                        ContractProcessState.PENDING
-                );
-
-        if (existingFinalizeTask.isEmpty()) {
-            ContractProcess finalizeTask = new ContractProcess();
-            finalizeTask.setContract(contract);
-            finalizeTask.setContractNumber(contract.getContractNumber());
-            finalizeTask.setType(ContractProcessType.FINALIZE);
-            finalizeTask.setState(ContractProcessState.PENDING); // 关键：设置为 PENDING
-            finalizeTask.setOperator(drafter);
-            finalizeTask.setOperatorUsername(drafter.getUsername());
-            finalizeTask.setComments("请对合同内容进行最终定稿。"); // 可选的默认备注
-
-            contractProcessRepository.save(finalizeTask);
-            auditLogService.logAction(drafter.getUsername(), "FINALIZE_TASK_CREATED",
-                    "为合同 ID: " + contract.getId() + " (“" + contract.getContractName() + "”) 创建了待定稿任务。");
-        }
-        auditLogService.logAction(getCurrentUsername(), "ASSIGN_CONTRACT_PERSONNEL_STRICT",
-                "为合同 ID: " + contract.getId() + " (" + contract.getContractName() + ") 分配了会签、审批及签订人员，合同进入待会签状态。");
+        auditLogService.logAction(getCurrentUsername(), "ASSIGN_CONTRACT_PERSONNEL",
+                "为合同 ID: " + contract.getId() + " (" + contract.getContractName() + ") 分配了所有处理人员，合同进入待会签状态。");
         return true;
     }
 

@@ -62,18 +62,19 @@ public class ContractReportController {
 
         if (authentication != null && authentication.isAuthenticated()) {
             currentUsername = authentication.getName();
+            // 确保 isPresent() 调用在任何 Stream 操作之前
             isAdmin = authentication.getAuthorities().stream()
                     .anyMatch(ga -> ga.getAuthority().equals("ROLE_ADMIN"));
         }
 
         // 核心修改：
-        // 如果用户不是管理员 (即此时可能是 CONTRACT_OPERATOR)，
+        // 如果用户不是管理员 (即此时可能是 CONTRACT_OPERATOR 或其他非管理员角色)，
         // 我们将传递 currentUsername 给 searchContracts 方法。
         // ContractServiceImpl.searchContracts 方法在 isAdmin 为 false 且 currentUsername 非空时，
-        // 会应用基于 drafter 的过滤。
+        // 会应用基于 drafter 或参与流程的过滤。
         // 如果“与自己相关的合同”对于操作员意味着更广泛的范围（例如，参与流程的合同），
         // 那么 ContractServiceImpl.searchContracts 中的用户过滤逻辑需要相应扩展。
-        // 当前的修改将使得非管理员用户（包括操作员）通过此API查询时，结果会按起草人过滤。
+        // 当前的修改将使得非管理员用户（包括操作员）通过此API查询时，结果会按起草人或参与流程过滤。
         String usernameForSearchFilter = isAdmin ? null : currentUsername;
 
         Pageable pageable = PageRequest.of(page, size);

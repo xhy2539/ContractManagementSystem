@@ -9,34 +9,31 @@
     <style layout:fragment="inline-css">
         .status-badge {
             display: inline-block;
-            padding: .35em .65em; /* 内边距 */
-            font-size: .75em;     /* 字体大小 */
-            font-weight: 700;    /* 字体粗细 */
-            line-height: 1;      /* 行高 */
-            color: #fff;         /* 文字颜色默认为白色 */
+            padding: .35em .65em;
+            font-size: .75em;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
             text-align: center;
             white-space: nowrap;
             vertical-align: baseline;
-            border-radius: .375rem; /* 圆角，与Bootstrap 5一致 */
+            border-radius: .375rem;
         }
-        /* 待定稿状态的特定背景色 */
         .status-PENDING_FINALIZATION {
-            background-color: #fd7e14; /* Bootstrap Orange */
-            /* color: #fff; (如果背景色足够深，白色文字可确保对比度) */
+            background-color: #fd7e14;
         }
-        /* 您可以为其他可能在此页面显示的状态添加样式，例如DRAFT */
-        .status-DRAFT { background-color: #6c757d; } /* Bootstrap Secondary */
-        .status-PENDING_COUNTERSIGN { background-color: #0dcaf0; color: #000;} /* Bootstrap Info Cyan，黑色文字以保证对比度 */
+        .status-DRAFT { background-color: #6c757d; }
+        .status-PENDING_COUNTERSIGN { background-color: #0dcaf0; color: #000;}
 
         .table th, .table td {
-            vertical-align: middle; /* 表格内容垂直居中 */
+            vertical-align: middle;
         }
         .action-column {
-            min-width: 130px; /* 为操作按钮列设置一个合适的最小宽度 */
-            text-align: center; /* 操作按钮通常居中显示 */
+            min-width: 130px;
+            text-align: center;
         }
         .search-card .card-body {
-            padding: 1rem; /* 调整筛选卡片主体内边距 */
+            padding: 1rem;
         }
     </style>
 </head>
@@ -118,10 +115,10 @@
                         <td th:text="${contract.customer?.customerName ?: '-'}">示例客户公司</td>
                         <td th:text="${contract.drafter?.username ?: '-'}">张三</td>
                         <td class="text-center">
-                                <span th:if="${contract.status != null}"
-                                      th:text="${contract.status.description}"
-                                      class="status-badge"
-                                      th:classappend="'status-' + ${contract.status.name()}">待定稿</span>
+                            <span th:if="${contract.status}"
+                                  th:text="${contract.status.description}"
+                                  class="status-badge"
+                                  th:classappend="'status-' + ${contract.status.name()}">待处理</span>
                         </td>
                         <td th:text="${#temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm')}">2025-06-01 10:30</td>
                         <td class="action-column">
@@ -129,7 +126,7 @@
                                sec:authorize="hasAuthority('CON_FINAL_SUBMIT')">
                                 <i class="bi bi-check2-square"></i> 定稿
                             </a>
-                            <a th:href="@{'/contracts/view/' + ${contract.id}}" target="_blank" class="btn btn-info btn-sm ms-1" title="查看合同详情"
+                            <a th:href="@{'/contracts/' + ${contract.id} + '/detail'}" target="_blank" class="btn btn-info btn-sm ms-1" title="查看合同详情"
                                sec:authorize="hasAuthority('CON_VIEW_MY') or hasAuthority('CON_MANAGE_VIEW_ALL') or hasRole('ROLE_ADMIN')">
                                 <i class="bi bi-eye"></i>
                             </a>
@@ -150,10 +147,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log("待定稿合同列表页面已成功加载。");
 
-            // 示例：如果需要动态处理关闭alert消息后的回调等
             var alertList = document.querySelectorAll('.alert-dismissible');
             alertList.forEach(function (alertNode) {
-                new bootstrap.Alert(alertNode); // 初始化Bootstrap的Alert组件
+                new bootstrap.Alert(alertNode);
                 alertNode.addEventListener('closed.bs.alert', function () {
                     console.log('Alert message closed.');
                 });
