@@ -1,5 +1,6 @@
 package com.example.contractmanagementsystem.controller;
 
+import com.example.contractmanagementsystem.dto.DashboardStatsDto;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.service.ContractService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,20 +46,18 @@ public class LoginController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(Model model, Principal principal) { // Changed method name to 'dashboard' for consistency
+    public String dashboard(Model model, Principal principal) {
         if (principal != null) {
             String username = principal.getName();
             model.addAttribute("username", username);
 
             if (contractService != null) {
-                // 在加载仪表盘数据之前，先执行合同过期状态的更新
-                // 这将确保仪表盘上显示的“已过期合同总数”是最新的
+                // 在加载仪表盘数据之前，先执行合同过期状态的更新 (这个逻辑可以保留或移至定时任务)
                 try {
                     int updatedCount = contractService.updateExpiredContractStatuses();
                     System.out.println("成功在登录时更新了 " + updatedCount + " 份过期合同的状态。");
                 } catch (Exception e) {
                     System.err.println("在登录时更新过期合同状态失败: " + e.getMessage());
-                    // 实际应用中，您可能需要记录更详细的日志或向用户显示一个不显眼的警告
                 }
 
                 // 获取当前用户是否为管理员
@@ -66,27 +65,27 @@ public class LoginController {
                 boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
                         .anyMatch(ga -> ga.getAuthority().equals("ROLE_ADMIN"));
 
-                // 获取当前用户的所有待处理任务
+                // 获取当前用户的所有待处理任务 (此方法已在上一轮优化)
                 List<ContractProcess> pendingTasks = contractService.getAllPendingTasksForUser(username);
                 model.addAttribute("pendingTasks", pendingTasks);
 
+                // ==================== 优化点：一次性获取所有统计数据 ====================
+                DashboardStatsDto stats = contractService.getDashboardStatistics(username, isAdmin);
                 Map<String, Object> systemStats = new HashMap<>();
-                // 传递 username 和 isAdmin 参数以过滤统计结果
-                systemStats.put("activeContractsCount", contractService.countActiveContracts(username, isAdmin));
-                systemStats.put("expiringSoonCount", contractService.countContractsExpiringSoon(30, username, isAdmin));
-                systemStats.put("expiredContractsCount", contractService.countExpiredContracts(username, isAdmin));
-                // 新增：流程中合同数量的统计
-                systemStats.put("inProcessContractsCount", contractService.countInProcessContracts(username, isAdmin));
-                model.addAttribute("systemStats", systemStats);
-
-                // 检查用户是否为管理员并添加待分配合同数量，作为独立的属性
-                // 这个统计通常是全局的，不按客户过滤，所以保持不变
-                if (isAdmin) { // 只有管理员才需要看到待分配合同数量
-                    long pendingAssignmentCount = contractService.countContractsPendingAssignment();
-                    if (pendingAssignmentCount > 0) {
-                        model.addAttribute("adminPendingAssignmentCount", pendingAssignmentCount);
+                if (stats != null) {
+                    systemStats.put("activeContractsCount", stats.getActiveContractsCount());
+                    systemStats.put("expiringSoonCount", stats.getExpiringSoonCount());
+                    systemStats.put("expiredContractsCount", stats.getExpiredContractsCount());
+                    systemStats.put("inProcessContractsCount", stats.getInProcessContractsCount());
+                    if (isAdmin) {
+                        // DTO中已包含此值，可以直接使用或传递给model
+                        if (stats.getPendingAssignmentCount() > 0) {
+                            model.addAttribute("adminPendingAssignmentCount", stats.getPendingAssignmentCount());
+                        }
                     }
                 }
+                model.addAttribute("systemStats", systemStats);
+                // ============================ 优化结束 ============================
 
             } else {
                 System.err.println("错误: ContractService 未在 LoginController 中注入!");

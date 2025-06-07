@@ -1,6 +1,7 @@
 package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.dto.ContractDraftRequest;
+import com.example.contractmanagementsystem.dto.DashboardStatsDto;
 import com.example.contractmanagementsystem.entity.*;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
@@ -50,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -93,6 +93,28 @@ public class ContractServiceImpl implements ContractService {
     public void init() {
         logger.info("ContractServiceImpl initialized.");
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DashboardStatsDto getDashboardStatistics(String username, boolean isAdmin) {
+        LocalDate today = LocalDate.now();
+        LocalDate futureDate = today.plusDays(30);
+        List<ContractStatus> inProcessStatuses = Arrays.asList(
+                ContractStatus.PENDING_COUNTERSIGN,
+                ContractStatus.PENDING_APPROVAL,
+                ContractStatus.PENDING_SIGNING,
+                ContractStatus.PENDING_FINALIZATION
+        );
+
+        if (isAdmin) {
+            return contractRepository.getDashboardStatisticsForAdmin(today, futureDate, inProcessStatuses);
+        } else {
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new BusinessLogicException("User not found: " + username));
+            return contractRepository.getDashboardStatistics(today, futureDate, inProcessStatuses, currentUser);
+        }
+    }
+
 
     @Override
     @Transactional
@@ -514,104 +536,93 @@ public class ContractServiceImpl implements ContractService {
     @Transactional(readOnly = true)
     public List<ContractProcess> getAllPendingTasksForUser(String username) {
         User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new BusinessLogicException("User not found: " + username)); //
+                .orElseThrow(() -> new BusinessLogicException("User not found: " + username));
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication(); //
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")); //
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
         Specification<ContractProcess> spec = (root, query, cb) -> {
-            List<Predicate> finalPredicates = new ArrayList<>(); // 使用新的列表来存储最终的 Predicate
+            // ==================== 优化点 1: 在构建查询时进行JOIN FETCH ====================
+            // 只有在最终查询类型是ContractProcess时才进行fetch，以避免影响count查询
+            if (query.getResultType().equals(ContractProcess.class)) {
+                // 预先抓取第一层关联
+                Fetch<ContractProcess, User> operatorFetch = root.fetch("operator", JoinType.LEFT);
+                Fetch<ContractProcess, Contract> contractFetch = root.fetch("contract", JoinType.LEFT);
+                contractFetch.fetch("customer", JoinType.LEFT);
+                Fetch<Contract, User> drafterFetch = contractFetch.fetch("drafter", JoinType.LEFT);
 
-            // 1. 任务状态必须是“待处理”
-            finalPredicates.add(cb.equal(root.get("state"), ContractProcessState.PENDING)); //
+                // 预先抓取第二层及更深层的关联 (解决N+1的关键)
+                // 抓取操作员的角色和功能
+                Fetch<User, Role> operatorRolesFetch = operatorFetch.fetch("roles", JoinType.LEFT);
+                operatorRolesFetch.fetch("functionalities", JoinType.LEFT);
 
-            // 2. 连接到Contract实体以过滤合同状态
-            Join<ContractProcess, Contract> contractJoin = root.join("contract", JoinType.INNER); //
+                // 抓取起草人的角色和功能
+                Fetch<User, Role> drafterRolesFetch = drafterFetch.fetch("roles", JoinType.LEFT);
+                drafterRolesFetch.fetch("functionalities", JoinType.LEFT);
 
-            // 3. 定义与用户权限无关的基本任务条件
-            // 这些任务必须是当前用户作为操作员的
-            Predicate countersignTasks = cb.and( //
-                    cb.equal(root.get("type"), ContractProcessType.COUNTERSIGN), //
-                    cb.equal(contractJoin.get("status"), ContractStatus.PENDING_COUNTERSIGN), //
-                    cb.equal(root.get("operator"), currentUser) // 必须是当前用户操作的
+                // 设置查询为DISTINCT，避免因JOIN产生重复的ContractProcess记录
+                query.distinct(true);
+            }
+            // ============================ JOIN FETCH 结束 ============================
+
+            List<Predicate> finalPredicates = new ArrayList<>();
+
+            // 任务状态必须是“待处理”
+            finalPredicates.add(cb.equal(root.get("state"), ContractProcessState.PENDING));
+
+            // 连接到Contract实体以过滤合同状态
+            Join<ContractProcess, Contract> contractJoin = root.join("contract", JoinType.INNER);
+
+            // 定义各类任务的条件
+            Predicate countersignTasks = cb.and(
+                    cb.equal(root.get("type"), ContractProcessType.COUNTERSIGN),
+                    cb.equal(contractJoin.get("status"), ContractStatus.PENDING_COUNTERSIGN),
+                    cb.equal(root.get("operator"), currentUser)
             );
-            Predicate approvalTasks = cb.and( //
-                    cb.equal(root.get("type"), ContractProcessType.APPROVAL), //
-                    cb.equal(contractJoin.get("status"), ContractStatus.PENDING_APPROVAL), //
-                    cb.equal(root.get("operator"), currentUser) // 必须是当前用户操作的
+            Predicate approvalTasks = cb.and(
+                    cb.equal(root.get("type"), ContractProcessType.APPROVAL),
+                    cb.equal(contractJoin.get("status"), ContractStatus.PENDING_APPROVAL),
+                    cb.equal(root.get("operator"), currentUser)
             );
-            Predicate signingTasks = cb.and( //
-                    cb.equal(root.get("type"), ContractProcessType.SIGNING), //
-                    cb.equal(contractJoin.get("status"), ContractStatus.PENDING_SIGNING), //
-                    cb.equal(root.get("operator"), currentUser) // 必须是当前用户操作的
+            Predicate signingTasks = cb.and(
+                    cb.equal(root.get("type"), ContractProcessType.SIGNING),
+                    cb.equal(contractJoin.get("status"), ContractStatus.PENDING_SIGNING),
+                    cb.equal(root.get("operator"), currentUser)
             );
-            Predicate finalizeTasks = cb.and( //
-                    cb.equal(root.get("type"), ContractProcessType.FINALIZE), //
-                    cb.equal(contractJoin.get("status"), ContractStatus.PENDING_FINALIZATION), //
-                    cb.equal(root.get("operator"), currentUser) // 必须是当前用户操作的
+            Predicate finalizeTasks = cb.and(
+                    cb.equal(root.get("type"), ContractProcessType.FINALIZE),
+                    cb.equal(contractJoin.get("status"), ContractStatus.PENDING_FINALIZATION),
+                    cb.equal(root.get("operator"), currentUser)
             );
 
-            List<Predicate> allOrConditions = new ArrayList<>(); //
-            allOrConditions.add(countersignTasks); //
-            allOrConditions.add(approvalTasks); //
-            allOrConditions.add(signingTasks); //
-            allOrConditions.add(finalizeTasks); //
+            List<Predicate> allOrConditions = new ArrayList<>();
+            allOrConditions.add(countersignTasks);
+            allOrConditions.add(approvalTasks);
+            allOrConditions.add(signingTasks);
+            allOrConditions.add(finalizeTasks);
 
-            if (isAdmin) { //
-                // 如果是管理员，除了自己操作的任务，还要包括所有待管理员审批的延期请求
-                // 注意：管理员也可能自己发起了延期请求，但主要目的是审批
-                // 所以我们这里获取所有待审批的延期请求，不考虑操作员是谁
-                Predicate allPendingExtensionRequests = cb.and( //
-                        cb.equal(root.get("type"), ContractProcessType.EXTENSION_REQUEST), //
+            // 如果是管理员，额外添加所有待审批的延期请求
+            if (isAdmin) {
+                Predicate allPendingExtensionRequests = cb.and(
+                        cb.equal(root.get("type"), ContractProcessType.EXTENSION_REQUEST),
                         cb.equal(root.get("state"), ContractProcessState.PENDING)
-                        // 不再限制操作员，管理员可以看所有待审批的延期请求
-                        // ⭐ 注：AdminController.java 中 admin/approve-extension-request 路径的 PreAuthorize("hasAuthority('CON_EXTEND_APPROVAL_VIEW')") 允许管理员查看所有延期请求
-                        //    所以这里不限制 operator 是正确的
                 );
-                allOrConditions.add(allPendingExtensionRequests); //
+                allOrConditions.add(allPendingExtensionRequests);
             }
 
-            // 将所有 OR 条件和固定的 state=PENDING 条件组合
-            Predicate combinedTasks = cb.and( //
-                    cb.equal(root.get("state"), ContractProcessState.PENDING), //
-                    cb.or(allOrConditions.toArray(new Predicate[0])) //
-            );
-            finalPredicates.clear(); // 清空之前的，只添加最终的组合条件
-            finalPredicates.add(combinedTasks); //
+            finalPredicates.add(cb.or(allOrConditions.toArray(new Predicate[0])));
 
+            query.orderBy(cb.desc(root.get("createdAt")));
 
-            // 对主查询进行急切加载
-            if (query.getResultType().equals(ContractProcess.class)) { //
-                root.fetch("operator", JoinType.LEFT); //
-                Fetch<ContractProcess, Contract> contractFetch = root.fetch("contract", JoinType.LEFT); //
-                contractFetch.fetch("customer", JoinType.LEFT); //
-                contractFetch.fetch("drafter", JoinType.LEFT); //
-            }
-            query.orderBy(cb.desc(root.get("createdAt"))); // 按流程创建时间降序排序
-
-            return cb.and(finalPredicates.toArray(new Predicate[0])); //
+            return cb.and(finalPredicates.toArray(new Predicate[0]));
         };
 
-        List<ContractProcess> tasks = contractProcessRepository.findAll(spec); //
-        // 显式初始化懒加载的关联实体
-        tasks.forEach(task -> { //
-            // 确保操作员（流程执行者）的角色和功能已加载
-            User operator = task.getOperator(); //
-            if (operator != null) { //
-                Hibernate.initialize(operator.getRoles()); //
-                operator.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities())); //
-            }
-            // 确保合同起草人以及起草人的角色和功能已加载
-            if (task.getContract() != null && task.getContract().getDrafter() != null) { //
-                User drafter = task.getContract().getDrafter(); //
-                Hibernate.initialize(drafter.getRoles()); //
-                drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities())); //
-            }
-        });
-        return tasks; //
-    }
+        List<ContractProcess> tasks = contractProcessRepository.findAll(spec);
 
+
+        return tasks;
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -1538,8 +1549,8 @@ public class ContractServiceImpl implements ContractService {
      * @param id 合同ID。
      * @throws ResourceNotFoundException 如果合同未找到。
      */
-    @Override
     @Transactional
+    @Override
     public void deleteContract(Long id) {
         // 检查合同是否存在
         Contract contract = contractRepository.findById(id)
