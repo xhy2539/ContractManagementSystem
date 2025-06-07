@@ -88,4 +88,12 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
      * Changed from findByStatusAndEndDateBeforeOrEqual to resolve ambiguity.
      */
     List<Contract> findByStatusAndEndDateLessThanEqual(ContractStatus status, LocalDate endDate);
+    /**
+     * 查找在指定日期范围内即将到期的有效合同。
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 即将到期的有效合同列表
+     */
+    @Query("SELECT c FROM Contract c WHERE c.status = 'ACTIVE' AND c.endDate BETWEEN :startDate AND :endDate")
+    List<Contract> findActiveContractsExpiringBetween(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 }

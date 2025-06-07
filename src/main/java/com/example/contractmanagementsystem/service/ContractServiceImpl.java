@@ -69,7 +69,7 @@ public class ContractServiceImpl implements ContractService {
     private final AuditLogService auditLogService;
     private final AttachmentService attachmentService;
     private final ObjectMapper objectMapper;
-
+    private final EmailService emailService;
     @Autowired
     public ContractServiceImpl(ContractRepository contractRepository,
                                CustomerRepository customerRepository,
@@ -77,7 +77,8 @@ public class ContractServiceImpl implements ContractService {
                                ContractProcessRepository contractProcessRepository,
                                AuditLogService auditLogService,
                                AttachmentService attachmentService,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               EmailService emailService) {
         this.contractRepository = contractRepository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
@@ -85,6 +86,7 @@ public class ContractServiceImpl implements ContractService {
         this.auditLogService = auditLogService;
         this.attachmentService = attachmentService;
         this.objectMapper = objectMapper;
+        this.emailService = emailService;
     }
 
     @PostConstruct
@@ -143,183 +145,190 @@ public class ContractServiceImpl implements ContractService {
     @Override
     @Transactional
     public Contract finalizeContract(Long contractId, String finalizationComments, List<String> attachmentServerFileNames, String updatedContent, String username) throws IOException {
-        Contract contract = getContractForFinalization(contractId, username); // 该方法已经做了权限和状态校验
+        Contract contract = getContractForFinalization(contractId, username);
         User finalizer = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("Finalizing user '" + username + "' not found.")); //
+                .orElseThrow(() -> new ResourceNotFoundException("Finalizing user '" + username + "' not found."));
 
-        String oldAttachmentPath = contract.getAttachmentPath(); //
-        String newAttachmentsJson = null; //
+        String oldAttachmentPath = contract.getAttachmentPath();
+        String newAttachmentsJson = null;
 
-        if (attachmentServerFileNames != null) { //
-            if (!attachmentServerFileNames.isEmpty()) { //
-                try { //
-                    newAttachmentsJson = objectMapper.writeValueAsString(attachmentServerFileNames); //
+        if (attachmentServerFileNames != null) {
+            if (!attachmentServerFileNames.isEmpty()) {
+                try {
+                    newAttachmentsJson = objectMapper.writeValueAsString(attachmentServerFileNames);
                 }
-                catch (JsonProcessingException e) { //
-                    logger.error("Error serializing attachment filenames list to JSON (Finalize Contract ID: {}): {}", contractId, e.getMessage()); //
-                    throw new BusinessLogicException("Error processing attachment information: " + e.getMessage()); //
+                catch (JsonProcessingException e) {
+                    logger.error("Error serializing attachment filenames list to JSON (Finalize Contract ID: {}): {}", contractId, e.getMessage());
+                    throw new BusinessLogicException("Error processing attachment information: " + e.getMessage());
                 }
-            } else { //
-                newAttachmentsJson = "[]"; //
+            } else {
+                newAttachmentsJson = "[]";
             }
-            contract.setAttachmentPath(newAttachmentsJson); //
+            contract.setAttachmentPath(newAttachmentsJson);
 
-            if (oldAttachmentPath == null && newAttachmentsJson != null && !newAttachmentsJson.equals("[]")) { //
-                logger.info("Contract {} finalized, new attachments added: {}", contractId, newAttachmentsJson); //
-                auditLogService.logAction(username, "ATTACHMENT_ADDED_ON_FINALIZE", "Contract ID " + contractId + " finalized, new attachments added: " + newAttachmentsJson); //
-            } else if (oldAttachmentPath != null && (newAttachmentsJson == null || newAttachmentsJson.equals("[]"))) { //
-                logger.info("Contract {} finalized, all attachments removed (Original attachments: {})", contractId, oldAttachmentPath); //
-                auditLogService.logAction(username, "ATTACHMENTS_REMOVED_ON_FINALIZE", "Contract ID " + contractId + " finalized, all attachments removed. Original attachments: " + oldAttachmentPath); //
-            } else if (oldAttachmentPath != null && newAttachmentsJson != null && !oldAttachmentPath.equals(newAttachmentsJson)) { //
-                logger.info("Contract {} finalized, attachments updated from '{}' to '{}'", contractId, oldAttachmentPath, newAttachmentsJson); //
-                auditLogService.logAction(username, "ATTACHMENTS_UPDATED_ON_FINALIZE", "Contract ID " + contractId + " finalized, attachments updated from " + oldAttachmentPath + " to " + newAttachmentsJson); //
+            if (oldAttachmentPath == null && newAttachmentsJson != null && !newAttachmentsJson.equals("[]")) {
+                auditLogService.logAction(username, "ATTACHMENT_ADDED_ON_FINALIZE", "Contract ID " + contractId + " finalized, new attachments added: " + newAttachmentsJson);
+            } else if (oldAttachmentPath != null && (newAttachmentsJson == null || newAttachmentsJson.equals("[]"))) {
+                auditLogService.logAction(username, "ATTACHMENTS_REMOVED_ON_FINALIZE", "Contract ID " + contractId + " finalized, all attachments removed. Original attachments: " + oldAttachmentPath);
+            } else if (oldAttachmentPath != null && newAttachmentsJson != null && !oldAttachmentPath.equals(newAttachmentsJson)) {
+                auditLogService.logAction(username, "ATTACHMENTS_UPDATED_ON_FINALIZE", "Contract ID " + contractId + " finalized, attachments updated from " + oldAttachmentPath + " to " + newAttachmentsJson);
             }
         }
 
-        if (updatedContent != null && !updatedContent.equals(contract.getContent())) { //
-            contract.setContent(updatedContent); //
-            auditLogService.logAction(username, "CONTRACT_CONTENT_UPDATED_ON_FINALIZE", "Contract ID " + contractId + " content updated during finalization."); //
-            logger.info("Contract {} finalized, content updated.", contractId); //
+        if (updatedContent != null && !updatedContent.equals(contract.getContent())) {
+            contract.setContent(updatedContent);
+            auditLogService.logAction(username, "CONTRACT_CONTENT_UPDATED_ON_FINALIZE", "Contract ID " + contractId + " content updated during finalization.");
         }
 
-        // 标记当前定稿流程为完成
-        // 首先找到当前用户对应的定稿流程
         ContractProcess currentFinalizeProcess = contractProcessRepository.findByContractIdAndOperatorUsernameAndTypeAndState(
                 contractId, username, ContractProcessType.FINALIZE, ContractProcessState.PENDING
-        ).orElseThrow(() -> new BusinessLogicException("您不是该合同的定稿人或定稿任务不处于待处理状态。")); //
+        ).orElseThrow(() -> new BusinessLogicException("您不是该合同的定稿人或定稿任务不处于待处理状态。"));
 
 
-        currentFinalizeProcess.setState(ContractProcessState.COMPLETED); // 标记为已完成
-        currentFinalizeProcess.setComments(finalizationComments); // 保存定稿意见
-        currentFinalizeProcess.setProcessedAt(LocalDateTime.now()); //
-        currentFinalizeProcess.setCompletedAt(LocalDateTime.now()); //
-        contractProcessRepository.save(currentFinalizeProcess); // 保存当前定稿流程记录
+        currentFinalizeProcess.setState(ContractProcessState.COMPLETED);
+        currentFinalizeProcess.setComments(finalizationComments);
+        currentFinalizeProcess.setProcessedAt(LocalDateTime.now());
+        currentFinalizeProcess.setCompletedAt(LocalDateTime.now());
+        contractProcessRepository.save(currentFinalizeProcess);
 
-        contract.setUpdatedAt(LocalDateTime.now()); // 更新合同的更新时间
+        contract.setUpdatedAt(LocalDateTime.now());
 
-        // --- 新增逻辑：检查所有定稿人员是否都已完成定稿 ---
-        List<ContractProcess> allFinalizeProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.FINALIZE); //
+        List<ContractProcess> allFinalizeProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.FINALIZE);
 
-        // 检查是否有任何定稿流程被拒绝 (如果业务允许定稿拒绝)
         boolean anyFinalizeRejected = allFinalizeProcesses.stream()
-                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED); //
+                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED);
 
-        if (anyFinalizeRejected) { //
-            contract.setStatus(ContractStatus.REJECTED); //
-            String logDetails = "A finalize process was rejected, contract status changed to Rejected."; //
-            auditLogService.logAction(username, "CONTRACT_FINALIZE_REJECTED", logDetails); //
-            contractRepository.save(contract); //
-            return contract; // 拒绝后，直接返回
+        if (anyFinalizeRejected) {
+            contract.setStatus(ContractStatus.REJECTED);
+            String logDetails = "A finalize process was rejected, contract status changed to Rejected.";
+            auditLogService.logAction(username, "CONTRACT_FINALIZE_REJECTED", logDetails);
+            contractRepository.save(contract);
+            return contract;
         }
 
-        // 检查所有定稿流程是否都已完成
         boolean allFinalizeProcessesCompleted = allFinalizeProcesses.stream()
-                .allMatch(p -> p.getState() == ContractProcessState.COMPLETED); //
+                .allMatch(p -> p.getState() == ContractProcessState.COMPLETED);
 
-        if (allFinalizeProcessesCompleted) { //
-            // 所有定稿流程都已完成，合同进入待审批状态
-            contract.setStatus(ContractStatus.PENDING_APPROVAL); //
-            String logDetails = "Contract ID " + contractId + " (" + contract.getContractName() + ") finalized by user " + username + ", status changed to pending approval. All finalizers completed."; //
-            if (StringUtils.hasText(finalizationComments)) { //
-                logDetails += " Finalization comments: " + finalizationComments + "."; //
+        if (allFinalizeProcessesCompleted) {
+            contract.setStatus(ContractStatus.PENDING_APPROVAL);
+            String logDetails = "Contract ID " + contractId + " (" + contract.getContractName() + ") finalized by user " + username + ", status changed to pending approval. All finalizers completed.";
+            if (StringUtils.hasText(finalizationComments)) {
+                logDetails += " Finalization comments: " + finalizationComments + ".";
             }
-            auditLogService.logAction(username, "CONTRACT_FINALIZED", logDetails); //
-        } else { //
-            // 仍有其他定稿人员未完成定稿，合同状态保持不变
-            String logDetails = "Contract ID " + contractId + " (" + contract.getContractName() + ") finalized by user " + username + ", status remains pending finalization. Waiting for other finalizers."; //
-            if (StringUtils.hasText(finalizationComments)) { //
-                logDetails += " Finalization comments: " + finalizationComments + "."; //
+            auditLogService.logAction(username, "CONTRACT_FINALIZED", logDetails);
+
+            // ========== 新增的邮件发送逻辑 ==========
+            List<ContractProcess> approvalProcesses = contractProcessRepository
+                    .findByContractAndTypeAndState(contract, ContractProcessType.APPROVAL, ContractProcessState.PENDING);
+
+            logger.info("定稿完成，找到 {} 个待处理的审批任务，准备发送邮件通知。", approvalProcesses.size());
+
+            for (ContractProcess approvalProcess : approvalProcesses) {
+                User approver = approvalProcess.getOperator();
+                sendTaskNotificationEmail(approver, "合同审批", contract);
             }
-            auditLogService.logAction(username, "CONTRACT_FINALIZE_PARTIAL", logDetails); // 新增日志类型
+            // ========== 邮件发送逻辑结束 ==========
+
+        } else {
+            String logDetails = "Contract ID " + contractId + " (" + contract.getContractName() + ") finalized by user " + username + ", status remains pending finalization. Waiting for other finalizers.";
+            if (StringUtils.hasText(finalizationComments)) {
+                logDetails += " Finalization comments: " + finalizationComments + ".";
+            }
+            auditLogService.logAction(username, "CONTRACT_FINALIZE_PARTIAL", logDetails);
         }
-        // --- 结束新增逻辑 ---
-
-        // 保存合同最终状态
 
         return contractRepository.save(contract);
     }
-
     @Override
     @Transactional
     public void processCountersign(Long contractProcessId, String comments, String username, boolean isApproved) {
-        ContractProcess process = getContractProcessByIdAndOperator(contractProcessId, username, ContractProcessType.COUNTERSIGN, ContractProcessState.PENDING); //
+        ContractProcess process = getContractProcessByIdAndOperator(contractProcessId, username, ContractProcessType.COUNTERSIGN, ContractProcessState.PENDING);
 
-        process.setState(isApproved ? ContractProcessState.APPROVED : ContractProcessState.REJECTED); //
-        process.setComments(comments); //
-        process.setProcessedAt(LocalDateTime.now()); //
-        process.setCompletedAt(LocalDateTime.now()); //
-        contractProcessRepository.save(process); //
+        process.setState(isApproved ? ContractProcessState.APPROVED : ContractProcessState.REJECTED);
+        process.setComments(comments);
+        process.setProcessedAt(LocalDateTime.now());
+        process.setCompletedAt(LocalDateTime.now());
+        contractProcessRepository.save(process);
 
-        Contract contract = process.getContract(); //
-        contract.setUpdatedAt(LocalDateTime.now()); //
+        Contract contract = process.getContract();
+        contract.setUpdatedAt(LocalDateTime.now());
 
-        String logActionType = isApproved ? "CONTRACT_COUNTERSIGN_APPROVED" : "CONTRACT_COUNTERSIGN_REJECTED"; //
-        String logDetails = "User " + username + (isApproved ? " approved" : " rejected") + " countersign for Contract ID " + //
-                contract.getId() + " (" + contract.getContractName() + "). Comments: " + //
-                (StringUtils.hasText(comments) ? comments : "None"); //
+        String logActionType = isApproved ? "CONTRACT_COUNTERSIGN_APPROVED" : "CONTRACT_COUNTERSIGN_REJECTED";
+        String logDetails = "User " + username + (isApproved ? " approved" : " rejected") + " countersign for Contract ID " +
+                contract.getId() + " (" + contract.getContractName() + "). Comments: " +
+                (StringUtils.hasText(comments) ? comments : "None");
 
-        // 如果有人拒绝，直接将合同状态设置为 REJECTED
-        if (!isApproved) { //
-            contract.setStatus(ContractStatus.REJECTED); //
-            logDetails += " Contract rejected due to countersign, status changed to Rejected."; //
-            auditLogService.logAction(username, logActionType, logDetails); //
-            contractRepository.save(contract); //
-            return; // 拒绝后立即返回，不再检查其他会签
+        if (!isApproved) {
+            contract.setStatus(ContractStatus.REJECTED);
+            logDetails += " Contract rejected due to countersign, status changed to Rejected.";
+            auditLogService.logAction(username, logActionType, logDetails);
+            contractRepository.save(contract);
+            return;
         }
 
-        // 获取所有会签流程，并重新检查状态
-        List<ContractProcess> allCountersignProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.COUNTERSIGN); //
+        List<ContractProcess> allCountersignProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.COUNTERSIGN);
 
-        // 检查是否有任何会签被拒绝 (包括刚处理的，以及之前可能有的)
         boolean anyCountersignRejected = allCountersignProcesses.stream()
-                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED); //
+                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED);
 
-        if (anyCountersignRejected) { //
-            // 如果存在任何拒绝，将合同状态设置为 REJECTED
-            contract.setStatus(ContractStatus.REJECTED); //
-            logDetails += " A countersign was rejected, contract status changed to Rejected."; //
-            auditLogService.logAction(username, logActionType, logDetails); //
-            contractRepository.save(contract); //
-            return; //
+        if (anyCountersignRejected) {
+            contract.setStatus(ContractStatus.REJECTED);
+            logDetails += " A countersign was rejected, contract status changed to Rejected.";
+            auditLogService.logAction(username, logActionType, logDetails);
+            contractRepository.save(contract);
+            return;
         }
 
-        // 只有所有会签都已完成 (不是 PENDING 状态) 且都为 APPROVED，才能推进
         boolean allCountersignsCompletedAndApproved = allCountersignProcesses.stream()
-                .allMatch(p -> p.getState() == ContractProcessState.APPROVED || p.getState() == ContractProcessState.COMPLETED); //
+                .allMatch(p -> p.getState() == ContractProcessState.APPROVED || p.getState() == ContractProcessState.COMPLETED);
 
-        if (allCountersignsCompletedAndApproved) { //
-            contract.setStatus(ContractStatus.PENDING_FINALIZATION); //
-            logDetails += " All countersigns completed and approved, contract enters pending finalization status."; //
+        if (allCountersignsCompletedAndApproved) {
+            contract.setStatus(ContractStatus.PENDING_FINALIZATION);
+            logDetails += " All countersigns completed and approved, contract enters pending finalization status.";
+            auditLogService.logAction(username, "CONTRACT_ALL_COUNTERSIGNED_TO_FINALIZE", logDetails);
 
-            auditLogService.logAction(username, "CONTRACT_ALL_COUNTERSIGNED_TO_FINALIZE", logDetails); //
-            User drafter = contract.getDrafter(); // 定稿人由 assignContractPersonnel 分配，这里需要获取
-            // 应该找 FINALIZE 类型的 PENDING 流程的 operator，而不是 drafter
-            // 这里我们假设 ContractProcessType.FINALIZE 的操作员就是最初分配的
-            // 所以，这里需要查找合同对应的 FINALIZE 流程，并确保其操作员存在
-            Optional<ContractProcess> finalizeTaskOptional = contractProcessRepository
-                    .findByContractIdAndTypeAndState(contract.getId(), ContractProcessType.FINALIZE, ContractProcessState.PENDING) //
-                    .stream() //
-                    .findFirst(); // 查找第一个待定稿任务
+            // ========== FIX: Pass the 'contract' object instead of 'contract.getId()' ==========
+            List<ContractProcess> finalizationProcesses = contractProcessRepository
+                    .findByContractAndTypeAndState(contract, ContractProcessType.FINALIZE, ContractProcessState.PENDING);
 
-            if (finalizeTaskOptional.isPresent()) { //
-                // 如果定稿任务存在，就用它原来的操作员
-                ContractProcess existingFinalizeTask = finalizeTaskOptional.get(); //
-                logger.info("Found existing pending finalization task for contract {} (ID: {}) for user {}. No new task created.", contract.getContractName(), contract.getId(), existingFinalizeTask.getOperatorUsername()); //
-                // 这里不需要再次保存 existingFinalizeTask，因为它状态已经是 PENDING
-            } else { //
-                // 异常情况：会签都通过了，但没有找到待定稿任务。
-                // 这种情况不应该发生，除非分配阶段出问题，或者定稿任务被意外删除/完成。
-                logger.error("Contract (ID: {}) all countersigns completed, but no pending finalization task found. This indicates a workflow inconsistency.", contract.getId()); //
-                throw new BusinessLogicException("会签流程已完成，但未能找到待定稿任务。请联系管理员。"); //
+            logger.info("会签完成，找到 {} 个待处理的定稿任务，准备发送邮件通知。", finalizationProcesses.size());
+
+            for (ContractProcess finalizationProcess : finalizationProcesses) {
+                User finalizer = finalizationProcess.getOperator();
+                sendTaskNotificationEmail(finalizer, "合同定稿", contract);
             }
-        } else { //
-            // 仍有未处理的会签，状态保持不变
-            logDetails += " Current countersign approved, but other countersign processes are still pending. Contract status remains pending countersign."; //
-            auditLogService.logAction(username, logActionType, logDetails); //
-        }
-        contractRepository.save(contract); //
-    }
 
+        } else {
+            logDetails += " Current countersign approved, but other countersign processes are still pending. Contract status remains pending countersign.";
+            auditLogService.logAction(username, logActionType, logDetails);
+        }
+        contractRepository.save(contract);
+    }
+    /**
+     * 发送任务通知邮件的私有辅助方法。
+     * @param operator 接收邮件的操作员
+     * @param taskType 任务类型（例如 "合同会签"）
+     * @param contract 相关的合同
+     */
+    private void sendTaskNotificationEmail(User operator, String taskType, Contract contract) {
+        if (operator != null && StringUtils.hasText(operator.getEmail())) {
+            Map<String, Object> context = new HashMap<>();
+            context.put("recipientName", operator.getRealName() != null ? operator.getRealName() : operator.getUsername());
+            context.put("taskType", taskType);
+            context.put("contractName", contract.getContractName());
+
+            // 注意：请根据您的实际部署地址修改 "http://localhost:8080"
+            String actionUrl = "http://localhost:8080/dashboard";
+            context.put("actionUrl", actionUrl);
+
+            emailService.sendHtmlMessage(
+                    operator.getEmail(),
+                    "【合同管理系统】您有新的待处理任务：" + taskType,
+                    "email/task-notification-email",
+                    context
+            );
+        }
+    }
 
     @Override
     public Path getAttachmentPath(String filename) {
@@ -631,71 +640,79 @@ public class ContractServiceImpl implements ContractService {
     @Override
     @Transactional
     public void processApproval(Long contractId, String username, boolean approved, String comments) {
-        Contract contract = getContractById(contractId); //
+        Contract contract = getContractById(contractId);
 
-        if (contract.getStatus() != ContractStatus.PENDING_APPROVAL) { //
-            throw new BusinessLogicException("Contract current status is " + contract.getStatus().getDescription() + ", cannot be approved. Must be in pending approval status."); //
+        if (contract.getStatus() != ContractStatus.PENDING_APPROVAL) {
+            throw new BusinessLogicException("Contract current status is " + contract.getStatus().getDescription() + ", cannot be approved. Must be in pending approval status.");
         }
 
         ContractProcess process = contractProcessRepository
                 .findByContractIdAndOperatorUsernameAndTypeAndState(
                         contractId, username, ContractProcessType.APPROVAL, ContractProcessState.PENDING)
-                .orElseThrow(() -> new AccessDeniedException("Your pending approval task not found, or you do not have permission to approve this contract.")); //
+                .orElseThrow(() -> new AccessDeniedException("Your pending approval task not found, or you do not have permission to approve this contract."));
 
-        process.setState(approved ? ContractProcessState.APPROVED : ContractProcessState.REJECTED); //
-        process.setComments(comments); //
-        process.setProcessedAt(LocalDateTime.now()); //
-        process.setCompletedAt(LocalDateTime.now()); //
-        contractProcessRepository.save(process); //
+        process.setState(approved ? ContractProcessState.APPROVED : ContractProcessState.REJECTED);
+        process.setComments(comments);
+        process.setProcessedAt(LocalDateTime.now());
+        process.setCompletedAt(LocalDateTime.now());
+        contractProcessRepository.save(process);
 
-        contract.setUpdatedAt(LocalDateTime.now()); //
+        contract.setUpdatedAt(LocalDateTime.now());
 
-        String logActionType = approved ? "CONTRACT_APPROVED" : "CONTRACT_REJECTED_APPROVAL"; //
-        String logDetails = "User " + username + (approved ? " approved" : " rejected") + " approval for Contract ID " + contractId + //
-                " (" + contract.getContractName() + "). Approval comments: " + //
-                (StringUtils.hasText(comments) ? comments : "None"); //
+        String logActionType = approved ? "CONTRACT_APPROVED" : "CONTRACT_REJECTED_APPROVAL";
+        String logDetails = "User " + username + (approved ? " approved" : " rejected") + " approval for Contract ID " + contractId +
+                " (" + contract.getContractName() + "). Approval comments: " +
+                (StringUtils.hasText(comments) ? comments : "None");
 
-        // 如果有人拒绝，直接将合同状态设置为 REJECTED
-        if (!approved) { //
-            contract.setStatus(ContractStatus.REJECTED); //
-            logDetails += " Contract rejected, status updated to Rejected."; //
-            auditLogService.logAction(username, logActionType, logDetails); //
-            contractRepository.save(contract); //
-            return; // 拒绝后立即返回，不再检查其他审批
+        if (!approved) {
+            contract.setStatus(ContractStatus.REJECTED);
+            logDetails += " Contract rejected, status updated to Rejected.";
+            auditLogService.logAction(username, logActionType, logDetails);
+            contractRepository.save(contract);
+            return;
         }
 
-        // 获取所有审批流程，并重新检查状态
-        List<ContractProcess> allApprovalProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.APPROVAL); //
+        List<ContractProcess> allApprovalProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.APPROVAL);
 
-        // 检查是否有任何审批被拒绝 (包括刚处理的，以及之前可能有的)
         boolean anyApprovalRejected = allApprovalProcesses.stream()
-                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED); //
+                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED);
 
-        if (anyApprovalRejected) { //
-            // 如果存在任何拒绝，将合同状态设置为 REJECTED
-            contract.setStatus(ContractStatus.REJECTED); //
-            logDetails += " An approval was rejected, contract status changed to Rejected."; //
-            auditLogService.logAction(username, logActionType, logDetails); //
-            contractRepository.save(contract); //
-            return; //
+        if (anyApprovalRejected) {
+            contract.setStatus(ContractStatus.REJECTED);
+            logDetails += " An approval was rejected, contract status changed to Rejected.";
+            auditLogService.logAction(username, logActionType, logDetails);
+            contractRepository.save(contract);
+            return;
         }
 
-        // 只有所有审批都已完成 (不是 PENDING 状态) 且都为 APPROVED，才能推进
         boolean allApprovalsCompletedAndApproved = allApprovalProcesses.stream()
-                .allMatch(p -> p.getState() == ContractProcessState.APPROVED || p.getState() == ContractProcessState.COMPLETED); //
+                .allMatch(p -> p.getState() == ContractProcessState.APPROVED || p.getState() == ContractProcessState.COMPLETED);
 
-        if (allApprovalsCompletedAndApproved) { //
-            contract.setStatus(ContractStatus.PENDING_SIGNING); //
-            logDetails += " All approvals passed, contract enters pending signing status."; //
-        } else { //
-            // 仍有未处理的审批，状态保持不变
-            logDetails += " Other approval processes are still pending or not all approved. Contract status remains pending approval."; //
+        if (allApprovalsCompletedAndApproved) {
+            contract.setStatus(ContractStatus.PENDING_SIGNING);
+            logDetails += " All approvals passed, contract enters pending signing status.";
+            auditLogService.logAction(username, "CONTRACT_ALL_APPROVED_TO_SIGNING", logDetails);
+
+            // ========== 新增的邮件发送逻辑 ==========
+            // 找到所有待处理的签订任务
+            List<ContractProcess> signingProcesses = contractProcessRepository
+                    .findByContractAndTypeAndState(contract, ContractProcessType.SIGNING, ContractProcessState.PENDING);
+
+            logger.info("审批完成，找到 {} 个待处理的签订任务，准备发送邮件通知。", signingProcesses.size());
+
+            // 为每一位签订人发送邮件
+            for (ContractProcess signingProcess : signingProcesses) {
+                User signer = signingProcess.getOperator();
+                sendTaskNotificationEmail(signer, "合同签订", contract);
+            }
+            // ========== 邮件发送逻辑结束 ==========
+
+        } else {
+            logDetails += " Other approval processes are still pending. Contract status remains pending approval.";
+            auditLogService.logAction(username, logActionType, logDetails);
         }
-        contractRepository.save(contract); //
-        auditLogService.logAction(username, logActionType, logDetails); //
+        contractRepository.save(contract);
     }
-
-
     @Override
     @Transactional(readOnly = true)
     public ContractProcess getContractProcessByIdAndOperator(Long contractProcessId, String username, ContractProcessType expectedType, ContractProcessState expectedState) {
@@ -756,53 +773,67 @@ public class ContractServiceImpl implements ContractService {
     @Transactional
     public void signContract(Long contractProcessId, String signingOpinion, String username) {
         ContractProcess process = getContractProcessByIdAndOperator(
-                contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING); //
+                contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
 
-        Contract contract = process.getContract(); //
-        if (contract.getStatus() != ContractStatus.PENDING_SIGNING) { //
-            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法签订。必须处于待签订状态。"); //
+        Contract contract = process.getContract();
+        if (contract.getStatus() != ContractStatus.PENDING_SIGNING) {
+            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法签订。必须处于待签订状态。");
         }
 
-        process.setState(ContractProcessState.COMPLETED); //
-        process.setComments(signingOpinion); //
-        process.setProcessedAt(LocalDateTime.now()); //
-        process.setCompletedAt(LocalDateTime.now()); //
-        contractProcessRepository.save(process); //
+        process.setState(ContractProcessState.COMPLETED);
+        process.setComments(signingOpinion);
+        process.setProcessedAt(LocalDateTime.now());
+        process.setCompletedAt(LocalDateTime.now());
+        contractProcessRepository.save(process);
 
-        contract.setUpdatedAt(LocalDateTime.now()); //
-        String logDetails = "用户 " + username + " 完成了合同 ID " + contract.getId() + //
-                " (" + contract.getContractName() + ") 的签订。签订意见: " + //
-                (StringUtils.hasText(signingOpinion) ? signingOpinion : "无"); //
+        contract.setUpdatedAt(LocalDateTime.now());
+        String logDetails = "用户 " + username + " 完成了合同 ID " + contract.getId() +
+                " (" + contract.getContractName() + ") 的签订。签订意见: " +
+                (StringUtils.hasText(signingOpinion) ? signingOpinion : "无");
 
-        List<ContractProcess> allSigningProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.SIGNING); //
-
-        // 检查是否有任何签订被拒绝（尽管签订流程通常只有“完成”状态，这里做防御性检查）
-        boolean anySigningRejected = allSigningProcesses.stream()
-                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED); // 签订流程通常不会有REJECTED状态，但为通用性保留
-
-        if (anySigningRejected) { //
-            // 如果存在任何拒绝，将合同状态设置为 REJECTED
-            contract.setStatus(ContractStatus.REJECTED); //
-            logDetails += " A signing process was rejected, contract status changed to Rejected."; //
-            auditLogService.logAction(username, "CONTRACT_SIGNING_REJECTED", logDetails); // 新增日志类型
-            contractRepository.save(contract); //
-            return; //
-        }
+        List<ContractProcess> allSigningProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.SIGNING);
 
         boolean allRelevantSigningsCompleted = allSigningProcesses.stream()
-                .allMatch(p -> p.getState() == ContractProcessState.COMPLETED); //
+                .allMatch(p -> p.getState() == ContractProcessState.COMPLETED);
 
-        if (allRelevantSigningsCompleted) { //
-            contract.setStatus(ContractStatus.ACTIVE); //
-            logDetails += " 所有签订流程已完成，合同状态更新为有效。"; //
-            auditLogService.logAction(username, "CONTRACT_ALL_SIGNED_ACTIVE", logDetails); //
-        } else { //
-            logDetails += " 其他签订流程仍在进行中。合同状态保持待签订。"; //
-            auditLogService.logAction(username, "CONTRACT_PARTIALLY_SIGNED", logDetails); //
+        if (allRelevantSigningsCompleted) {
+            contract.setStatus(ContractStatus.ACTIVE);
+            logDetails += " 所有签订流程已完成，合同状态更新为有效。";
+            auditLogService.logAction(username, "CONTRACT_ALL_SIGNED_ACTIVE", logDetails);
+
+            // --- 通知起草人合同已生效 ---
+            User drafter = contract.getDrafter();
+            sendTaskNotificationEmail(drafter, "合同已生效", contract);
+
+            // ========== 新增的通知客户逻辑 ==========
+            Customer customer = contract.getCustomer();
+            if (customer != null && StringUtils.hasText(customer.getEmail())) {
+                Map<String, Object> context = new HashMap<>();
+                // 您可以在这里定义您的公司名称
+                context.put("companyName", "您的公司名称");
+                context.put("customerName", customer.getCustomerName());
+                context.put("contractName", contract.getContractName());
+                context.put("contractNumber", contract.getContractNumber());
+                context.put("effectiveDate", LocalDate.now().toString()); // 使用当前日期作为生效日
+
+                emailService.sendHtmlMessage(
+                        customer.getEmail(),
+                        "【合同生效通知】关于您与" + "您的公司名称" + "的合同：" + contract.getContractName(),
+                        "customer-notification-email", // 使用新的客户通知模板
+                        context
+                );
+                logger.info("已向客户 {} ({}) 发送合同生效通知邮件。", customer.getCustomerName(), customer.getEmail());
+            } else {
+                logger.warn("合同 {} (ID: {}) 的客户或客户邮箱为空，无法发送生效通知邮件。", contract.getContractName(), contract.getId());
+            }
+            // ========== 逻辑结束 ==========
+
+        } else {
+            logDetails += " 其他签订流程仍在进行中。合同状态保持待签订。";
+            auditLogService.logAction(username, "CONTRACT_PARTIALLY_SIGNED", logDetails);
         }
-        contractRepository.save(contract); //
+        contractRepository.save(contract);
     }
-
 
     @Override
     @Transactional(readOnly = true)
