@@ -51,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -1550,8 +1549,8 @@ public class ContractServiceImpl implements ContractService {
      * @param id 合同ID。
      * @throws ResourceNotFoundException 如果合同未找到。
      */
-    @Override
     @Transactional
+    @Override
     public void deleteContract(Long id) {
         // 检查合同是否存在
         Contract contract = contractRepository.findById(id)
