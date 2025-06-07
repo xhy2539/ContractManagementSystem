@@ -53,8 +53,9 @@ public class ContractApprovalServiceImp implements ContractApprovalService {
                 .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
 
         // 2. 获取审批人
-        User approver = userRepository.findByUsername(username)
+        User approver = userRepository.findByUsernameWithRolesAndFunctionalities(username)
                 .orElseThrow(() -> new ResourceNotFoundException("审批人用户未找到，用户名: " + username));
+
 
         // 3. 业务逻辑验证：确保合同处于待审批状态
         if (contract.getStatus() != ContractStatus.PENDING_APPROVAL) {

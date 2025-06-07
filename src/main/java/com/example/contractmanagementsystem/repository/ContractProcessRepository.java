@@ -8,6 +8,7 @@ import com.example.contractmanagementsystem.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
@@ -29,7 +30,8 @@ public interface ContractProcessRepository extends JpaRepository<ContractProcess
     List<ContractProcess> findByContractOrderByCreatedAtDesc(Contract contract);
 
     long countByOperatorAndState(User operator, ContractProcessState state);
-
+    @Query("SELECT cp FROM ContractProcess cp LEFT JOIN FETCH cp.contract c LEFT JOIN FETCH cp.operator u LEFT JOIN FETCH u.roles r LEFT JOIN FETCH r.functionalities WHERE cp.contract = :contract ORDER BY cp.createdAt DESC")
+    List<ContractProcess> findByContractWithOperatorRolesAndFunctionalitiesOrderByCreatedAtDesc(@Param("contract") Contract contract);
     List<ContractProcess> findByContractAndTypeAndState(Contract contract, ContractProcessType type, ContractProcessState state);
    /**
      * 根据合同ID、流程类型和流程状态查找流程记录列表。

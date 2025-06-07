@@ -8,6 +8,7 @@ import com.example.contractmanagementsystem.repository.*;
 import com.example.contractmanagementsystem.service.AuditLogService;
 import com.example.contractmanagementsystem.service.EmailService;
 import com.example.contractmanagementsystem.service.SystemManagementService;
+import jakarta.persistence.criteria.Fetch; // 新增导入
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.hibernate.Hibernate;
@@ -29,7 +30,6 @@ import java.util.*;
 @Service
 public class SystemManagementServiceImpl implements SystemManagementService {
 
-    // ========== FIX 1: 添加缺失的 Logger 声明 ==========
     private static final Logger logger = LoggerFactory.getLogger(SystemManagementServiceImpl.class);
 
     private final UserRepository userRepository;
@@ -88,53 +88,36 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             if (StringUtils.hasText(contractNumberSearch)) {
                 predicates.add(cb.like(cb.lower(root.get("contractNumber")), "%" + contractNumberSearch.toLowerCase() + "%"));
             }
+            // 使用 JOIN FETCH 预先加载 customer, drafter, drafter的roles和functionalities
             if (query.getResultType().equals(Contract.class)) {
                 root.fetch("customer", JoinType.LEFT);
-                root.fetch("drafter", JoinType.LEFT);
+                Fetch<Object, Object> drafterFetch = root.fetch("drafter", JoinType.LEFT);
+                drafterFetch.fetch("roles", JoinType.LEFT)
+                        .fetch("functionalities", JoinType.LEFT);
             }
+            query.distinct(true); // 使用多个 fetch 时，防止重复结果至关重要
             return cb.and(predicates.toArray(new Predicate[0]));
         };
-        Page<Contract> contractsPage = contractRepository.findAll(spec, pageable);
-
-        contractsPage.getContent().forEach(contract -> {
-            Hibernate.initialize(contract.getCustomer());
-            User drafter = contract.getDrafter();
-            if (drafter != null) {
-                Hibernate.initialize(drafter);
-                Set<Role> roles = drafter.getRoles();
-                Hibernate.initialize(roles);
-                if (roles != null) {
-                    for (Role role : roles) {
-                        Hibernate.initialize(role.getFunctionalities());
-                    }
-                }
-            }
-        });
-        return contractsPage;
+        // 移除显式的 Hibernate.initialize 调用，因为 JOIN FETCH 会处理它们
+        return contractRepository.findAll(spec, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Contract> getContractsPendingAssignment() {
-        Specification<Contract> spec = (root, query, cb) ->
-                cb.and(
-                        cb.equal(root.get("status"), ContractStatus.PENDING_ASSIGNMENT)
-                );
-        List<Contract> contracts = contractRepository.findAll(spec);
-        contracts.forEach(contract -> {
-            Hibernate.initialize(contract.getCustomer());
-            User drafter = contract.getDrafter();
-            if (drafter != null) {
-                Hibernate.initialize(drafter);
-                Set<Role> roles = drafter.getRoles();
-                Hibernate.initialize(roles);
-                if (roles != null) {
-                    for (Role role : roles) {
-                        Hibernate.initialize(role.getFunctionalities());
-                    }
-                }
+        Specification<Contract> spec = (root, query, cb) -> {
+            // 使用 JOIN FETCH 预先加载 customer, drafter, drafter的roles和functionalities
+            if (query.getResultType().equals(Contract.class)) {
+                root.fetch("customer", JoinType.LEFT);
+                Fetch<Object, Object> drafterFetch = root.fetch("drafter", JoinType.LEFT);
+                drafterFetch.fetch("roles", JoinType.LEFT)
+                        .fetch("functionalities", JoinType.LEFT);
             }
-        });
+            query.distinct(true); // 使用多个 fetch 时，防止重复结果至关重要
+            return cb.equal(root.get("status"), ContractStatus.PENDING_ASSIGNMENT);
+        };
+        List<Contract> contracts = contractRepository.findAll(spec);
+        // 移除显式的 Hibernate.initialize 调用
         return contracts;
     }
 
@@ -159,12 +142,10 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         validateUserIds(approvalUserIds, "审批人");
         validateUserIds(signUserIds, "签订人");
 
-        // ========== 通知会签人的逻辑就在这里 ==========
         countersignUserIds.forEach(userId -> {
             User operator = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("指定的会签人ID不存在: " + userId));
             createAndNotify(contract, operator, ContractProcessType.COUNTERSIGN);
         });
-        // ============================================
 
         approvalUserIds.forEach(userId -> {
             User operator = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("指定的审批人ID不存在: " + userId));
@@ -200,10 +181,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     }
 
 
-
-
-
-    // --- 用户管理 (保持您原有的完整代码) ---
     @Override
     @Transactional
     public User createUser(User user, Set<String> roleNames) {
@@ -227,6 +204,8 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         user.setRoles(roles);
         User savedUser = userRepository.save(user);
 
+        // 由于 User.roles 是 FetchType.EAGER，通常无需显式初始化
+        // 但 Role.functionalities 是 FetchType.LAZY，如果需要立即访问，可能需要初始化
         if (savedUser.getRoles() != null) {
             savedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
@@ -234,43 +213,35 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         return savedUser;
     }
 
-    // ... 您在文件中提供的所有其他方法，如 findUserByUsername, getAllUsers, searchUsers, updateUser, deleteUser 等，都保持不变 ...
-    // ... Please keep all your other existing methods like findUserByUsername, getAllUsers, etc. here ...
-
-    // 以下是所有其他方法的完整代码
     @Override
     @Transactional(readOnly = true)
     public User findUserByUsername(String username) {
-        User user = userRepository.findByUsername(username)
+        // 使用新的仓库方法预先加载角色和功能
+        User user = userRepository.findByUsernameWithRolesAndFunctionalities(username)
                 .orElseThrow(() -> new ResourceNotFoundException("用户 '" + username + "' 未找到"));
-        if (user.getRoles() != null) {
-            user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
-        }
         return user;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
-        List<User> users = userRepository.findAll();
-        users.forEach(user -> {
-            if (user.getRoles() != null) {
-                user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
-            }
-        });
-        return users;
+        // 使用新的仓库方法预先加载角色和功能
+        return userRepository.findAllWithRolesAndFunctionalities();
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<User> getAllUsers(Pageable pageable) {
-        Page<User> usersPage = userRepository.findAll(pageable);
-        usersPage.getContent().forEach(user -> {
-            if (user.getRoles() != null) {
-                user.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
+        Specification<User> spec = (root, query, cb) -> {
+            // 使用 JOIN FETCH 预先加载角色和功能
+            if (query.getResultType().equals(User.class)) {
+                Fetch<User, Role> rolesFetch = root.fetch("roles", JoinType.LEFT);
+                rolesFetch.fetch("functionalities", JoinType.LEFT);
             }
-        });
-        return usersPage;
+            query.distinct(true); // 重要！
+            return cb.conjunction(); // 没有特定的谓词
+        };
+        return userRepository.findAll(spec, pageable);
     }
 
     @Override
@@ -284,17 +255,15 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             if (email != null && !email.isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("email")), "%" + email.toLowerCase() + "%"));
             }
+            // 使用 JOIN FETCH 预先加载角色和功能
+            if (query.getResultType().equals(User.class)) {
+                Fetch<User, Role> rolesFetch = root.fetch("roles", JoinType.LEFT);
+                rolesFetch.fetch("functionalities", JoinType.LEFT);
+            }
+            query.distinct(true); // 重要！
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
-        Page<User> usersPage = userRepository.findAll(spec, pageable);
-        usersPage.getContent().forEach(user -> {
-            if (user.getRoles() != null) {
-                user.getRoles().forEach(role -> {
-                    Hibernate.initialize(role.getFunctionalities());
-                });
-            }
-        });
-        return usersPage;
+        return userRepository.findAll(spec, pageable);
     }
 
     @Override
@@ -321,6 +290,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
 
         User updatedUser = userRepository.save(existingUser);
+        // 如果 Role.functionalities 是 LAZY，这里仍然需要显式初始化才能在事务外访问
         if (updatedUser.getRoles() != null) {
             updatedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
@@ -363,6 +333,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
         role.setFunctionalities(functionalities);
         Role savedRole = roleRepository.save(role);
+        // 显式初始化 functionalities
         Hibernate.initialize(savedRole.getFunctionalities());
         auditLogService.logAction(getCurrentUsername(), "CREATE_ROLE", "创建角色: " + savedRole.getName() + " 并分配功能编号: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
         return savedRole;
@@ -397,6 +368,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         existingRole.setFunctionalities(newFunctionalities);
 
         Role updatedRole = roleRepository.save(existingRole);
+        // 显式初始化 functionalities
         Hibernate.initialize(updatedRole.getFunctionalities());
         auditLogService.logAction(getCurrentUsername(), "UPDATE_ROLE", "更新角色: " + updatedRole.getName() + " 并更新功能编号为: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
         return updatedRole;
@@ -406,17 +378,22 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     @Override
     @Transactional(readOnly = true)
     public List<Role> getAllRoles() {
-        List<Role> roles = roleRepository.findAll();
-        roles.forEach(role -> Hibernate.initialize(role.getFunctionalities()));
-        return roles;
+        // 使用新的仓库方法预先加载功能
+        return roleRepository.findAllWithFunctionalities();
     }
 
     @Override
     @Transactional(readOnly = true)
     public Page<Role> getAllRoles(Pageable pageable) {
-        Page<Role> rolesPage = roleRepository.findAll(pageable);
-        rolesPage.getContent().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
-        return rolesPage;
+        Specification<Role> spec = (root, query, cb) -> {
+            // 使用 JOIN FETCH 预先加载功能
+            if (query.getResultType().equals(Role.class)) {
+                root.fetch("functionalities", JoinType.LEFT);
+            }
+            query.distinct(true);
+            return cb.conjunction();
+        };
+        return roleRepository.findAll(spec, pageable);
     }
 
     @Override
@@ -430,29 +407,31 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             if (description != null && !description.isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), "%" + description.toLowerCase() + "%"));
             }
+            // 使用 JOIN FETCH 预先加载功能
+            if (query.getResultType().equals(Role.class)) {
+                root.fetch("functionalities", JoinType.LEFT);
+            }
             query.distinct(true);
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
-        Page<Role> rolesPage = roleRepository.findAll(spec, pageable);
-        rolesPage.getContent().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
-        return rolesPage;
+        return roleRepository.findAll(spec, pageable);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Role findRoleByName(String roleName) {
-        Role role = roleRepository.findByName(roleName)
+        // 使用新的仓库方法预先加载功能
+        Role role = roleRepository.findByNameWithFunctionalities(roleName)
                 .orElseThrow(() -> new ResourceNotFoundException("角色 '" + roleName + "' 未找到"));
-        Hibernate.initialize(role.getFunctionalities());
         return role;
     }
 
     @Override
     @Transactional(readOnly = true)
     public Role findRoleById(Integer roleId) {
-        Role role = roleRepository.findById(roleId)
+        // 使用新的仓库方法预先加载功能
+        Role role = roleRepository.findByIdWithFunctionalities(roleId)
                 .orElseThrow(() -> new ResourceNotFoundException("角色未找到，ID: " + roleId));
-        Hibernate.initialize(role.getFunctionalities());
         return role;
     }
 
@@ -597,14 +576,14 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         user.setRoles(newRoles);
         User updatedUser = userRepository.save(user);
 
+        // 由于 User.roles 是 FetchType.EAGER，通常无需显式初始化
+        // 但 Role.functionalities 是 FetchType.LAZY，如果需要立即访问，可能需要初始化
         if (updatedUser.getRoles() != null) {
             updatedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         auditLogService.logAction(getCurrentUsername(), "ASSIGN_ROLES_TO_USER", "为用户 '" + updatedUser.getUsername() + "' 分配角色: " + (roleNames != null ? String.join(", ", roleNames) : "无"));
         return updatedUser;
     }
-
-    // ========== FIX 3: 添加所有缺失的辅助方法 ==========
 
     private void validateUserIds(List<Long> userIds, String roleName) {
         if (userIds == null) {
@@ -636,7 +615,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             context.put("taskType", taskType);
             context.put("contractName", contract.getContractName());
 
-            // 注意：请根据您的实际部署地址修改 "http://localhost:8080"
             String actionUrl = "http://localhost:8080/dashboard";
             context.put("actionUrl", actionUrl);
 

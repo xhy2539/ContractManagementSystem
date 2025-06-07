@@ -379,72 +379,66 @@ public class ContractServiceImpl implements ContractService {
     @Transactional(readOnly = true)
     public Page<Contract> searchContracts(String currentUsername, boolean isAdmin, String contractName, String contractNumber, String status, Pageable pageable) {
         Specification<Contract> spec = (Root<Contract> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>(); //
+            List<Predicate> predicates = new ArrayList<>();
 
-            if (StringUtils.hasText(contractName)) { //
-                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("contractName")), "%" + contractName.toLowerCase().trim() + "%")); //
+            if (StringUtils.hasText(contractName)) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("contractName")), "%" + contractName.toLowerCase().trim() + "%"));
             }
-            if (StringUtils.hasText(contractNumber)) { //
-                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("contractNumber")), "%" + contractNumber.toLowerCase().trim() + "%")); //
+            if (StringUtils.hasText(contractNumber)) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("contractNumber")), "%" + contractNumber.toLowerCase().trim() + "%"));
             }
-            if (StringUtils.hasText(status)) { //
-                try { //
-                    ContractStatus contractStatusEnum = ContractStatus.valueOf(status.toUpperCase()); //
-                    predicates.add(criteriaBuilder.equal(root.get("status"), contractStatusEnum)); //
-                } catch (IllegalArgumentException e) { //
-                    logger.warn("Invalid status value provided in contract search: {}. Ignoring this status condition.", status); //
+            if (StringUtils.hasText(status)) {
+                try {
+                    ContractStatus contractStatusEnum = ContractStatus.valueOf(status.toUpperCase());
+                    predicates.add(criteriaBuilder.equal(root.get("status"), contractStatusEnum));
+                } catch (IllegalArgumentException e) {
+                    logger.warn("Invalid status value provided in contract search: {}. Ignoring this status condition.", status);
                 }
             }
 
-            if (!isAdmin && StringUtils.hasText(currentUsername)) { //
-                User currentUser = userRepository.findByUsername(currentUsername) //
-                        .orElse(null); //
+            if (!isAdmin && StringUtils.hasText(currentUsername)) {
+                User currentUser = userRepository.findByUsername(currentUsername)
+                        .orElse(null);
 
-                if (currentUser != null) { //
-                    Predicate isDrafter = criteriaBuilder.equal(root.get("drafter"), currentUser); //
+                if (currentUser != null) {
+                    Predicate isDrafter = criteriaBuilder.equal(root.get("drafter"), currentUser);
 
-                    Subquery<Long> subquery = query.subquery(Long.class); //
-                    Root<ContractProcess> contractProcessRoot = subquery.from(ContractProcess.class); //
-                    subquery.select(contractProcessRoot.get("contract").get("id")); //
+                    Subquery<Long> subquery = query.subquery(Long.class);
+                    Root<ContractProcess> contractProcessRoot = subquery.from(ContractProcess.class);
+                    subquery.select(contractProcessRoot.get("contract").get("id"));
 
-                    Predicate subqueryPredicate = criteriaBuilder.and( //
-                            criteriaBuilder.equal(contractProcessRoot.get("contract").get("id"), root.get("id")), //
-                            criteriaBuilder.equal(contractProcessRoot.get("operator"), currentUser) //
+                    Predicate subqueryPredicate = criteriaBuilder.and(
+                            criteriaBuilder.equal(contractProcessRoot.get("contract").get("id"), root.get("id")),
+                            criteriaBuilder.equal(contractProcessRoot.get("operator"), currentUser)
                     );
-                    subquery.where(subqueryPredicate); //
+                    subquery.where(subqueryPredicate);
 
-                    Predicate isInvolvedInProcess = criteriaBuilder.exists(subquery); //
+                    Predicate isInvolvedInProcess = criteriaBuilder.exists(subquery);
 
-                    predicates.add(criteriaBuilder.or(isDrafter, isInvolvedInProcess)); //
-                } else { //
-                    logger.warn("Username '{}' provided for user-specific search, but user not found in database. Query will return no user-specific data.", currentUsername); //
-                    predicates.add(criteriaBuilder.disjunction()); //
+                    predicates.add(criteriaBuilder.or(isDrafter, isInvolvedInProcess));
+                } else {
+                    logger.warn("Username '{}' provided for user-specific search, but user not found in database. Query will return no user-specific data.", currentUsername);
+                    predicates.add(criteriaBuilder.disjunction());
                 }
             }
 
-            if (query.getResultType().equals(Contract.class)) { //
-                root.fetch("customer", JoinType.LEFT); //
-                root.fetch("drafter", JoinType.LEFT); //
+            // 在此处应用 JOIN FETCH 以预先加载主查询的关联
+            // 仅当结果类型为 Contract 时才应用（以避免在复用规范时影响计数查询）
+            if (query.getResultType().equals(Contract.class)) {
+                root.fetch("customer", JoinType.LEFT);
+                // 预先加载起草人及其角色和功能
+                Fetch<Object, Object> drafterFetch = root.fetch("drafter", JoinType.LEFT);
+                drafterFetch.fetch("roles", JoinType.LEFT)
+                        .fetch("functionalities", JoinType.LEFT); // 也预先加载功能
             }
 
-            query.distinct(true); //
-            return criteriaBuilder.and(predicates.toArray(new Predicate[0])); //
+            query.distinct(true); // 使用多个 fetch 时，防止重复结果至关重要
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
 
-        Page<Contract> contractsPage = contractRepository.findAll(spec, pageable); //
-
-        contractsPage.getContent().forEach(contract -> { //
-            Hibernate.initialize(contract.getCustomer()); //
-            User drafter = contract.getDrafter(); //
-            if (drafter != null) { //
-                Hibernate.initialize(drafter); //
-                Hibernate.initialize(drafter.getRoles()); //
-                drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities())); //
-            }
-        });
-        return contractsPage; //
+        // 移除显式的 Hibernate.initialize 调用，因为 JOIN FETCH 会处理它们
+        return contractRepository.findAll(spec, pageable);
     }
-
 
     @Override
     @Transactional(readOnly = true)
@@ -455,82 +449,73 @@ public class ContractServiceImpl implements ContractService {
             String contractNameSearch,
             Pageable pageable) {
         User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new BusinessLogicException("User not found: " + username)); //
+                .orElseThrow(() -> new BusinessLogicException("User not found: " + username));
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication(); //
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")); //
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
         Specification<ContractProcess> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>(); //
-            predicates.add(cb.equal(root.get("type"), type)); //
-            predicates.add(cb.equal(root.get("state"), state)); //
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("type"), type));
+            predicates.add(cb.equal(root.get("state"), state));
 
-            if (type != ContractProcessType.EXTENSION_REQUEST || !isAdmin) { //
-                predicates.add(cb.equal(root.get("operator"), currentUser)); //
+            if (type != ContractProcessType.EXTENSION_REQUEST || !isAdmin) {
+                predicates.add(cb.equal(root.get("operator"), currentUser));
             }
 
+            Join<ContractProcess, Contract> contractJoin = root.join("contract", JoinType.INNER);
 
-            Join<ContractProcess, Contract> contractJoin = root.join("contract", JoinType.INNER); //
-
-            switch (type) { //
-                case COUNTERSIGN: //
-                    predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_COUNTERSIGN)); //
-                    break; //
-                case APPROVAL: //
-                    predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_APPROVAL)); //
-                    break; //
-                case SIGNING: //
-                    predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_SIGNING)); //
-                    break; //
-                case FINALIZE: //
-                    predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_FINALIZATION)); //
-                    break; //
-                case EXTENSION_REQUEST: //
-                    predicates.add(cb.or( //
-                            cb.equal(contractJoin.get("status"), ContractStatus.ACTIVE), //
-                            cb.equal(contractJoin.get("status"), ContractStatus.EXPIRED) //
-                    )); //
-                    break; //
-                default: //
-                    break; //
+            switch (type) {
+                case COUNTERSIGN:
+                    predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_COUNTERSIGN));
+                    break;
+                case APPROVAL:
+                    predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_APPROVAL));
+                    break;
+                case SIGNING:
+                    predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_SIGNING));
+                    break;
+                case FINALIZE:
+                    predicates.add(cb.equal(contractJoin.get("status"), ContractStatus.PENDING_FINALIZATION));
+                    break;
+                case EXTENSION_REQUEST:
+                    predicates.add(cb.or(
+                            cb.equal(contractJoin.get("status"), ContractStatus.ACTIVE),
+                            cb.equal(contractJoin.get("status"), ContractStatus.EXPIRED)
+                    ));
+                    break;
+                default:
+                    break;
             }
 
-            if (StringUtils.hasText(contractNameSearch)) { //
-                predicates.add(cb.like(cb.lower(contractJoin.get("contractName")), "%" + contractNameSearch.toLowerCase().trim() + "%")); //
+            if (StringUtils.hasText(contractNameSearch)) {
+                predicates.add(cb.like(cb.lower(contractJoin.get("contractName")), "%" + contractNameSearch.toLowerCase().trim() + "%"));
             }
 
-            if (query.getResultType().equals(ContractProcess.class)) { //
-                root.fetch("operator", JoinType.LEFT); //
-                Fetch<ContractProcess, Contract> contractFetch = root.fetch("contract", JoinType.LEFT); //
-                contractFetch.fetch("customer", JoinType.LEFT); //
-                contractFetch.fetch("drafter", JoinType.LEFT); //
-            }
+            // 在此处为 ContractProcess 及其关联应用 JOIN FETCH
+            // 仅当结果类型为 ContractProcess 时才应用（以避免影响计数查询）
+            if (query.getResultType().equals(ContractProcess.class)) {
+                // 预先加载操作员及其角色和功能
+                Fetch<Object, Object> operatorFetch = root.fetch("operator", JoinType.LEFT);
+                operatorFetch.fetch("roles", JoinType.LEFT)
+                        .fetch("functionalities", JoinType.LEFT); // 也预先加载功能
 
-            return cb.and(predicates.toArray(new Predicate[0])); //
+                // 预先加载合同及其客户和起草人，然后是起草人的角色和功能
+                Fetch<ContractProcess, Contract> contractFetch = root.fetch("contract", JoinType.LEFT);
+                contractFetch.fetch("customer", JoinType.LEFT);
+                Fetch<Contract, User> drafterFetch = contractFetch.fetch("drafter", JoinType.LEFT);
+                drafterFetch.fetch("roles", JoinType.LEFT)
+                        .fetch("functionalities", JoinType.LEFT); // 也预先加载功能
+            }
+            query.distinct(true); // 使用多个 fetch 时，防止重复结果至关重要
+
+            return cb.and(predicates.toArray(new Predicate[0]));
         };
-        Page<ContractProcess> resultPage = contractProcessRepository.findAll(spec, pageable); //
-
-        resultPage.getContent().forEach(process -> { //
-            Hibernate.initialize(process.getOperator()); //
-            User operator = process.getOperator(); //
-            if (operator != null) { //
-                Hibernate.initialize(operator.getRoles()); //
-                operator.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities())); //
-            }
-
-            Hibernate.initialize(process.getContract()); //
-            if (process.getContract() != null) { //
-                Hibernate.initialize(process.getContract().getCustomer()); //
-                User drafter = process.getContract().getDrafter(); //
-                if (drafter != null) { //
-                    Hibernate.initialize(drafter.getRoles()); //
-                    drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities())); //
-                }
-            }
-        });
-        return resultPage; //
+        // 移除显式的 Hibernate.initialize 调用，因为 JOIN FETCH 会处理它们
+        return contractProcessRepository.findAll(spec, pageable);
     }
+
 
     @Override
     @Transactional(readOnly = true)
@@ -618,25 +603,20 @@ public class ContractServiceImpl implements ContractService {
             return cb.and(finalPredicates.toArray(new Predicate[0]));
         };
 
+        // 移除显式的 Hibernate.initialize 调用，因为 JOIN FETCH 会处理它们
         List<ContractProcess> tasks = contractProcessRepository.findAll(spec);
-
-
         return tasks;
     }
+
 
     @Override
     @Transactional(readOnly = true)
     public Contract getContractById(Long id) {
-        Contract contract = contractRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Contract not found, ID: " + id)); //
-        Hibernate.initialize(contract.getCustomer()); //
-        User drafter = contract.getDrafter(); //
-        if (drafter != null) { //
-            Hibernate.initialize(drafter); //
-            Hibernate.initialize(drafter.getRoles()); //
-            drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities())); //
-        }
-        return contract; //
+        // 使用新方法急切加载客户、起草人、角色和功能
+        Contract contract = contractRepository.findByIdWithCustomerAndDrafter(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Contract not found, ID: " + id));
+        // 显式的 Hibernate.initialize 调用现在是多余的，可以删除
+        return contract;
     }
 
     @Override
@@ -1038,43 +1018,23 @@ public class ContractServiceImpl implements ContractService {
         return contractRepository.count(spec);
     }
 
+    // 文件: src/main/java/com/example/contractmanagementsystem/service/ContractServiceImpl.java
+
     @Override
     @Transactional
     public int updateExpiredContractStatuses() {
         LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+        int updatedCount = contractRepository.updateStatusForExpiredContracts(now, today);
 
-        Set<ContractStatus> excludedStatuses = EnumSet.of(
-                ContractStatus.EXPIRED,
-                ContractStatus.COMPLETED,
-                ContractStatus.TERMINATED,
-                ContractStatus.REJECTED
-        );
-
-        Specification<Contract> spec = (root, query, criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("endDate"), today));
-            predicates.add(criteriaBuilder.not(root.get("status").in(excludedStatuses)));
-            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
-        };
-
-        List<Contract> contractsToExpire = contractRepository.findAll(spec);
-
-        int updatedCount = 0;
-        for (Contract contract : contractsToExpire) {
-            if (contract.getStatus() != ContractStatus.EXPIRED) {
-                contract.setStatus(ContractStatus.EXPIRED);
-                contract.setUpdatedAt(LocalDateTime.now());
-                contractRepository.save(contract);
-                updatedCount++;
-                auditLogService.logAction("SYSTEM", "CONTRACT_AUTO_EXPIRED",
-                        "合同 " + contract.getContractNumber() + " (ID: " + contract.getId() +
-                                ") 自动更新为过期状态，原状态: " + contract.getStatus().name() + "，时间: " + today);
-                logger.info("合同 {} (ID: {}) 自动更新为过期状态。", contract.getContractName(), contract.getId());
-            }
+        if (updatedCount > 0) {
+            auditLogService.logAction("SYSTEM", "CONTRACT_AUTO_EXPIRED",
+                    "系统定时任务将 " + updatedCount + " 份合同自动更新为过期状态。");
+            logger.info("系统自动更新了 {} 份过期合同的状态。", updatedCount);
         }
+
         return updatedCount;
     }
-
 
     @Override
     @Transactional(readOnly = true)
@@ -1141,9 +1101,10 @@ public class ContractServiceImpl implements ContractService {
     @Transactional(readOnly = true)
     public List<ContractProcess> getContractProcessHistory(Long contractId) {
         Contract contract = contractRepository.findById(contractId)
-                .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId)); //
+                .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
 
-        List<ContractProcess> processes = contractProcessRepository.findByContractOrderByCreatedAtDesc(contract); //
+
+        List<ContractProcess> processes = contractProcessRepository.findByContractWithOperatorRolesAndFunctionalitiesOrderByCreatedAtDesc(contract);
 
         processes.forEach(process -> { //
             Hibernate.initialize(process.getOperator()); //

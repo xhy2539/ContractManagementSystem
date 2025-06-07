@@ -14,6 +14,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -80,11 +81,9 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
     @Query("SELECT c.status, COUNT(c) FROM Contract c GROUP BY c.status")
     List<Object[]> findContractCountByStatus();
 
-    // ⭐ Key modification: Updated eager loading method
-    // Eagerly FETCH JOIN `customer` and `drafter` (User) simultaneously
-    @Query("SELECT c FROM Contract c LEFT JOIN FETCH c.customer LEFT JOIN FETCH c.drafter WHERE c.id = :id")
-    Optional<Contract> findByIdWithCustomerAndDrafter(@Param("id") Long id); // Method name also changed for more descriptive clarity
 
+    @Query("SELECT c FROM Contract c LEFT JOIN FETCH c.customer LEFT JOIN FETCH c.drafter d LEFT JOIN FETCH d.roles r LEFT JOIN FETCH r.functionalities WHERE c.id = :id")
+    Optional<Contract> findByIdWithCustomerAndDrafter(@Param("id") Long id); // 方法名也更改为更具描述性的清晰度
     /**
      * New: Used to find contracts of a specific status where the end date is less than or equal to a given date.
      * Changed from findByStatusAndEndDateBeforeOrEqual to resolve ambiguity.
@@ -142,5 +141,11 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
     DashboardStatsDto getDashboardStatisticsForAdmin(@Param("today") LocalDate today,
                                                      @Param("futureDate") LocalDate futureDate,
                                                      @Param("inProcessStatuses") List<ContractStatus> inProcessStatuses);
+
+
+
+    @Modifying
+    @Query("UPDATE Contract c SET c.status = 'EXPIRED', c.updatedAt = :now WHERE c.endDate < :today AND c.status <> 'EXPIRED'")
+    int updateStatusForExpiredContracts(@Param("now") LocalDateTime now, @Param("today") LocalDate today);
 
 }
