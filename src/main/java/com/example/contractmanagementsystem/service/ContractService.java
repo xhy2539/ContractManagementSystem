@@ -1,6 +1,7 @@
 package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.dto.ContractDraftRequest;
+import com.example.contractmanagementsystem.dto.DashboardStatsDto;
 import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
@@ -373,4 +374,12 @@ public interface ContractService {
      * 如果解析失败，对应的值可能为null或默认字符串。
      */
     Map<String, String> parseExtensionRequestComments(String comments); // 新增方法声明
+
+    /**
+     * 获取仪表盘的聚合统计数据。
+     * @param username 当前用户名
+     * @param isAdmin 是否为管理员
+     * @return 包含所有统计数据的DTO
+     */
+    DashboardStatsDto getDashboardStatistics(String username, boolean isAdmin);
 }

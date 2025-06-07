@@ -1,6 +1,7 @@
 package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.dto.ContractDraftRequest;
+import com.example.contractmanagementsystem.dto.DashboardStatsDto;
 import com.example.contractmanagementsystem.entity.*;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
@@ -93,6 +94,28 @@ public class ContractServiceImpl implements ContractService {
     public void init() {
         logger.info("ContractServiceImpl initialized.");
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DashboardStatsDto getDashboardStatistics(String username, boolean isAdmin) {
+        LocalDate today = LocalDate.now();
+        LocalDate futureDate = today.plusDays(30);
+        List<ContractStatus> inProcessStatuses = Arrays.asList(
+                ContractStatus.PENDING_COUNTERSIGN,
+                ContractStatus.PENDING_APPROVAL,
+                ContractStatus.PENDING_SIGNING,
+                ContractStatus.PENDING_FINALIZATION
+        );
+
+        if (isAdmin) {
+            return contractRepository.getDashboardStatisticsForAdmin(today, futureDate, inProcessStatuses);
+        } else {
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new BusinessLogicException("User not found: " + username));
+            return contractRepository.getDashboardStatistics(today, futureDate, inProcessStatuses, currentUser);
+        }
+    }
+
 
     @Override
     @Transactional

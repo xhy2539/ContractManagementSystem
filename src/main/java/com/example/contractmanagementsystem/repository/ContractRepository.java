@@ -1,5 +1,6 @@
 package com.example.contractmanagementsystem.repository;
 
+import com.example.contractmanagementsystem.dto.DashboardStatsDto;
 import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractStatus;
 import com.example.contractmanagementsystem.entity.Customer;
@@ -96,4 +97,39 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
      */
     @Query("SELECT c FROM Contract c WHERE c.status = 'ACTIVE' AND c.endDate BETWEEN :startDate AND :endDate")
     List<Contract> findActiveContractsExpiringBetween(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    /**
+     * 在一次查询中获取仪表盘的所有统计数据。
+     * @param today 当前日期
+     * @param futureDate 即将到期的截止日期 (例如，30天后)
+     * @param inProcessStatuses 流程中的状态列表
+     * @param user 当前用户，如果需要按用户过滤
+     * @return 包含所有统计数据的DTO
+     */
+    @Query("SELECT new com.example.contractmanagementsystem.dto.DashboardStatsDto(" +
+            "SUM(CASE WHEN c.status = 'ACTIVE' THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN c.status = 'ACTIVE' AND c.endDate BETWEEN :today AND :futureDate THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN c.status = 'EXPIRED' THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN c.status IN :inProcessStatuses THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN c.status = 'PENDING_ASSIGNMENT' THEN 1 ELSE 0 END)) " +
+            "FROM Contract c " +
+            // 如果需要根据非管理员用户进行过滤，则添加WHERE子句
+            "WHERE :user IS NULL OR c.drafter = :user OR EXISTS (" +
+            "SELECT 1 FROM ContractProcess cp WHERE cp.contract = c AND cp.operator = :user)")
+    DashboardStatsDto getDashboardStatistics(@Param("today") LocalDate today,
+                                             @Param("futureDate") LocalDate futureDate,
+                                             @Param("inProcessStatuses") List<ContractStatus> inProcessStatuses,
+                                             @Param("user") User user);
+
+    // 为管理员提供一个不过滤用户的版本
+    @Query("SELECT new com.example.contractmanagementsystem.dto.DashboardStatsDto(" +
+            "SUM(CASE WHEN c.status = 'ACTIVE' THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN c.status = 'ACTIVE' AND c.endDate BETWEEN :today AND :futureDate THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN c.status = 'EXPIRED' THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN c.status IN :inProcessStatuses THEN 1 ELSE 0 END), " +
+            "SUM(CASE WHEN c.status = 'PENDING_ASSIGNMENT' THEN 1 ELSE 0 END)) " +
+            "FROM Contract c")
+    DashboardStatsDto getDashboardStatisticsForAdmin(@Param("today") LocalDate today,
+                                                     @Param("futureDate") LocalDate futureDate,
+                                                     @Param("inProcessStatuses") List<ContractStatus> inProcessStatuses);
+
 }
