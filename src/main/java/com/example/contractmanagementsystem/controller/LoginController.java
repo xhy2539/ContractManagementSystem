@@ -52,13 +52,13 @@ public class LoginController {
             model.addAttribute("username", username);
 
             if (contractService != null) {
-                // 在加载仪表盘数据之前，先执行合同过期状态的更新 (这个逻辑可以保留或移至定时任务)
-                try {
-                    int updatedCount = contractService.updateExpiredContractStatuses();
-                    System.out.println("成功在登录时更新了 " + updatedCount + " 份过期合同的状态。");
-                } catch (Exception e) {
-                    System.err.println("在登录时更新过期合同状态失败: " + e.getMessage());
-                }
+//                // 在加载仪表盘数据之前，先执行合同过期状态的更新 (这个逻辑可以保留或移至定时任务)
+//                try {
+//                    int updatedCount = contractService.updateExpiredContractStatuses();
+//                    System.out.println("成功在登录时更新了 " + updatedCount + " 份过期合同的状态。");
+//                } catch (Exception e) {
+//                    System.err.println("在登录时更新过期合同状态失败: " + e.getMessage());
+//                }
 
                 // 获取当前用户是否为管理员
                 Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

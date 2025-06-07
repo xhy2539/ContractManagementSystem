@@ -1,3 +1,4 @@
+// File: xhy2539/contractmanagementsystem/ContractManagementSystem-xhy/src/main/java/com/example/contractmanagementsystem/entity/AuditLog.java
 package com.example.contractmanagementsystem.entity;
 
 import jakarta.persistence.*;
@@ -13,38 +14,41 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "audit_logs")
+@Table(name = "audit_logs", indexes = { // 在这里添加 indexes 属性
+        @Index(name = "idx_audit_username", columnList = "username"),
+        @Index(name = "idx_audit_action", columnList = "action"),
+        @Index(name = "idx_audit_timestamp", columnList = "timestamp"),
+        // 组合索引，针对同时按用户和时间范围查询
+        @Index(name = "idx_audit_username_timestamp", columnList = "username, timestamp")
+})
 public class AuditLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 40) // 参照数据字典中的 userName (操作人)
-    private String username; // 操作用户名
+    @Column(length = 40)
+    private String username;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id") // 可选，关联到 User 实体
+    @JoinColumn(name = "user_id")
     private User user;
 
     @Column(nullable = false, length = 255)
-    private String action; // 例如: "CREATE_CONTRACT", "UPDATE_USER_ROLE"
+    private String action;
 
     @Lob
-    @Column(name = "details", columnDefinition="TEXT") // 参照数据字典中的 content 字段
-    private String details; // 操作详情，例如具体修改的内容
+    @Column(name = "details", columnDefinition="TEXT")
+    private String details;
 
     @CreationTimestamp
-    @Column(name = "timestamp", nullable = false, updatable = false) // 参照数据字典中的 time 字段
-    private LocalDateTime timestamp; // 操作时间
+    @Column(name = "timestamp", nullable = false, updatable = false)
+    private LocalDateTime timestamp;
 
-    // 方便Service层使用的构造函数
     public AuditLog(String username, String action, String details) {
         this.username = username;
         this.action = action;
         this.details = details;
-        this.timestamp = LocalDateTime.now(); // 自动设置当前时间
+        this.timestamp = LocalDateTime.now();
     }
-
-
 }

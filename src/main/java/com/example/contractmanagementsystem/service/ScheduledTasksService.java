@@ -143,7 +143,7 @@ public class ScheduledTasksService {
     /**
      * 每天凌晨1点执行，检查并更新已过期合同的状态。
      */
-    @Scheduled(cron = "0 0 1 * * ?")
+    @Scheduled(cron = "0 0 * * * ?")
     @Transactional
     public void updateExpiredContracts() {
         logger.info("开始执行定时任务：更新过期合同状态...");

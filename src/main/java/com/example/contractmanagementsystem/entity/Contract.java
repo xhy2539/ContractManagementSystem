@@ -1,4 +1,4 @@
-// File: src/main/java/com/example/contractmanagementsystem/entity/Contract.java
+// File: xhy2539/contractmanagementsystem/ContractManagementSystem-xhy/src/main/java/com/example/contractmanagementsystem/entity/Contract.java
 package com.example.contractmanagementsystem.entity;
 
 import jakarta.persistence.*;
@@ -11,14 +11,19 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-// import java.util.List; // 如果您决定使用JPA TypeConverter for a List<String> (目前不使用)
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "contracts")
+@Table(name = "contracts", indexes = { // 在这里添加 indexes 属性
+        @Index(name = "idx_contract_number", columnList = "contractNumber"), // 为 contractNumber 添加索引
+        @Index(name = "idx_contract_name", columnList = "contractName"),     // 为 contractName 添加索引
+        @Index(name = "idx_status", columnList = "status"),               // 为 status 添加索引
+        @Index(name = "idx_end_date", columnList = "endDate"),           // 为 endDate 添加索引
+        @Index(name = "idx_drafter_id", columnList = "drafter_user_id")  // 为 drafter_user_id (外键) 添加索引
+})
 public class Contract {
 
     @Id
@@ -53,14 +58,9 @@ public class Contract {
     @JoinColumn(name = "drafter_user_id")
     private User drafter;
 
-    // 修改点：将 attachmentPath 用于存储多个附件路径 (例如 JSON 字符串)
-    @Lob // 使用 @Lob 注解以支持更长的字符串，例如存储JSON数组
-    @Column(name = "attachment_path", columnDefinition="TEXT") // 明确指定为TEXT类型以获得更大存储空间
-    private String attachmentPath; // 将用于存储附件文件名列表的JSON字符串
-
-    // contractContent 字段如果与 content 字段重复，请考虑是否需要保留
-    // @Lob
-    // private String contractContent;
+    @Lob
+    @Column(name = "attachment_path", columnDefinition="TEXT")
+    private String attachmentPath;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

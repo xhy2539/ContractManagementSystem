@@ -1,3 +1,4 @@
+// File: xhy2539/contractmanagementsystem/ContractManagementSystem-xhy/src/main/java/com/example/contractmanagementsystem/entity/User.java
 package com.example.contractmanagementsystem.entity;
 
 import jakarta.persistence.*;
@@ -16,19 +17,19 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-// 修改 EqualsAndHashCode 注解
-@EqualsAndHashCode(of = {"username"}) // 或者 @EqualsAndHashCode(of = {"id", "username"}) 如果两者都重要
+@EqualsAndHashCode(of = {"username"})
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = { // 在这里添加 indexes 属性
+        @Index(name = "idx_username", columnList = "username"), // 为 username 添加索引 (虽然已是unique)
+        @Index(name = "idx_email", columnList = "email")       // 为 email 添加索引 (虽然已是unique)
+})
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    // @EqualsAndHashCode.Include // 如果使用 of = {"username"}，这里可以移除或保留（如果id也重要）
     private Long id;
 
     @Column(nullable = false, unique = true, length = 40)
-    // username 现在会通过 @EqualsAndHashCode(of = {"username"}) 参与
     private String username;
 
     @Column(nullable = false, length = 120)
@@ -63,13 +64,10 @@ public class User {
         this.enabled = true;
         this.roles = new HashSet<>();
     }
-    //zjj添加，不要删掉哇
-    // 辅助方法：添加一个角色到用户
     public void addRole(Role role) {
         this.roles.add(role);
     }
 
-    // 辅助方法：从用户中移除一个角色
     public void removeRole(Role role) {
         this.roles.remove(role);
     }
