@@ -1500,4 +1500,25 @@ public class ContractServiceImpl implements ContractService {
         logger.debug("Parsed extension request comments: {}", parsed); //
         return parsed; //
     }
+
+    /**
+     * 删除合同及其相关流程记录。
+     *
+     * @param id 合同ID。
+     * @throws ResourceNotFoundException 如果合同未找到。
+     */
+    @Override
+    @Transactional
+    public void deleteContract(Long id) {
+        // 检查合同是否存在
+        Contract contract = contractRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Contract not found with ID: " + id));
+
+        // 删除 contractprocess 表中与该合同相关的记录
+        contractProcessRepository.deleteByContract(id);
+
+        // 删除 contract 表中的记录
+        contractRepository.deleteById(id);
+    }
+
 }

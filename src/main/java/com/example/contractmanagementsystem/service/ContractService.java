@@ -373,4 +373,12 @@ public interface ContractService {
      * 如果解析失败，对应的值可能为null或默认字符串。
      */
     Map<String, String> parseExtensionRequestComments(String comments); // 新增方法声明
+
+    /**
+     * 删除合同及其相关流程记录。
+     *
+     * @param id 合同ID。
+     * @throws com.example.contractmanagementsystem.exception.ResourceNotFoundException 如果合同未找到。
+     */
+    void deleteContract(Long id);
 }
