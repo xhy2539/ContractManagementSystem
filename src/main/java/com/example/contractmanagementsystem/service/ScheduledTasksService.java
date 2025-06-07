@@ -1,6 +1,9 @@
 package com.example.contractmanagementsystem.service;
 
+import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.FileUploadProgress;
+import com.example.contractmanagementsystem.entity.User;
+import com.example.contractmanagementsystem.repository.ContractRepository;
 import com.example.contractmanagementsystem.repository.FileUploadProgressRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,13 +12,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -25,20 +32,23 @@ public class ScheduledTasksService {
     private static final Logger logger = LoggerFactory.getLogger(ScheduledTasksService.class);
 
     private final FileUploadProgressRepository fileUploadProgressRepository;
-    private Path tempUploadPathBase; // 基础临时上传路径，例如 /path/to/uploads/temp_chunks
+    private final ContractRepository contractRepository;
+    private final ContractService contractService;
+    private final EmailService emailService;
+    private Path tempUploadPathBase;
 
-    // 从 application.properties 读取上传目录基路径
     @Value("${file.upload-dir}")
     private String finalUploadDirValue;
 
-
     @Autowired
-    public ScheduledTasksService(FileUploadProgressRepository fileUploadProgressRepository) {
+    public ScheduledTasksService(FileUploadProgressRepository fileUploadProgressRepository,
+                                 ContractRepository contractRepository,
+                                 ContractService contractService,
+                                 EmailService emailService) {
         this.fileUploadProgressRepository = fileUploadProgressRepository;
-        // 初始化 tempUploadPathBase (确保在构造函数或 @PostConstruct 中进行)
-        // 这里假设 finalUploadDirValue 已经通过 @Value 注入
-        // 注意：@Value 的注入可能在构造函数执行时尚未完成，所以移到 @PostConstruct 或实际使用前初始化
-        this.tempUploadPathBase = null; // 将在 init 方法中初始化
+        this.contractRepository = contractRepository;
+        this.contractService = contractService;
+        this.emailService = emailService;
     }
 
     @jakarta.annotation.PostConstruct
@@ -47,7 +57,6 @@ public class ScheduledTasksService {
             logger.error("定时任务服务：file.upload-dir 未配置！");
             throw new IllegalStateException("file.upload-dir 属性未配置，无法初始化临时上传路径。");
         }
-        // tempUploadPathBase 指向 temp_chunks 目录
         this.tempUploadPathBase = Paths.get(finalUploadDirValue).resolve("temp_chunks").toAbsolutePath().normalize();
         logger.info("定时任务服务初始化，临时分块目录基路径设置为: {}", tempUploadPathBase);
     }
@@ -55,56 +64,41 @@ public class ScheduledTasksService {
     /**
      * 定时清理过期的、未完成的或失败的上传会话及其临时文件。
      * 默认每天凌晨3点执行一次。
-     * cron表达式: 秒 分 时 日 月 周 (年 - 可选)
-     * "0 0 3 * * ?" 表示每天的3点0分0秒执行
      */
-    @Scheduled(cron = "0 0 3 * * ?") // 每天凌晨3点执行
-    // @Scheduled(fixedRate = 3600000) // 或者每小时执行一次 (3600000毫秒) 用于测试
+    @Scheduled(cron = "0 0 3 * * ?")
     @Transactional
     public void cleanupExpiredUploads() {
         logger.info("开始执行清理过期上传任务...");
-
-        // 定义过期时间，例如24小时前
         LocalDateTime expirationTimeInProgress = LocalDateTime.now().minusHours(24);
-        // 对于失败的上传，可以设置一个较短的保留时间，例如6小时
         LocalDateTime expirationTimeFailed = LocalDateTime.now().minusHours(6);
 
-        // 1. 查找长时间处于 IN_PROGRESS 状态的上传
         List<FileUploadProgress> expiredInProgressUploads =
                 fileUploadProgressRepository.findByStatusAndLastChunkUploadedAtBefore("IN_PROGRESS", expirationTimeInProgress);
 
-        if (expiredInProgressUploads.isEmpty()) {
-            logger.info("没有找到创建超过24小时且状态为 IN_PROGRESS 的上传记录需要清理。");
-        } else {
+        if (!expiredInProgressUploads.isEmpty()) {
             logger.info("找到 {} 条创建超过24小时且状态为 IN_PROGRESS 的上传记录需要清理。", expiredInProgressUploads.size());
             processCleanup(expiredInProgressUploads, "IN_PROGRESS (过期)");
         }
 
-
-        // 2. 查找状态为 FAILED (各种失败状态) 且超过一定时间的上传
         List<FileUploadProgress> failedUploadsChunk =
                 fileUploadProgressRepository.findByStatusAndLastChunkUploadedAtBefore("FAILED_CHUNK_UPLOAD", expirationTimeFailed);
-        List<FileUploadProgress> failedUploadsMerge =
-                fileUploadProgressRepository.findByStatusAndLastChunkUploadedAtBefore("FAILED_MERGE", expirationTimeFailed);
-        List<FileUploadProgress> failedUploadsMissingChunk =
-                fileUploadProgressRepository.findByStatusAndLastChunkUploadedAtBefore("FAILED_MISSING_CHUNK", expirationTimeFailed);
-
-
         if (!failedUploadsChunk.isEmpty()) {
             logger.info("找到 {} 条状态为 FAILED_CHUNK_UPLOAD 且最后活动超过6小时的上传记录需要清理。", failedUploadsChunk.size());
             processCleanup(failedUploadsChunk, "FAILED_CHUNK_UPLOAD (过期)");
         }
+
+        List<FileUploadProgress> failedUploadsMerge =
+                fileUploadProgressRepository.findByStatusAndLastChunkUploadedAtBefore("FAILED_MERGE", expirationTimeFailed);
         if (!failedUploadsMerge.isEmpty()) {
             logger.info("找到 {} 条状态为 FAILED_MERGE 且最后活动超过6小时的上传记录需要清理。", failedUploadsMerge.size());
             processCleanup(failedUploadsMerge, "FAILED_MERGE (过期)");
         }
+
+        List<FileUploadProgress> failedUploadsMissingChunk =
+                fileUploadProgressRepository.findByStatusAndLastChunkUploadedAtBefore("FAILED_MISSING_CHUNK", expirationTimeFailed);
         if (!failedUploadsMissingChunk.isEmpty()) {
             logger.info("找到 {} 条状态为 FAILED_MISSING_CHUNK 且最后活动超过6小时的上传记录需要清理。", failedUploadsMissingChunk.size());
             processCleanup(failedUploadsMissingChunk, "FAILED_MISSING_CHUNK (过期)");
-        }
-
-        if (failedUploadsChunk.isEmpty() && failedUploadsMerge.isEmpty() && failedUploadsMissingChunk.isEmpty()) {
-            logger.info("没有找到状态为 FAILED_* 且最后活动超过6小时的上传记录需要清理。");
         }
 
         logger.info("清理过期上传任务执行完毕。");
@@ -115,7 +109,6 @@ public class ScheduledTasksService {
             logger.info("准备清理 {} 的上传记录: uploadId={}, 文件名='{}', 用户='{}', 原因: 状态为 {}",
                     reason, progress.getUploadId(), progress.getOriginalFileName(), progress.getUploaderUsername(), progress.getStatus());
 
-            // 1. 删除对应的临时分块目录
             Path chunkDirToDelete = tempUploadPathBase.resolve(progress.getTempFileDirectory());
             logger.info("尝试删除临时分块目录: {}", chunkDirToDelete);
             try {
@@ -126,20 +119,11 @@ public class ScheduledTasksService {
                                 .forEach(path -> {
                                     try {
                                         Files.delete(path);
-                                        logger.debug("已删除临时文件/目录: {}", path);
                                     } catch (IOException e) {
                                         logger.warn("删除临时文件 {} 失败: {}", path, e.getMessage());
                                     }
                                 });
                     }
-                    // 再次尝试删除空的父目录
-                    if (Files.isDirectory(chunkDirToDelete) && Files.list(chunkDirToDelete).findAny().isEmpty()) {
-                        Files.deleteIfExists(chunkDirToDelete);
-                        logger.info("已成功删除空的临时分块目录: {}", chunkDirToDelete);
-                    } else if (Files.exists(chunkDirToDelete)) {
-                        logger.warn("临时分块目录 {} 未能完全删除，可能仍有文件或子目录。", chunkDirToDelete);
-                    }
-
                 } else {
                     logger.info("临时分块目录 {} 不存在或不是一个目录，无需删除。", chunkDirToDelete);
                 }
@@ -147,7 +131,6 @@ public class ScheduledTasksService {
                 logger.error("清理临时分块目录 {} 时发生错误: {}", chunkDirToDelete, e.getMessage(), e);
             }
 
-            // 2. 从数据库中删除该上传记录
             try {
                 fileUploadProgressRepository.delete(progress);
                 logger.info("已从数据库删除上传记录: uploadId={}", progress.getUploadId());
@@ -155,5 +138,69 @@ public class ScheduledTasksService {
                 logger.error("从数据库删除上传记录 {} 失败: {}", progress.getUploadId(), e.getMessage(), e);
             }
         }
+    }
+
+    /**
+     * 每天凌晨1点执行，检查并更新已过期合同的状态。
+     */
+    @Scheduled(cron = "0 0 1 * * ?")
+    @Transactional
+    public void updateExpiredContracts() {
+        logger.info("开始执行定时任务：更新过期合同状态...");
+        int updatedCount = contractService.updateExpiredContractStatuses();
+        if (updatedCount > 0) {
+            logger.info("定时任务完成：成功更新了 {} 份过期合同的状态。", updatedCount);
+        } else {
+            logger.info("定时任务完成：没有需要更新状态的过期合同。");
+        }
+    }
+
+    /**
+     * 每天上午9点执行，发送即将到期合同的提醒邮件。
+     */
+    @Scheduled(cron = "0 0 9 * * ?")
+    @Transactional(readOnly = true)
+    public void notifyOnExpiringContracts() {
+        final int DAYS_TO_EXPIRE = 30;
+        logger.info("开始执行定时任务：检查并发送 {} 天内即将到期的合同提醒...", DAYS_TO_EXPIRE);
+
+        LocalDate startDate = LocalDate.now();
+        LocalDate endDate = LocalDate.now().plusDays(DAYS_TO_EXPIRE);
+
+        List<Contract> expiringContracts = contractRepository.findActiveContractsExpiringBetween(startDate, endDate);
+
+        if (expiringContracts.isEmpty()) {
+            logger.info("定时任务完成：没有在 {} 天内即将到期的合同。", DAYS_TO_EXPIRE);
+            return;
+        }
+
+        logger.info("发现 {} 份即将在 {} 天内到期的合同，准备发送提醒邮件。", expiringContracts.size(), DAYS_TO_EXPIRE);
+
+        for (Contract contract : expiringContracts) {
+            User drafter = contract.getDrafter();
+            if (drafter != null && StringUtils.hasText(drafter.getEmail())) {
+                Map<String, Object> context = new HashMap<>();
+                context.put("recipientName", drafter.getRealName() != null ? drafter.getRealName() : drafter.getUsername());
+                context.put("taskType", "合同即将到期提醒");
+                context.put("contractName", contract.getContractName());
+
+                String actionUrl = "http://localhost:8080/contracts/" + contract.getId() + "/detail";
+                context.put("actionUrl", actionUrl);
+
+                String subject = String.format(
+                        "【合同管理系统】合同到期提醒: %s 将于 %s 到期",
+                        contract.getContractName(),
+                        contract.getEndDate().toString()
+                );
+
+                emailService.sendHtmlMessage(
+                        drafter.getEmail(),
+                        subject,
+                        "email/task-notification-email",
+                        context
+                );
+            }
+        }
+        logger.info("定时任务完成：已为 {} 份即将到期的合同发送了提醒邮件。", expiringContracts.size());
     }
 }

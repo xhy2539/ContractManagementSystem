@@ -6,131 +6,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title th:text="${listTitle ?: '合同会签'}"></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/>
     <style>
-        body {
-            font-family: sans-serif;
-            margin: 0;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        .navbar {
-            background-color: #333;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        body { font-family: sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
+        .navbar { background-color: #333; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         .navbar .brand { font-size: 1.5em; }
         .navbar .user-info { font-size: 0.9em; }
         .navbar a { color: white; text-decoration: none; margin-left: 15px; }
-        .container {
-            padding: 25px;
-            max-width: 900px;
-            margin: 20px auto;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        h1, h2 {
-            color: #333;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
+        .container { padding: 25px; max-width: 900px; margin: 20px auto; background-color: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
         .detail-item { margin-bottom: 12px; font-size: 1.05rem; }
         .detail-item strong { display: inline-block; width: 120px; color: #555; }
-        .contract-content {
-            border: 1px solid #ddd;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 15px;
-        }
+        .contract-content { border: 1px solid #ddd; padding: 15px; background-color: #f9f9f9; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; max-height: 300px; overflow-y: auto; margin-top: 15px; }
         .attachment-section { margin-top: 20px; }
         .attachment-section h3 { font-size: 1.2rem; margin-bottom: 10px; }
-        .attachment-list a {
-            display: block;
-            margin-bottom: 5px;
-            color: #007bff;
-            text-decoration: none;
-            padding: 5px;
-            border-radius: 3px;
-            transition: background-color 0.2s;
-        }
-        .attachment-list a:hover { text-decoration: underline; background-color: #f0f0f0; }
-        .countersign-form {
-            margin-top: 30px;
-            border-top: 2px solid #eee;
-            padding-top: 20px;
-        }
+        .countersign-form { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            min-height: 100px;
-            box-sizing: border-box;
-        }
+        .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-height: 100px; box-sizing: border-box; }
         .form-actions { text-align: right; }
-        .form-actions button {
-            padding: 10px 20px;
-            margin-left: 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1em;
-        }
+        .form-actions button { padding: 10px 20px; margin-left: 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; }
         .btn-approve { background-color: #28a745; color: white; }
         .btn-approve:hover { background-color: #218838; }
         .btn-reject { background-color: #dc3545; color: white; }
         .btn-reject:hover { background-color: #c82333; }
-        .btn-back {
-            background-color: #6c757d;
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            margin-right: 10px;
-            display: inline-block;
-        }
+        .btn-back { background-color: #6c757d; color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px; display: inline-block; }
         .btn-back:hover { background-color: #5a6268; }
-        .alert-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-        }
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-        }
-        .comments-section {
-            margin-top: 30px;
-            border-top: 2px solid #eee;
-            padding-top: 20px;
-        }
+        .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+        .comments-section { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
         .comments-section h2 { margin-bottom: 15px; }
-        .comment-item {
-            background-color: #f8f9fa;
-            border-left: 5px solid #0d6efd;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-        }
+        .comment-item { background-color: #f8f9fa; border-left: 5px solid #0d6efd; padding: 15px; margin-bottom: 10px; border-radius: 4px; }
         .comment-item strong { color: #0056b3; }
         .comment-item span.status { font-weight: bold; float: right; }
         .comment-item span.status.approved { color: #198754; }
@@ -138,6 +45,12 @@
         .comment-item span.status.pending { color: #ffc107; }
         .comment-item p { margin: 5px 0; font-size: 0.95em; }
         .comment-item .meta { font-size: 0.8em; color: #6c757d; margin-top: 5px; }
+        /* Attachment List Styles */
+        .file-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; border: 1px solid #dee2e6; border-radius: 0.25rem; background-color: #f8f9fa; }
+        .file-info { flex-grow: 1; margin-right: 1rem; overflow: hidden; }
+        .file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .file-status { font-size: 0.8em; color: #6c757d; }
+        .file-actions button { margin-left: 0.5rem; }
     </style>
 </head>
 <body>
@@ -177,18 +90,7 @@
 
         <div class="attachment-section">
             <h3>附件:</h3>
-            <div th:if="${attachmentPaths != null and not attachmentPaths.isEmpty()}" class="attachment-list">
-                <div th:each="path : ${attachmentPaths}">
-                    <a th:if="${path != null and !#strings.isEmpty(path)}"
-                       th:href="@{/api/attachments/download/{filename}(filename=${path})}"
-                       target="_blank"
-                       th:text="${path}">
-                    </a>
-                </div>
-            </div>
-            <div th:if="${attachmentPaths == null or attachmentPaths.isEmpty()}">
-                <p>无附件</p>
-            </div>
+            <div id="attachmentListContainer"></div>
         </div>
 
     </div>
@@ -239,6 +141,75 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        const attachmentContainer = document.getElementById('attachmentListContainer');
+        const attachmentsJson = /*[[${contract?.attachmentPath}]]*/ null;
 
+        function addExistingFileToUI(serverFileName) {
+            if (!attachmentContainer) return;
+            const safeId = `existing-${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}`;
+            const fileItemHTML = `
+                <div class="file-list-item" id="${safeId}">
+                    <div class="file-info">
+                        <span class="file-name" title="${serverFileName}">${serverFileName}</span>
+                    </div>
+                    <div class="file-actions">
+                        <button type="button" class="btn btn-sm btn-outline-info preview-btn" title="在新标签页中预览/下载">
+                            <i class="bi bi-eye"></i> 预览
+                        </button>
+                    </div>
+                </div>`;
+            attachmentContainer.insertAdjacentHTML('beforeend', fileItemHTML);
+
+            const newElement = document.getElementById(safeId);
+            if (newElement) {
+                const previewBtn = newElement.querySelector('.preview-btn');
+                previewBtn.addEventListener('click', () => handlePreviewFile(serverFileName));
+            }
+        }
+
+        // --- ENHANCED handlePreviewFile FUNCTION ---
+        function handlePreviewFile(serverFileName) {
+            if (!serverFileName) return;
+            const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
+            const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+
+            if (isPreviewable) {
+                window.open(downloadUrl, '_blank');
+            } else {
+                const userAgreedToDownload = confirm(
+                    `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击“确定”将尝试下载该文件。`
+                );
+
+                if (userAgreedToDownload) {
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.setAttribute('download', serverFileName);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+        }
+
+        try {
+            if (attachmentsJson && attachmentsJson !== '[]') {
+                const attachmentFiles = JSON.parse(attachmentsJson);
+                if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
+                    attachmentContainer.innerHTML = ''; // Clear previous content
+                    attachmentFiles.forEach(fileName => addExistingFileToUI(fileName));
+                } else {
+                    attachmentContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+                }
+            } else {
+                attachmentContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+            }
+        } catch (e) {
+            console.error('解析附件JSON失败:', e, "JSON string was:", attachmentsJson);
+            attachmentContainer.innerHTML = '<p class="text-danger small">加载附件列表失败。</p>';
+        }
+    });
+</script>
 </body>
 </html>

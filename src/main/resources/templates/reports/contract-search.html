@@ -29,6 +29,30 @@
         .btn-close.btn-close-white {
             filter: invert(1) grayscale(100%) brightness(200%); /* Make close button white */
         }
+        /* 合同状态标签样式 */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25em 0.6em;
+            font-size: 0.875em;
+            font-weight: 500;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.25rem;
+            color: #fff;
+        }
+        .status-badge.draft { background-color: #6c757d; }
+        .status-badge.pending-assignment { background-color: #0dcaf0; }
+        .status-badge.pending-countersign { background-color: #6f42c1; }
+        .status-badge.pending-finalization { background-color: #fd7e14; }
+        .status-badge.pending-approval { background-color: #0d6efd; }
+        .status-badge.pending-signing { background-color: #198754; }
+        .status-badge.active { background-color: #20c997; }
+        .status-badge.completed { background-color: #198754; }
+        .status-badge.expired { background-color: #dc3545; }
+        .status-badge.terminated { background-color: #6c757d; }
+        .status-badge.rejected { background-color: #dc3545; }
     </style>
 </head>
 <body>
@@ -63,6 +87,7 @@
                             <option value="COMPLETED">完成</option>
                             <option value="EXPIRED">过期</option>
                             <option value="TERMINATED">终止</option>
+                            <option value="REJECTED">已拒绝</option>
                         </select>
                     </div>
                 </div>
@@ -283,7 +308,9 @@
                 const customerName = contract.customer && contract.customer.customerName ? contract.customer.customerName : 'N/A';
                 const signingDate = formatDate(contract.startDate);
                 const expirationDate = formatDate(contract.endDate);
-                const statusDisplay = statusLabels[contract.status] || contract.status || 'N/A';
+                const status = contract.status || 'N/A';
+                const statusClass = status.toLowerCase().replace('_', '-');
+                const statusDisplay = statusLabels[status] || status;
                 const contractId = contract.id;
                 const contractStatus = contract.status;
 
@@ -323,7 +350,7 @@
                         <td>${customerName}</td>
                         <td>${signingDate}</td>
                         <td>${expirationDate}</td>
-                        <td>${statusDisplay}</td>
+                        <td><span class="status-badge ${statusClass}">${statusDisplay}</span></td>
                         <td class="text-nowrap">
                             <button class="btn btn-sm btn-info" onclick="viewContract(${contractId})">
                                 <i class="bi bi-eye"></i> 查看详情

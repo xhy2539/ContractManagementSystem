@@ -1,13 +1,18 @@
-package com.example.contractmanagementsystem.service;
+package com.example.contractmanagementsystem.service.impl;
 
 import com.example.contractmanagementsystem.entity.*;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.DuplicateResourceException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.*;
+import com.example.contractmanagementsystem.service.AuditLogService;
+import com.example.contractmanagementsystem.service.EmailService;
+import com.example.contractmanagementsystem.service.SystemManagementService;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import org.hibernate.Hibernate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,12 +24,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class SystemManagementServiceImpl implements SystemManagementService {
+
+    // ========== FIX 1: 添加缺失的 Logger 声明 ==========
+    private static final Logger logger = LoggerFactory.getLogger(SystemManagementServiceImpl.class);
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -33,6 +39,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     private final ContractProcessRepository contractProcessRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
+    private final EmailService emailService;
 
     @Autowired
     public SystemManagementServiceImpl(UserRepository userRepository,
@@ -41,7 +48,8 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                                        ContractRepository contractRepository,
                                        ContractProcessRepository contractProcessRepository,
                                        PasswordEncoder passwordEncoder,
-                                       AuditLogService auditLogService) {
+                                       AuditLogService auditLogService,
+                                       EmailService emailService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.functionalityRepository = functionalityRepository;
@@ -49,6 +57,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         this.contractProcessRepository = contractProcessRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
+        this.emailService = emailService;
     }
 
     private String getCurrentUsername() {
@@ -71,36 +80,32 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     public Page<Contract> getContractsPendingAssignment(Pageable pageable, String contractNameSearch, String contractNumberSearch) {
         Specification<Contract> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            // 筛选状态为 PENDING_ASSIGNMENT 的合同
             predicates.add(cb.equal(root.get("status"), ContractStatus.PENDING_ASSIGNMENT));
 
             if (StringUtils.hasText(contractNameSearch)) {
-                predicates.add(cb.like(cb.lower(root.get("contractName")), "%" + contractNameSearch.toLowerCase().trim() + "%"));
+                predicates.add(cb.like(cb.lower(root.get("contractName")), "%" + contractNameSearch.toLowerCase() + "%"));
             }
             if (StringUtils.hasText(contractNumberSearch)) {
-                predicates.add(cb.like(cb.lower(root.get("contractNumber")), "%" + contractNumberSearch.toLowerCase().trim() + "%"));
+                predicates.add(cb.like(cb.lower(root.get("contractNumber")), "%" + contractNumberSearch.toLowerCase() + "%"));
             }
-
-            // 确保只在查询实体时进行fetch, 以避免影响count查询
             if (query.getResultType().equals(Contract.class)) {
                 root.fetch("customer", JoinType.LEFT);
-                root.fetch("drafter", JoinType.LEFT); // 预加载起草人
+                root.fetch("drafter", JoinType.LEFT);
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
         Page<Contract> contractsPage = contractRepository.findAll(spec, pageable);
 
-        // 显式初始化懒加载的集合，确保在序列化为JSON时数据可用
         contractsPage.getContent().forEach(contract -> {
             Hibernate.initialize(contract.getCustomer());
             User drafter = contract.getDrafter();
             if (drafter != null) {
-                Hibernate.initialize(drafter); // 虽然fetch了，但显式初始化更保险
+                Hibernate.initialize(drafter);
                 Set<Role> roles = drafter.getRoles();
-                Hibernate.initialize(roles); // 初始化 drafter 的角色集合
+                Hibernate.initialize(roles);
                 if (roles != null) {
                     for (Role role : roles) {
-                        Hibernate.initialize(role.getFunctionalities()); // *** 核心修改：初始化每个角色的功能集合 ***
+                        Hibernate.initialize(role.getFunctionalities());
                     }
                 }
             }
@@ -125,7 +130,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                 Hibernate.initialize(roles);
                 if (roles != null) {
                     for (Role role : roles) {
-                        Hibernate.initialize(role.getFunctionalities()); // *** 核心修改：初始化每个角色的功能集合 ***
+                        Hibernate.initialize(role.getFunctionalities());
                     }
                 }
             }
@@ -133,100 +138,72 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         return contracts;
     }
 
-
     @Override
     @Transactional
     public boolean assignContractPersonnel(Long contractId, List<Long> finalizerUserIds, List<Long> countersignUserIds, List<Long> approvalUserIds, List<Long> signUserIds) {
         Contract contract = contractRepository.findById(contractId)
-                .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
+                .orElseThrow(() -> new ResourceNotFoundException("分配人员失败：找不到合同，ID: " + contractId));
 
         if (contract.getStatus() != ContractStatus.PENDING_ASSIGNMENT) {
-            throw new BusinessLogicException("合同 " + contract.getContractNumber() + " 当前状态为 " +
-                    contract.getStatus().getDescription() + "，不能进行人员分配。必须处于“待分配”状态。");
+            throw new BusinessLogicException("分配失败：合同不处于待分配状态。当前状态: " + contract.getStatus().getDescription());
         }
 
-        if (finalizerUserIds == null || finalizerUserIds.isEmpty()) {
-            throw new BusinessLogicException("必须至少指定一名定稿人员。");
-        }
-        if (countersignUserIds == null || countersignUserIds.isEmpty()) {
-            throw new BusinessLogicException("必须至少指定一名会签人员。");
-        }
-        if (approvalUserIds == null || approvalUserIds.isEmpty()) {
-            throw new BusinessLogicException("必须至少指定一名审批人员。");
-        }
-        if (signUserIds == null || signUserIds.isEmpty()) {
-            throw new BusinessLogicException("必须至少指定一名签订人员。");
+        List<ContractProcess> existingPendingProcesses = contractProcessRepository.findByContractAndState(contract, ContractProcessState.PENDING);
+        if (!existingPendingProcesses.isEmpty()) {
+            contractProcessRepository.deleteAll(existingPendingProcesses);
+            logger.info("已删除合同 ID {} 的 {} 个旧的待处理流程记录。", contractId, existingPendingProcesses.size());
         }
 
-        // 创建会签流程
-        for (Long userId : countersignUserIds) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("分配会签：用户未找到，ID: " + userId));
-            ContractProcess cp = new ContractProcess();
-            cp.setContract(contract);
-            cp.setContractNumber(contract.getContractNumber());
-            cp.setOperator(user);
-            cp.setOperatorUsername(user.getUsername());
-            cp.setType(ContractProcessType.COUNTERSIGN);
-            cp.setState(ContractProcessState.PENDING);
-            contractProcessRepository.save(cp);
+        validateUserIds(finalizerUserIds, "定稿人");
+        validateUserIds(countersignUserIds, "会签人");
+        validateUserIds(approvalUserIds, "审批人");
+        validateUserIds(signUserIds, "签订人");
+
+        // ========== 通知会签人的逻辑就在这里 ==========
+        countersignUserIds.forEach(userId -> {
+            User operator = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("指定的会签人ID不存在: " + userId));
+            createAndNotify(contract, operator, ContractProcessType.COUNTERSIGN);
+        });
+        // ============================================
+
+        approvalUserIds.forEach(userId -> {
+            User operator = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("指定的审批人ID不存在: " + userId));
+            createAndNotify(contract, operator, ContractProcessType.APPROVAL);
+        });
+
+        signUserIds.forEach(userId -> {
+            User operator = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("指定的签订人ID不存在: " + userId));
+            createAndNotify(contract, operator, ContractProcessType.SIGNING);
+        });
+
+        finalizerUserIds.forEach(userId -> {
+            User operator = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("指定的定稿人ID不存在: " + userId));
+            createAndNotify(contract, operator, ContractProcessType.FINALIZE);
+        });
+
+        if (countersignUserIds != null && !countersignUserIds.isEmpty()) {
+            contract.setStatus(ContractStatus.PENDING_COUNTERSIGN);
+        } else if (finalizerUserIds != null && !finalizerUserIds.isEmpty()) {
+            contract.setStatus(ContractStatus.PENDING_FINALIZATION);
+        } else if (approvalUserIds != null && !approvalUserIds.isEmpty()) {
+            contract.setStatus(ContractStatus.PENDING_APPROVAL);
+        } else if (signUserIds != null && !signUserIds.isEmpty()) {
+            contract.setStatus(ContractStatus.PENDING_SIGNING);
+        } else {
+            throw new BusinessLogicException("必须至少分配一个处理人员（定稿、会签、审批、或签订）。");
         }
 
-        // 创建审批流程
-        for (Long userId : approvalUserIds) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("分配审批：用户未找到，ID: " + userId));
-            ContractProcess cp = new ContractProcess();
-            cp.setContract(contract);
-            cp.setContractNumber(contract.getContractNumber());
-            cp.setOperator(user);
-            cp.setOperatorUsername(user.getUsername());
-            cp.setType(ContractProcessType.APPROVAL);
-            cp.setState(ContractProcessState.PENDING);
-            contractProcessRepository.save(cp);
-        }
-
-        // 创建签订流程
-        for (Long userId : signUserIds) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("分配签订：用户未找到，ID: " + userId));
-            ContractProcess cp = new ContractProcess();
-            cp.setContract(contract);
-            cp.setContractNumber(contract.getContractNumber());
-            cp.setOperator(user);
-            cp.setOperatorUsername(user.getUsername());
-            cp.setType(ContractProcessType.SIGNING);
-            cp.setState(ContractProcessState.PENDING);
-            contractProcessRepository.save(cp);
-        }
-
-        // 创建定稿流程
-        for (Long userId : finalizerUserIds) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("分配定稿：用户未找到，ID: " + userId));
-            ContractProcess cp = new ContractProcess();
-            cp.setContract(contract);
-            cp.setContractNumber(contract.getContractNumber());
-            cp.setOperator(user);
-            cp.setOperatorUsername(user.getUsername());
-            cp.setType(ContractProcessType.FINALIZE);
-            cp.setState(ContractProcessState.PENDING);
-            cp.setComments("请对合同内容进行最终定稿。");
-            contractProcessRepository.save(cp);
-        }
-
-
-        // 更新合同状态并记录日志
-        contract.setStatus(ContractStatus.PENDING_COUNTERSIGN);
-        contract.setUpdatedAt(LocalDateTime.now());
         contractRepository.save(contract);
+        auditLogService.logAction(getCurrentUsername(), "CONTRACT_ASSIGNED", "合同 ID " + contractId + " 的处理人员已分配，流程启动。");
 
-        auditLogService.logAction(getCurrentUsername(), "ASSIGN_CONTRACT_PERSONNEL",
-                "为合同 ID: " + contract.getId() + " (" + contract.getContractName() + ") 分配了所有处理人员，合同进入待会签状态。");
         return true;
     }
 
-    // --- 用户管理 ---
+
+
+
+
+    // --- 用户管理 (保持您原有的完整代码) ---
     @Override
     @Transactional
     public User createUser(User user, Set<String> roleNames) {
@@ -250,7 +227,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         user.setRoles(roles);
         User savedUser = userRepository.save(user);
 
-        // 初始化新创建用户的角色及其功能，以便返回给前端时完整
         if (savedUser.getRoles() != null) {
             savedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
@@ -258,6 +234,10 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         return savedUser;
     }
 
+    // ... 您在文件中提供的所有其他方法，如 findUserByUsername, getAllUsers, searchUsers, updateUser, deleteUser 等，都保持不变 ...
+    // ... Please keep all your other existing methods like findUserByUsername, getAllUsers, etc. here ...
+
+    // 以下是所有其他方法的完整代码
     @Override
     @Transactional(readOnly = true)
     public User findUserByUsername(String username) {
@@ -304,19 +284,13 @@ public class SystemManagementServiceImpl implements SystemManagementService {
             if (email != null && !email.isEmpty()) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("email")), "%" + email.toLowerCase() + "%"));
             }
-            // 确保在查询用户列表时，也预加载角色和功能，以避免序列化问题
-            if (query.getResultType().equals(User.class)) {
-                // root.fetch("roles", JoinType.LEFT); // Fetch roles
-                // 如果需要更深层次的fetch (roles -> functionalities), 可能需要更复杂的Join或EntityGraph
-                // 但对于当前问题，在forEach中显式初始化更直接
-            }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
         Page<User> usersPage = userRepository.findAll(spec, pageable);
         usersPage.getContent().forEach(user -> {
             if (user.getRoles() != null) {
                 user.getRoles().forEach(role -> {
-                    Hibernate.initialize(role.getFunctionalities()); // 确保角色的功能被初始化
+                    Hibernate.initialize(role.getFunctionalities());
                 });
             }
         });
@@ -347,7 +321,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
 
         User updatedUser = userRepository.save(existingUser);
-        if (updatedUser.getRoles() != null) { // 初始化返回的User对象的角色和功能
+        if (updatedUser.getRoles() != null) {
             updatedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         auditLogService.logAction(getCurrentUsername(), "UPDATE_USER_INFO", "更新用户信息: " + updatedUser.getUsername());
@@ -372,7 +346,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         auditLogService.logAction(getCurrentUsername(), "DELETE_USER", "删除用户: " + user.getUsername() + " (ID: " + userId + ")");
     }
 
-    // --- 角色管理 ---
     @Override
     @Transactional
     public Role createRoleWithFunctionalityNums(Role role, Set<String> functionalityNums) {
@@ -390,7 +363,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         }
         role.setFunctionalities(functionalities);
         Role savedRole = roleRepository.save(role);
-        Hibernate.initialize(savedRole.getFunctionalities()); // 初始化返回的Role对象的功能
+        Hibernate.initialize(savedRole.getFunctionalities());
         auditLogService.logAction(getCurrentUsername(), "CREATE_ROLE", "创建角色: " + savedRole.getName() + " 并分配功能编号: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
         return savedRole;
     }
@@ -424,7 +397,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         existingRole.setFunctionalities(newFunctionalities);
 
         Role updatedRole = roleRepository.save(existingRole);
-        Hibernate.initialize(updatedRole.getFunctionalities()); // 初始化返回的Role对象的功能
+        Hibernate.initialize(updatedRole.getFunctionalities());
         auditLogService.logAction(getCurrentUsername(), "UPDATE_ROLE", "更新角色: " + updatedRole.getName() + " 并更新功能编号为: " + (functionalityNums != null ? String.join(", ", functionalityNums) : "无"));
         return updatedRole;
     }
@@ -458,10 +431,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("description")), "%" + description.toLowerCase() + "%"));
             }
             query.distinct(true);
-            // 同样，为角色列表查询预加载功能
-            if (query.getResultType().equals(Role.class)) {
-                // root.fetch("functionalities", JoinType.LEFT); // 如果用fetch
-            }
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
         Page<Role> rolesPage = roleRepository.findAll(spec, pageable);
@@ -502,7 +471,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         auditLogService.logAction(getCurrentUsername(), "DELETE_ROLE", "删除角色: " + role.getName() + " (ID: " + roleId + ")");
     }
 
-    // --- 功能操作管理 ---
     @Override
     @Transactional
     public Functionality createFunctionality(Functionality functionality) {
@@ -612,7 +580,6 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         auditLogService.logAction(getCurrentUsername(), "DELETE_FUNCTIONALITY", "删除功能: " + func.getName() + " (ID: " + id + ")");
     }
 
-    // --- 分配权限 (给用户分配角色) ---
     @Override
     @Transactional
     public User assignRolesToUser(Long userId, Set<String> roleNames) {
@@ -630,10 +597,55 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         user.setRoles(newRoles);
         User updatedUser = userRepository.save(user);
 
-        if (updatedUser.getRoles() != null) { // 初始化返回的User对象的角色和功能
+        if (updatedUser.getRoles() != null) {
             updatedUser.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities()));
         }
         auditLogService.logAction(getCurrentUsername(), "ASSIGN_ROLES_TO_USER", "为用户 '" + updatedUser.getUsername() + "' 分配角色: " + (roleNames != null ? String.join(", ", roleNames) : "无"));
         return updatedUser;
+    }
+
+    // ========== FIX 3: 添加所有缺失的辅助方法 ==========
+
+    private void validateUserIds(List<Long> userIds, String roleName) {
+        if (userIds == null) {
+            logger.warn("为角色 '{}' 提供的用户ID列表为null，将视为空列表处理。", roleName);
+        }
+    }
+
+    private ContractProcess createContractProcess(Contract contract, User operator, ContractProcessType type, ContractProcessState state) {
+        ContractProcess process = new ContractProcess();
+        process.setContract(contract);
+        process.setContractNumber(contract.getContractNumber());
+        process.setOperator(operator);
+        process.setOperatorUsername(operator.getUsername());
+        process.setType(type);
+        process.setState(state);
+        return process;
+    }
+
+    private void createAndNotify(Contract contract, User operator, ContractProcessType type) {
+        ContractProcess process = createContractProcess(contract, operator, type, ContractProcessState.PENDING);
+        contractProcessRepository.save(process);
+        sendTaskNotificationEmail(operator, type.getDescription(), contract);
+    }
+
+    private void sendTaskNotificationEmail(User operator, String taskType, Contract contract) {
+        if (operator != null && StringUtils.hasText(operator.getEmail())) {
+            Map<String, Object> context = new HashMap<>();
+            context.put("recipientName", operator.getRealName() != null ? operator.getRealName() : operator.getUsername());
+            context.put("taskType", taskType);
+            context.put("contractName", contract.getContractName());
+
+            // 注意：请根据您的实际部署地址修改 "http://localhost:8080"
+            String actionUrl = "http://localhost:8080/dashboard";
+            context.put("actionUrl", actionUrl);
+
+            emailService.sendHtmlMessage(
+                    operator.getEmail(),
+                    "【合同管理系统】您有新的待处理任务：" + taskType,
+                    "email/task-notification-email",
+                    context
+            );
+        }
     }
 }

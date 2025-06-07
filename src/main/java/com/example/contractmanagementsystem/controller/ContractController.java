@@ -34,6 +34,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -48,6 +49,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Principal;
@@ -70,7 +72,8 @@ public class ContractController {
     private final ContractService contractService;
     private final ObjectMapper objectMapper;
 
-    private final Path attachmentStorageLocation = Paths.get("uploads/attachments").toAbsolutePath().normalize();
+    // This property is no longer used here, AttachmentService handles the path
+    // private final Path attachmentStorageLocation = Paths.get("uploads/attachments").toAbsolutePath().normalize();
 
     @Autowired
     public ContractController(ContractService contractService, ObjectMapper objectMapper) {
@@ -78,61 +81,16 @@ public class ContractController {
         this.objectMapper = objectMapper;
     }
 
+    // This old download logic is replaced by the one in AttachmentController for consistency
+    // The one in AttachmentController should be the single source of truth.
+    // However, if you want a quick fix here, this is how you'd do it:
+    /*
     @GetMapping("/api/attachments/download/{filename:.+}")
     @ResponseBody
     public ResponseEntity<Resource> downloadAttachment(@PathVariable String filename) {
-        logger.info("收到附件下载请求，文件名: {}", filename);
-        try {
-            Path filePath = attachmentStorageLocation.resolve(filename).normalize();
-
-            logger.debug("解析附件路径: {}", filePath.toString());
-
-            if (!filePath.startsWith(attachmentStorageLocation)) {
-                logger.warn("尝试非法访问附件路径: {}", filename);
-                return ResponseEntity.badRequest().build();
-            }
-
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
-                logger.info("附件文件找到并可读: {}", filePath.toString());
-                String contentType = null;
-                try {
-                    if (filename.toLowerCase().endsWith(".pdf")) {
-                        contentType = "application/pdf";
-                    } else if (filename.toLowerCase().endsWith(".png")) {
-                        contentType = "image/png";
-                    } else if (filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg")) {
-                        contentType = "image/jpeg";
-                    } else if (filename.toLowerCase().endsWith(".doc")) {
-                        contentType = "application/msword";
-                    } else if (filename.toLowerCase().endsWith(".docx")) {
-                        contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-                    } else {
-                        contentType = "application/octet-stream";
-                    }
-                    logger.debug("推断出的MIME类型: {}", contentType);
-                } catch (Exception e) {
-                    logger.warn("无法确定文件 {} 的 MIME 类型，使用默认类型。错误: {}", filename, e.getMessage());
-                    contentType = "application/octet-stream";
-                }
-
-                return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType))
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
-                        .body(resource);
-            } else {
-                logger.warn("请求的附件文件不存在或不可读: {}", filePath.toString());
-                return ResponseEntity.notFound().build();
-            }
-        } catch (MalformedURLException ex) {
-            logger.error("附件文件名 {} 格式不正确: {}", filename, ex.getMessage());
-            return ResponseEntity.badRequest().build();
-        } catch (Exception ex) {
-            logger.error("下载附件 {} 时发生服务器内部错误: {}", filename, ex.getMessage(), ex);
-            return ResponseEntity.internalServerError().build();
-        }
+        // ... This method should be removed to avoid duplication with AttachmentController
     }
+    */
 
 
     @GetMapping("/draft-contract")
@@ -375,12 +333,12 @@ public class ContractController {
         }
     }
 
-    @PostMapping(value = "/finalize/{contractId}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE) // <--- 修改这里
+    @PostMapping(value = "/finalize/{contractId}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     @PreAuthorize("hasAuthority('CON_FINAL_SUBMIT')")
     public ResponseEntity<Map<String, String>> processFinalizeContract(
             @PathVariable Long contractId,
-            @RequestBody @Valid Map<String, Object> payload, // <--- 修改这里，接收JSON Map
+            @RequestBody @Valid Map<String, Object> payload,
             Principal principal) {
 
         String finalizationComments = (String) payload.get("finalizationComments");
@@ -388,8 +346,6 @@ public class ContractController {
         @SuppressWarnings("unchecked")
         List<String> attachmentServerFileNames = (List<String>) payload.get("attachmentServerFileNames");
 
-        // 如果需要JSR-303/380验证，需要手动创建ContractDraftRequest DTO并进行验证
-        // 这里简化处理，直接从payload获取数据。如果需要细致验证，请参考draftContract方法
         if (updatedContent == null || updatedContent.isEmpty()) {
             Map<String, String> errors = new HashMap<>();
             errors.put("message", "合同内容不能为空。");
@@ -457,17 +413,25 @@ public class ContractController {
         List<PendingApprovalItemDto> itemsWithAttachments = new ArrayList<>();
         for (ContractProcess process : pendingProcessesPage.getContent()) {
             List<String> attachmentPaths = new ArrayList<>();
-            if (process.getContract() != null && process.getContract().getAttachmentPath() != null &&
-                    !process.getContract().getAttachmentPath().trim().isEmpty() &&
-                    !process.getContract().getAttachmentPath().equals("[]") &&
-                    !process.getContract().getAttachmentPath().equalsIgnoreCase("null")) {
+            String attachmentJson = process.getContract() != null ? process.getContract().getAttachmentPath() : null;
+            if (StringUtils.hasText(attachmentJson) && !attachmentJson.equals("[]") && !attachmentJson.equalsIgnoreCase("null")) {
                 try {
-                    attachmentPaths = objectMapper.readValue(process.getContract().getAttachmentPath(), new TypeReference<List<String>>() {});
+                    attachmentPaths = objectMapper.readValue(attachmentJson, new TypeReference<List<String>>() {});
                 } catch (JsonProcessingException e) {
                     logger.warn("解析待审批合同附件路径失败，合同ID {}: {}", process.getContract().getId(), e.getMessage());
                 }
             }
-            itemsWithAttachments.add(new PendingApprovalItemDto(process, attachmentPaths));
+
+            PendingApprovalItemDto dto = new PendingApprovalItemDto(process, attachmentPaths);
+
+            try {
+                dto.setAttachmentFileNamesAsJson(objectMapper.writeValueAsString(attachmentPaths));
+            } catch (JsonProcessingException e) {
+                logger.error("序列化附件列表到JSON时出错，合同ID {}: {}", process.getContract().getId(), e.getMessage());
+                dto.setAttachmentFileNamesAsJson("[]");
+            }
+
+            itemsWithAttachments.add(dto);
         }
 
         Page<PendingApprovalItemDto> pendingApprovalsDtoPage = new PageImpl<>(
@@ -544,13 +508,14 @@ public class ContractController {
         return "contract-manager/pending-signing";
     }
 
-    @GetMapping("/sign/{contractProcessId}")
+    // ========== THIS IS THE METHOD TO FIX ==========
+    @GetMapping("/sign-contract/{processId}")
     @PreAuthorize("hasAuthority('CON_SIGN_VIEW') or hasAuthority('CONTRACT_SIGN_SUBMIT')")
-    public String showSignContractForm(@PathVariable Long contractProcessId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
+    public String showSignContractForm(@PathVariable Long processId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
         try {
             String username = principal.getName();
             ContractProcess contractProcess = contractService.getContractProcessByIdAndOperator(
-                    contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
+                    processId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
 
             model.addAttribute("contractProcess", contractProcess);
             return "contract-manager/sign-contract";
@@ -641,14 +606,6 @@ public class ContractController {
         }
     }
 
-    /**
-     * 管理员直接延期合同。
-     * 权限：仅限 ROLE_ADMIN。
-     * @param contractId 合同ID。
-     * @param request 包含新到期日期和备注的请求体。
-     * @param authentication 认证信息。
-     * @return 成功响应或错误响应。
-     */
     @PostMapping("/{contractId}/extend/admin")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @ResponseBody
@@ -663,18 +620,8 @@ public class ContractController {
             logger.warn("管理员延期合同失败 (合同ID: {}): {}", contractId, e.getMessage());
             return ResponseEntity.badRequest().body("延期失败: " + e.getMessage());
         }
-        // NOTE: ResourceNotFoundException and AccessDeniedException are handled by GlobalExceptionHandler
-        // If you want specific handling here, you can add catch blocks
     }
 
-    /**
-     * 操作员请求延期合同。
-     * 权限：仅限 ROLE_CONTRACT_OPERATOR 或 ROLE_ADMIN (因为管理员是操作员的超集)。
-     * @param contractId 合同ID。
-     * @param request 包含期望新到期日期、原因和备注的请求体。
-     * @param authentication 认证信息。
-     * @return 成功响应或错误响应。
-     */
     @PostMapping("/{contractId}/extend/request")
     @PreAuthorize("hasRole('ROLE_CONTRACT_OPERATOR') or hasRole('ROLE_ADMIN')")
     @ResponseBody
@@ -697,7 +644,7 @@ public class ContractController {
         } catch (ResourceNotFoundException e) {
             logger.warn("操作员请求延期合同失败，合同未找到 (合同ID: {}): {}", contractId, e.getMessage());
             return ResponseEntity.status(404).body("提交请求失败: " + e.getMessage());
-        } catch (Exception e) { // Catch AccessDeniedException and other unexpected exceptions
+        } catch (Exception e) {
             logger.error("操作员请求延期合同发生未知错误 (合同ID: {}): {}", contractId, e.getMessage(), e);
             return ResponseEntity.internalServerError().body("提交请求失败: 服务器内部错误。");
         }

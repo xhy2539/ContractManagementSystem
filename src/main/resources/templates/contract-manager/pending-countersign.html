@@ -14,8 +14,8 @@
         .navbar .user-info { font-size: 0.9em; }
         .navbar a { color: white; text-decoration: none; margin-left: 15px; }
         .container { padding: 20px; max-width: 1200px; margin: 20px auto; background-color: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .page-header { display: flex; justify-content: space-between; align-items: center; } /* 新增样式 */
-        h1 { color: #333; margin-bottom: 0; } /* 移除 h1 的下边距 */
+        .page-header { display: flex; justify-content: space-between; align-items: center; }
+        h1 { color: #333; margin-bottom: 0; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
         th { background-color: #f2f2f2; }
@@ -28,6 +28,12 @@
         .no-records { text-align: center; padding: 20px; color: #666; }
         .btn-action { background-color: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 0.9em; }
         .btn-view-attachment { background-color: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 0.9em; margin-left: 5px; }
+        /* Attachment Modal List Style */
+        .file-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; border: 1px solid #dee2e6; border-radius: 0.25rem; background-color: #f8f9fa; }
+        .file-info { flex-grow: 1; margin-right: 1rem; overflow: hidden; }
+        .file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .file-status { font-size: 0.8em; color: #6c757d; }
+        .file-actions button { margin-left: 0.5rem; }
     </style>
 </head>
 <body>
@@ -86,47 +92,35 @@
                 <td th:text="${process.contract.status.description}"></td>
                 <td>
                     <a th:href="@{/contract-manager/countersign-form/{id}(id=${process.contract.id})}" class="btn-action">会签</a>
-
-                    <span th:if="${process.contract.attachmentPath != null and !#strings.equals(process.contract.attachmentPath, '[]')}">
-                        <button type="button" class="btn btn-view-attachment view-attachments-btn"
-                                th:data-attachments="${process.contract.attachmentPath}"
-                                data-bs-toggle="modal"
-                                data-bs-target="#attachmentListModal">
-                            查看附件
-                        </button>
-                    </span>
+                    <button type="button" class="btn btn-view-attachment"
+                            th:if="${process.contract.attachmentPath != null and !#strings.equals(process.contract.attachmentPath, '[]')}"
+                            th:data-attachments="${process.contract.attachmentPath}"
+                            th:data-contract-name="${process.contract.contractName}"
+                            data-bs-toggle="modal"
+                            data-bs-target="#attachmentListModal">
+                        查看附件
+                    </button>
                 </td>
             </tr>
             </tbody>
         </table>
 
         <div class="pagination" th:if="${pendingCountersigns.totalPages > 1}">
-            <a th:if="${pendingCountersigns.hasPrevious()}"
-               th:href="@{/contract-manager/pending-countersign(page=${pendingCountersigns.number - 1}, size=${pendingCountersigns.size}, contractNameSearch=${contractNameSearch})}">
-                上一页
-            </a>
-            <span th:each="i : ${#numbers.sequence(0, pendingCountersigns.totalPages - 1)}">
-                <a th:if="${i != pendingCountersigns.number}"
-                   th:href="@{/contract-manager/pending-countersign(page=${i}, size=${pendingCountersigns.size}, contractNameSearch=${contractNameSearch})}"
-                   th:text="${i + 1}"></a>
-                <span th:if="${i == pendingCountersigns.number}" class="current-page" th:text="${i + 1}"></span>
-            </span>
-            <a th:if="${pendingCountersigns.hasNext()}"
-               th:href="@{/contract-manager/pending-countersign(page=${pendingCountersigns.number + 1}, size=${pendingCountersigns.size}, contractNameSearch=${contractNameSearch})}">
-                下一页
-            </a>
         </div>
     </div>
 </div>
 
 <div class="modal fade" id="attachmentListModal" tabindex="-1" aria-labelledby="attachmentModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="attachmentModalLabel">附件列表</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" id="attachmentListContainer">
+            <div class="modal-body">
+                <p class="text-muted small">合同: <strong id="modalContractName"></strong></p>
+                <hr>
+                <div id="attachmentListContainer"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
@@ -144,37 +138,73 @@
             attachmentModal.addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
                 const attachmentsJson = button.getAttribute('data-attachments');
+                const contractName = button.getAttribute('data-contract-name');
+
                 const attachmentListContainer = document.getElementById('attachmentListContainer');
+                const modalContractName = document.getElementById('modalContractName');
 
-                attachmentListContainer.innerHTML = '正在加载...';
+                modalContractName.textContent = contractName || '未知合同';
+                attachmentListContainer.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div></div>';
 
-                if (attachmentsJson) {
-                    try {
+                function addExistingFileToUI(serverFileName) {
+                    const safeId = `modal-existing-${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}`;
+                    const fileItemHTML = `
+                        <div class="file-list-item upload-success" id="${safeId}">
+                            <div class="file-info">
+                                <span class="file-name" title="${serverFileName}">${serverFileName}</span>
+                            </div>
+                            <div class="file-actions">
+                                <button type="button" class="btn btn-sm btn-outline-info preview-btn" title="在新标签页中预览/下载">
+                                    <i class="bi bi-eye"></i> 预览
+                                </button>
+                            </div>
+                        </div>`;
+                    attachmentListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
+
+                    const newElement = document.getElementById(safeId);
+                    if (newElement) {
+                        const previewBtn = newElement.querySelector('.preview-btn');
+                        previewBtn.addEventListener('click', () => handlePreviewFile(serverFileName));
+                    }
+                }
+
+                // --- ENHANCED handlePreviewFile FUNCTION ---
+                function handlePreviewFile(serverFileName) {
+                    if (!serverFileName) return;
+                    const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
+                    const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+                    if (isPreviewable) {
+                        window.open(downloadUrl, '_blank');
+                    } else {
+                        const userAgreedToDownload = confirm(
+                            `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击“确定”将尝试下载该文件。`
+                        );
+                        if (userAgreedToDownload) {
+                            const link = document.createElement('a');
+                            link.href = downloadUrl;
+                            link.setAttribute('download', serverFileName);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                        }
+                    }
+                }
+
+                try {
+                    if (attachmentsJson && attachmentsJson !== '[]') {
                         const attachmentFiles = JSON.parse(attachmentsJson);
                         attachmentListContainer.innerHTML = '';
-
-                        if (attachmentFiles.length > 0) {
-                            attachmentFiles.forEach(function(filename) {
-                                const link = document.createElement('a');
-                                // **生成正确的下载URL**
-                                link.href = '/api/attachments/download/' + encodeURIComponent(filename);
-                                link.textContent = filename;
-                                link.className = 'd-block mb-2 text-primary';
-                                link.target = '_blank';
-                                link.style.textDecoration = 'none';
-                                link.addEventListener('mouseenter', () => link.style.textDecoration = 'underline');
-                                link.addEventListener('mouseleave', () => link.style.textDecoration = 'none');
-                                attachmentListContainer.appendChild(link);
-                            });
+                        if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
+                            attachmentFiles.forEach(fileName => addExistingFileToUI(fileName));
                         } else {
-                            attachmentListContainer.textContent = '该合同没有附件。';
+                            attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
                         }
-                    } catch (e) {
-                        console.error('解析附件JSON失败: ', e);
-                        attachmentListContainer.textContent = '加载附件列表时出错。';
+                    } else {
+                        attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
                     }
-                } else {
-                    attachmentListContainer.textContent = '未找到附件信息。';
+                } catch (e) {
+                    console.error('解析附件JSON失败: ', e);
+                    attachmentListContainer.innerHTML = '<p class="text-danger small">加载附件列表时出错。</p>';
                 }
             });
         }

@@ -4,12 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>待审批合同</title>
-    <!-- 引入 Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- 引入 Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <!-- 原有的 style.css 如果还有其他样式，请确保路径正确 -->
-    <!-- <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}"/> -->
     <style>
         body {
             font-family: sans-serif;
@@ -25,28 +21,27 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-        /* Added for consistent header spacing */
         .page-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem; /* Equivalent to mb-4 */
+            margin-bottom: 1.5rem;
         }
         h1 {
             color: #333;
-            margin-bottom: 0; /* Remove h1's default bottom margin */
+            margin-bottom: 0;
         }
         .search-form {
             margin-bottom: 20px;
-            display: flex; /* Added for proper layout with gap */
-            gap: 10px; /* Added for spacing between input and button */
+            display: flex;
+            gap: 10px;
         }
         .search-form input[type="text"] {
             padding: 8px;
             width: 300px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            flex-grow: 1; /* Allow input to grow */
+            flex-grow: 1;
         }
         .search-form button {
             padding: 8px 15px;
@@ -68,35 +63,28 @@
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #ddd;
+            vertical-align: middle;
         }
         th {
             background-color: #f8f9fa;
             font-weight: bold;
         }
-        .btn-action {
-            padding: 6px 12px;
-            background-color: #28a745;
-            color: white;
+        .btn-action, .btn-view, .btn-view-attachment {
             text-decoration: none;
             border-radius: 4px;
+            padding: 5px 10px;
             margin-right: 5px;
+            font-size: 0.9em;
         }
-        .btn-view {
-            padding: 6px 12px;
-            background-color: #17a2b8;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-        }
-        .btn-action:hover, .btn-view:hover {
-            opacity: 0.9;
-        }
+        .btn-action { background-color: #28a745; color: white; }
+        .btn-view { background-color: #17a2b8; color: white; }
+        .btn-view-attachment { background-color: #6c757d; color: white; }
+
         .no-records {
             text-align: center;
             padding: 20px;
             color: #666;
         }
-        /* Pagination styles from pending-countersign.html */
         .pagination {
             margin-top: 20px;
             text-align: center;
@@ -110,17 +98,20 @@
             color: #007bff;
             border-radius: 4px;
         }
-        .pagination span.active { /* Changed from current-page to active for Bootstrap compatibility */
+        .pagination span.active {
             background-color: #007bff;
             color: white;
             border-color: #007bff;
         }
+        .file-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; border: 1px solid #dee2e6; border-radius: 0.25rem; background-color: #f8f9fa; }
+        .file-info { flex-grow: 1; margin-right: 1rem; overflow: hidden; }
+        .file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .file-actions button { margin-left: 0.5rem; }
     </style>
 </head>
 <body>
 
 <div class="container mt-4">
-    <!-- Changed to match pending-countersign.html's header structure -->
     <div class="page-header">
         <h1 th:text="${listTitle ?: '待审批合同'}">待审批合同</h1>
         <a th:href="@{/dashboard}" class="btn btn-outline-secondary">
@@ -131,7 +122,7 @@
 
     <p>以下是需要您进行审批的合同列表。</p>
 
-    <form th:action="@{/contracts/pending-approval}" method="get" class="search-form">
+    <form th:action="@{/contract-manager/pending-approval}" method="get" class="search-form">
         <input type="text" name="contractNameSearch" th:value="${contractNameSearch}" placeholder="输入合同名称搜索..."/>
         <button type="submit">搜索</button>
     </form>
@@ -141,7 +132,7 @@
     </div>
 
     <div th:unless="${pendingApprovals.isEmpty()}">
-        <table>
+        <table class="table table-striped table-hover">
             <thead>
             <tr>
                 <th>ID</th>
@@ -164,43 +155,138 @@
                 <td th:text="${#temporals.format(item.contractProcess.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
                 <td th:text="${item.contractProcess.state.description}"></td>
                 <td>
-                    <a th:href="@{/contracts/approval-details/{id}(id=${item.contractProcess.contract.id})}" class="btn-action">审批</a>
-                    <!-- 修改此处：将查看链接指向后端对应的 /contracts/{id}/detail 路径 -->
-                    <a th:href="@{/contracts/{id}/detail(id=${item.contractProcess.contract.id})}" class="btn-view">查看</a>
-                    <span th:if="${!#lists.isEmpty(item.attachmentFileNames)}">
-                        <span th:each="filename : ${item.attachmentFileNames}">
-                            <a th:href="@{/api/attachments/download/{filename}(filename=${filename})}"
-                               th:download="${filename}"
-                               class="btn-view" style="margin-right: 5px;">附件</a>
-                        </span>
-                    </span>
+                    <a th:href="@{/contract-manager/approval-details/{id}(id=${item.contractProcess.contract.id})}" class="btn btn-sm btn-action">审批</a>
+                    <a th:href="@{/contracts/{id}/detail(id=${item.contractProcess.contract.id})}" class="btn btn-sm btn-view">查看</a>
+                    <button type="button" class="btn btn-sm btn-view-attachment"
+                            th:if="${!#lists.isEmpty(item.attachmentFileNames)}"
+                            th:data-attachments="${item.attachmentFileNamesAsJson}"
+                            th:data-contract-name="${item.contractProcess.contract.contractName}"
+                            data-bs-toggle="modal"
+                            data-bs-target="#attachmentListModal">
+                        附件
+                    </button>
                 </td>
             </tr>
             </tbody>
         </table>
 
-        <!-- Pagination updated to match pending-countersign.html for consistency and Bootstrap classes -->
         <div class="pagination" th:if="${pendingApprovals.totalPages > 1}">
             <a th:if="${pendingApprovals.hasPrevious()}"
-               th:href="@{/contracts/pending-approval(page=${pendingApprovals.number - 1}, size=${pendingApprovals.size}, contractNameSearch=${contractNameSearch})}">
+               th:href="@{/contract-manager/pending-approval(page=${pendingApprovals.number - 1}, size=${pendingApprovals.size}, contractNameSearch=${contractNameSearch})}">
                 上一页
             </a>
             <span th:each="i : ${#numbers.sequence(0, pendingApprovals.totalPages - 1)}">
                 <a th:if="${i != pendingApprovals.number}"
-                   th:href="@{/contracts/pending-approval(page=${i}, size=${pendingApprovals.size}, contractNameSearch=${contractNameSearch})}"
+                   th:href="@{/contract-manager/pending-approval(page=${i}, size=${pendingApprovals.size}, contractNameSearch=${contractNameSearch})}"
                    th:text="${i + 1}"></a>
                 <span th:if="${i == pendingApprovals.number}" class="active" th:text="${i + 1}"></span>
             </span>
             <a th:if="${pendingApprovals.hasNext()}"
-               th:href="@{/contracts/pending-approval(page=${pendingApprovals.number + 1}, size=${pendingApprovals.size}, contractNameSearch=${contractNameSearch})}">
+               th:href="@{/contract-manager/pending-approval(page=${pendingApprovals.number + 1}, size=${pendingApprovals.size}, contractNameSearch=${contractNameSearch})}">
                 下一页
             </a>
         </div>
     </div>
 </div>
 
-<!-- Add Bootstrap JS for full functionality, if not already included in a layout fragment -->
+<div class="modal fade" id="attachmentListModal" tabindex="-1" aria-labelledby="attachmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="attachmentModalLabel">附件列表</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">合同: <strong id="modalContractName"></strong></p>
+                <hr>
+                <div id="attachmentListContainer"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        const attachmentModal = document.getElementById('attachmentListModal');
+        if (attachmentModal) {
+            attachmentModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const attachmentsJson = button.getAttribute('data-attachments');
+                const contractName = button.getAttribute('data-contract-name');
+
+                const attachmentListContainer = document.getElementById('attachmentListContainer');
+                const modalContractName = document.getElementById('modalContractName');
+
+                modalContractName.textContent = contractName || '未知合同';
+                attachmentListContainer.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div></div>';
+
+                function addExistingFileToUI(serverFileName) {
+                    const safeId = `modal-existing-${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}`;
+                    const fileItemHTML = `
+                        <div class="file-list-item">
+                            <div class="file-info">
+                                <span class="file-name" title="${serverFileName}">${serverFileName}</span>
+                            </div>
+                            <div class="file-actions">
+                                <button type="button" class="btn btn-sm btn-outline-info preview-btn" title="在新标签页中预览/下载">
+                                    <i class="bi bi-eye"></i> 预览
+                                </button>
+                            </div>
+                        </div>`;
+                    attachmentListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
+
+                    const newElement = attachmentListContainer.querySelector(`#${safeId}`);
+                    if (newElement) {
+                        const previewBtn = newElement.querySelector('.preview-btn');
+                        previewBtn.addEventListener('click', () => handlePreviewFile(serverFileName));
+                    }
+                }
+
+                function handlePreviewFile(serverFileName) {
+                    if (!serverFileName) return;
+                    const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
+                    const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+                    if (isPreviewable) {
+                        window.open(downloadUrl, '_blank');
+                    } else {
+                        const userAgreedToDownload = confirm(
+                            `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击“确定”将尝试下载该文件。`
+                        );
+                        if (userAgreedToDownload) {
+                            const link = document.createElement('a');
+                            link.href = downloadUrl;
+                            link.setAttribute('download', serverFileName);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                        }
+                    }
+                }
+
+                try {
+                    if (attachmentsJson && attachmentsJson !== '[]') {
+                        const attachmentFiles = JSON.parse(attachmentsJson);
+                        attachmentListContainer.innerHTML = '';
+                        if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
+                            attachmentFiles.forEach(fileName => addExistingFileToUI(fileName));
+                        } else {
+                            attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+                        }
+                    } else {
+                        attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+                    }
+                } catch (e) {
+                    console.error('解析附件JSON失败: ', e);
+                    attachmentListContainer.innerHTML = '<p class="text-danger small">加载附件列表时出错。</p>';
+                }
+            });
+        }
+    });
+</script>
 
 </body>
 </html>
