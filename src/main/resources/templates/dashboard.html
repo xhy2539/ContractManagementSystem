@@ -201,6 +201,9 @@
                         <li class="list-group-item" sec:authorize="hasAuthority('CUSTOMER_VIEW_LIST') or hasRole('ROLE_ADMIN')">
                             <a th:href="@{/customers}"><i class="bi bi-person-badge-fill"></i>客户信息管理</a>
                         </li>
+                        <li class="list-group-item" sec:authorize="hasAuthority('CONTRACT_INFO_VIEW') or hasRole('ROLE_ADMIN')">
+                            <a th:href="@{/contract-info-management}"><i class="bi bi-file-contract-fill"></i>合同信息管理</a>
+                        </li>
                     </ul>
                 </div>
             </div>

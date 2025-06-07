@@ -68,7 +68,7 @@ public class CustomerController {
             model.addAttribute("customers", Collections.emptyList());
         }
 
-        return "customers";
+        return "baseData/customers";
     }
 
     // 用于起草合同页面模态框添加客户的API端点
