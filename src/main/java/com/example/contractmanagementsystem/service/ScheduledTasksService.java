@@ -32,9 +32,9 @@ public class ScheduledTasksService {
     private static final Logger logger = LoggerFactory.getLogger(ScheduledTasksService.class);
 
     private final FileUploadProgressRepository fileUploadProgressRepository;
-    private final ContractRepository contractRepository; // 新增 ContractRepository 依赖
-    private final ContractService contractService; // 新增 ContractService 依赖
-    private final EmailService emailService; // 新增 EmailService 依赖
+    private final ContractRepository contractRepository;
+    private final ContractService contractService;
+    private final EmailService emailService;
     private Path tempUploadPathBase;
 
     @Value("${file.upload-dir}")
@@ -61,9 +61,6 @@ public class ScheduledTasksService {
         logger.info("定时任务服务初始化，临时分块目录基路径设置为: {}", tempUploadPathBase);
     }
 
-    // =================================================================
-    // ========= 您原有的清理功能，保持不变，仅为完整性展示 =========
-    // =================================================================
     /**
      * 定时清理过期的、未完成的或失败的上传会话及其临时文件。
      * 默认每天凌晨3点执行一次。
@@ -77,6 +74,7 @@ public class ScheduledTasksService {
 
         List<FileUploadProgress> expiredInProgressUploads =
                 fileUploadProgressRepository.findByStatusAndLastChunkUploadedAtBefore("IN_PROGRESS", expirationTimeInProgress);
+
         if (!expiredInProgressUploads.isEmpty()) {
             logger.info("找到 {} 条创建超过24小时且状态为 IN_PROGRESS 的上传记录需要清理。", expiredInProgressUploads.size());
             processCleanup(expiredInProgressUploads, "IN_PROGRESS (过期)");
@@ -89,21 +87,61 @@ public class ScheduledTasksService {
             processCleanup(failedUploadsChunk, "FAILED_CHUNK_UPLOAD (过期)");
         }
 
-        // ... (其他失败状态的清理逻辑也保持不变) ...
+        List<FileUploadProgress> failedUploadsMerge =
+                fileUploadProgressRepository.findByStatusAndLastChunkUploadedAtBefore("FAILED_MERGE", expirationTimeFailed);
+        if (!failedUploadsMerge.isEmpty()) {
+            logger.info("找到 {} 条状态为 FAILED_MERGE 且最后活动超过6小时的上传记录需要清理。", failedUploadsMerge.size());
+            processCleanup(failedUploadsMerge, "FAILED_MERGE (过期)");
+        }
+
+        List<FileUploadProgress> failedUploadsMissingChunk =
+                fileUploadProgressRepository.findByStatusAndLastChunkUploadedAtBefore("FAILED_MISSING_CHUNK", expirationTimeFailed);
+        if (!failedUploadsMissingChunk.isEmpty()) {
+            logger.info("找到 {} 条状态为 FAILED_MISSING_CHUNK 且最后活动超过6小时的上传记录需要清理。", failedUploadsMissingChunk.size());
+            processCleanup(failedUploadsMissingChunk, "FAILED_MISSING_CHUNK (过期)");
+        }
 
         logger.info("清理过期上传任务执行完毕。");
     }
 
     private void processCleanup(List<FileUploadProgress> uploadsToClean, String reason) {
-        // ... (这个方法的内部实现也完全保持不变) ...
+        for (FileUploadProgress progress : uploadsToClean) {
+            logger.info("准备清理 {} 的上传记录: uploadId={}, 文件名='{}', 用户='{}', 原因: 状态为 {}",
+                    reason, progress.getUploadId(), progress.getOriginalFileName(), progress.getUploaderUsername(), progress.getStatus());
+
+            Path chunkDirToDelete = tempUploadPathBase.resolve(progress.getTempFileDirectory());
+            logger.info("尝试删除临时分块目录: {}", chunkDirToDelete);
+            try {
+                if (Files.exists(chunkDirToDelete) && Files.isDirectory(chunkDirToDelete)) {
+                    try (Stream<Path> walk = Files.walk(chunkDirToDelete)) {
+                        walk.sorted(java.util.Comparator.reverseOrder())
+                                .collect(Collectors.toList())
+                                .forEach(path -> {
+                                    try {
+                                        Files.delete(path);
+                                    } catch (IOException e) {
+                                        logger.warn("删除临时文件 {} 失败: {}", path, e.getMessage());
+                                    }
+                                });
+                    }
+                } else {
+                    logger.info("临时分块目录 {} 不存在或不是一个目录，无需删除。", chunkDirToDelete);
+                }
+            } catch (IOException e) {
+                logger.error("清理临时分块目录 {} 时发生错误: {}", chunkDirToDelete, e.getMessage(), e);
+            }
+
+            try {
+                fileUploadProgressRepository.delete(progress);
+                logger.info("已从数据库删除上传记录: uploadId={}", progress.getUploadId());
+            } catch (Exception e) {
+                logger.error("从数据库删除上传记录 {} 失败: {}", progress.getUploadId(), e.getMessage(), e);
+            }
+        }
     }
 
-    // =================================================================
-    // ========= 新增的邮件提醒功能，与原有功能完全独立 =========
-    // =================================================================
     /**
      * 每天凌晨1点执行，检查并更新已过期合同的状态。
-     * (此方法从ContractServiceImpl移至此处，集中管理定时任务)
      */
     @Scheduled(cron = "0 0 1 * * ?")
     @Transactional
@@ -123,7 +161,7 @@ public class ScheduledTasksService {
     @Scheduled(cron = "0 0 9 * * ?")
     @Transactional(readOnly = true)
     public void notifyOnExpiringContracts() {
-        final int DAYS_TO_EXPIRE = 30; // 定义提醒的时间窗口（例如30天内）
+        final int DAYS_TO_EXPIRE = 30;
         logger.info("开始执行定时任务：检查并发送 {} 天内即将到期的合同提醒...", DAYS_TO_EXPIRE);
 
         LocalDate startDate = LocalDate.now();
