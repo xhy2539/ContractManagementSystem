@@ -8,6 +8,14 @@
     <meta charset="UTF-8">
     <title>合同信息管理</title>
     <style layout:fragment="inline-css">
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
         .search-card {
             background-color: #ffffff;
             border-radius: 8px;
@@ -35,7 +43,16 @@
 <section layout:fragment="content">
     <div class="container mt-4">
 
-        <h1 class="mb-4">合同信息管理</h1>
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="bi bi-file-text-fill me-2"></i>合同信息管理
+            </h1>
+            <form action="contract-manager/draft-contract"  method="get">
+                <button class="btn btn-primary add-customer-btn" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                    <i class="bi bi-plus-circle"></i> 起草新合同
+                </button>
+            </form>
+        </div>
 
         <div id="pageAlerts"></div>
 
