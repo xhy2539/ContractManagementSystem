@@ -34,6 +34,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -457,17 +458,28 @@ public class ContractController {
         List<PendingApprovalItemDto> itemsWithAttachments = new ArrayList<>();
         for (ContractProcess process : pendingProcessesPage.getContent()) {
             List<String> attachmentPaths = new ArrayList<>();
-            if (process.getContract() != null && process.getContract().getAttachmentPath() != null &&
-                    !process.getContract().getAttachmentPath().trim().isEmpty() &&
-                    !process.getContract().getAttachmentPath().equals("[]") &&
-                    !process.getContract().getAttachmentPath().equalsIgnoreCase("null")) {
+            String attachmentJson = process.getContract() != null ? process.getContract().getAttachmentPath() : null;
+            if (    StringUtils.hasText(attachmentJson) && !attachmentJson.equals("[]") && !attachmentJson.equalsIgnoreCase("null")) {
                 try {
-                    attachmentPaths = objectMapper.readValue(process.getContract().getAttachmentPath(), new TypeReference<List<String>>() {});
+                    attachmentPaths = objectMapper.readValue(attachmentJson, new TypeReference<List<String>>() {});
                 } catch (JsonProcessingException e) {
                     logger.warn("解析待审批合同附件路径失败，合同ID {}: {}", process.getContract().getId(), e.getMessage());
                 }
             }
-            itemsWithAttachments.add(new PendingApprovalItemDto(process, attachmentPaths));
+
+            // 创建 DTO
+            PendingApprovalItemDto dto = new PendingApprovalItemDto(process, attachmentPaths);
+
+            // --- 核心修改：在后端完成JSON序列化 ---
+            try {
+                dto.setAttachmentFileNamesAsJson(objectMapper.writeValueAsString(attachmentPaths));
+            } catch (JsonProcessingException e) {
+                logger.error("序列化附件列表到JSON时出错，合同ID {}: {}", process.getContract().getId(), e.getMessage());
+                dto.setAttachmentFileNamesAsJson("[]"); // 设置一个安全的默认值
+            }
+            // --- 修改结束 ---
+
+            itemsWithAttachments.add(dto);
         }
 
         Page<PendingApprovalItemDto> pendingApprovalsDtoPage = new PageImpl<>(

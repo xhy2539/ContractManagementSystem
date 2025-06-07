@@ -136,26 +136,44 @@ public class AttachmentController {
             Path filePath = attachmentService.getAttachment(filename);
             Resource resource = new UrlResource(filePath.toUri());
 
-            if (resource.exists() || resource.isReadable()) {
-                if (authentication != null && authentication.getName() != null) {
-                    logger.info("用户 '{}' 下载附件: {}", authentication.getName(), filename);
-                } else {
-                    logger.info("匿名用户尝试下载附件 (已通过认证检查，但principal名称为空): {}", filename);
-                }
-
-                String contentType = Files.probeContentType(filePath);
-                if (contentType == null) {
-                    contentType = "application/octet-stream";
-                }
-
-                return ResponseEntity.ok()
-                        .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
-                        .body(resource);
-            } else {
+            if (!resource.exists() || !resource.isReadable()) {
                 logger.warn("请求下载的附件不存在或不可读: {}", filename);
                 throw new ResourceNotFoundException("无法读取文件: " + filename);
             }
+
+            if (authentication != null && authentication.getName() != null) {
+                logger.info("用户 '{}' 正在访问附件: {}", authentication.getName(), filename);
+            }
+
+            String contentType = Files.probeContentType(filePath);
+            if (contentType == null) {
+                contentType = "application/octet-stream"; // 默认类型
+            }
+
+            // --- 核心修改：根据文件类型决定 Content-Disposition ---
+            String dispositionType;
+            String lowerCaseFilename = filename.toLowerCase();
+
+            // 定义可以在浏览器中直接预览的文件扩展名
+            if (lowerCaseFilename.endsWith(".pdf") ||
+                    lowerCaseFilename.endsWith(".jpg") ||
+                    lowerCaseFilename.endsWith(".jpeg") ||
+                    lowerCaseFilename.endsWith(".png") ||
+                    lowerCaseFilename.endsWith(".gif") ||
+                    lowerCaseFilename.endsWith(".bmp") ||
+                    lowerCaseFilename.endsWith(".txt")) {
+                dispositionType = "inline"; // "inline" 表示建议浏览器内联显示（预览）
+            } else {
+                dispositionType = "attachment"; // "attachment" 表示强制下载
+            }
+            // --- 修改结束 ---
+
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
+                    // 使用动态决定的 dispositionType
+                    .header(HttpHeaders.CONTENT_DISPOSITION, dispositionType + "; filename=\"" + resource.getFilename() + "\"")
+                    .body(resource);
+
         } catch (ResourceNotFoundException e) {
             logger.warn("下载附件 {} 失败，资源未找到: {}", filename, e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);

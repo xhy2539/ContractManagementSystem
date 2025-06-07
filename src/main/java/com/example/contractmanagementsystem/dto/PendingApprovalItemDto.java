@@ -1,6 +1,8 @@
 package com.example.contractmanagementsystem.dto;
 
 import com.example.contractmanagementsystem.entity.ContractProcess;
+import lombok.Setter;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,6 +13,8 @@ import java.util.List;
 public class PendingApprovalItemDto {
     private ContractProcess contractProcess;
     private List<String> attachmentFileNames;
+    @Setter
+    private String attachmentFileNamesAsJson; // <--- 新增字段
 
     /**
      * 构造函数。
@@ -23,21 +27,18 @@ public class PendingApprovalItemDto {
         this.attachmentFileNames = attachmentFileNames != null ? new ArrayList<>(attachmentFileNames) : new ArrayList<>();
     }
 
-    /**
-     * 获取合同流程实体。
-     * @return ContractProcess 实体。
-     */
+    // --- 不需要修改已有的 Getter ---
     public ContractProcess getContractProcess() {
         return contractProcess;
     }
 
-    /**
-     * 获取附件文件名列表。
-     * @return 附件文件名字符串列表。
-     */
     public List<String> getAttachmentFileNames() {
         return attachmentFileNames;
     }
 
-    // 如果需要，可以添加setter方法，但对于此用例，构造函数设置即可
+    // --- 新增 Getter 和 Setter ---
+    public String getAttachmentFileNamesAsJson() {
+        return attachmentFileNamesAsJson;
+    }
+
 }
