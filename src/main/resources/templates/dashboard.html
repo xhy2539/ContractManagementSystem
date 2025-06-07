@@ -128,19 +128,19 @@
                             </div>
                             <th:block th:switch="${task.type.name()}">
                                 <a th:case="'COUNTERSIGN'" th:href="@{/contract-manager/countersign-form/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
-                                    去处理 <i class="bi bi-arrow-right-short"></i>
+                                    去会签 <i class="bi bi-arrow-right-short"></i>
                                 </a>
                                 <a th:case="'APPROVAL'" th:href="@{/contract-manager/approval-details/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
-                                    去处理 <i class="bi bi-arrow-right-short"></i>
+                                    去审批 <i class="bi bi-arrow-right-short"></i>
                                 </a>
                                 <a th:case="'SIGNING'" th:href="@{/contract-manager/sign-contract/{id}(id=${task.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
-                                    去处理 <i class="bi bi-arrow-right-short"></i>
+                                    去签订 <i class="bi bi-arrow-right-short"></i>
                                 </a>
-                                <a th:case="'FINALIZE'" th:href="@{/contract-manager/finalize-contract/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
-                                    去处理 <i class="bi bi-arrow-right-short"></i>
+                                <a th:case="'FINALIZE'" th:href="@{/contract-manager/finalize/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                    去定稿 <i class="bi bi-arrow-right-short"></i>
                                 </a>
                                 <a th:case="'EXTENSION_REQUEST'" th:href="@{/admin/approve-extension-request/{id}(id=${task.id})}" class="btn btn-sm btn-outline-warning btn-process-task" sec:authorize="hasAuthority('CON_EXTEND_APPROVAL_VIEW')">
-                                    去审批 <i class="bi bi-arrow-right-short"></i>
+                                    去处理 <i class="bi bi-arrow-right-short"></i>
                                 </a>
                                 <a th:case="*" href="#" class="btn btn-sm btn-outline-secondary btn-process-task disabled" title="未知任务类型，无法直接处理">
                                     查看 <i class="bi bi-info-circle"></i>
