@@ -1,3 +1,5 @@
+// File: xhy2539/contractmanagementsystem/ContractManagementSystem-xhy/src/main/java/com/example/contractmanagementsystem/service/ContractServiceImpl.java
+
 package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.dto.ContractDraftRequest;
@@ -144,18 +146,16 @@ public class ContractServiceImpl implements ContractService {
         contract.setContent(request.getContractContent());
         contract.setDrafter(drafter);
 
-        if (!CollectionUtils.isEmpty(request.getAttachmentServerFileNames())) {
-            try {
-                String attachmentsJson = objectMapper.writeValueAsString(request.getAttachmentServerFileNames());
-                contract.setAttachmentPath(attachmentsJson);
-                logger.info("Contract '{}' drafted with attachment path: {}", contract.getContractName(), attachmentsJson);
-            } catch (JsonProcessingException e) {
-                logger.error("Error serializing attachment filenames list to JSON (Contract: {}): {}", request.getContractName(), e.getMessage());
-                throw new BusinessLogicException("Error processing attachment information: " + e.getMessage());
-            }
-        } else {
-            contract.setAttachmentPath(null);
+        // 统一附件路径存储，无论列表是否为空都序列化为JSON字符串
+        try {
+            String attachmentsJson = objectMapper.writeValueAsString(request.getAttachmentServerFileNames());
+            contract.setAttachmentPath(attachmentsJson);
+            logger.info("Contract '{}' drafted with attachment path: {}", contract.getContractName(), attachmentsJson);
+        } catch (JsonProcessingException e) {
+            logger.error("Error serializing attachment filenames list to JSON (Contract: {}): {}", request.getContractName(), e.getMessage());
+            throw new BusinessLogicException("Error processing attachment information: " + e.getMessage());
         }
+
 
         contract.setStatus(ContractStatus.PENDING_ASSIGNMENT);
 
@@ -626,7 +626,7 @@ public class ContractServiceImpl implements ContractService {
     public boolean canUserApproveContract(String username, Long contractId) {
         return contractProcessRepository.findByContractIdAndOperatorUsernameAndTypeAndState(
                         contractId, username, ContractProcessType.APPROVAL, ContractProcessState.PENDING)
-                .isPresent(); //
+                .isPresent();
     }
 
 
@@ -1325,19 +1325,6 @@ public class ContractServiceImpl implements ContractService {
             throw new BusinessLogicException("延期请求关联的合同不存在。流程ID: " + processId); //
         }
 
-        // ⭐ 移除解析原始 comments 字段的逻辑，因为现在数据存在新字段中 ⭐
-        // Map<String, String> parsedComments = parseExtensionRequestComments(requestProcess.getComments());
-        // LocalDate requestedNewEndDate = null;
-        // try {
-        //     if (parsedComments.get("requestedNewEndDate") != null && !parsedComments.get("requestedNewEndDate").isEmpty()) {
-        //         requestedNewEndDate = LocalDate.parse(parsedComments.get("requestedNewEndDate"), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        //     }
-        // } catch (Exception e) {
-        //     logger.error("从解析后的延期请求评论中获取期望的新到期日期失败：'{}'", parsedComments.get("requestedNewEndDate"), e);
-        //     throw new BusinessLogicException("延期请求内容格式错误，无法解析期望的到期日期。");
-        // }
-
-        // ⭐ 修改点：直接从 requestProcess.getRequestedNewEndDate() 获取日期 ⭐
         LocalDate requestedNewEndDate = requestProcess.getRequestedNewEndDate(); //
 
         if (requestedNewEndDate == null) { //
@@ -1375,32 +1362,34 @@ public class ContractServiceImpl implements ContractService {
         // ⭐ 修改点：将管理员的审批意见存储到新字段中 ⭐
         requestProcess.setAdminApprovalComments(comments); // 将管理员的comments存储到新字段
 
-        // 更新 comments 字段，以反映审批结果和意见，不再包含请求的详细信息
-        String newCommentsForProcessRecord = "管理员审批" + (isApproved ? "批准" : "拒绝") + "："; //
-        newCommentsForProcessRecord += (StringUtils.hasText(comments) ? comments : "无。"); //
-        requestProcess.setComments(newCommentsForProcessRecord); // 更新主要comments字段为审批结果和意见
-
         String auditLogAction; //
         String auditLogDetails; //
+        String finalMessage = ""; // 用于返回给前端的最终消息
 
         if (isApproved) { //
             requestProcess.setState(ContractProcessState.APPROVED); //
+            auditLogAction = "CONTRACT_EXTENSION_APPROVED"; //
+            auditLogDetails = "管理员批准合同 ID: " + contract.getId() + " (" + contract.getContractName() + //
+                    ") 的延期请求，请求延期至: " + requestedNewEndDate + "。审批意见: " + (comments != null ? comments : "无"); //
+            finalMessage = "延期请求已批准。";
 
             if (requestedNewEndDate.isBefore(contract.getEndDate()) || requestedNewEndDate.isEqual(contract.getEndDate())) { //
                 auditLogAction = "CONTRACT_EXTENSION_APPROVAL_INVALID_DATE"; // 定义新的日志类型
                 auditLogDetails = "管理员批准延期请求，但新日期早于或等于原日期，合同未延期。合同 ID: " + contract.getId() + " (" + contract.getContractName() + ")，请求新日期: " + requestedNewEndDate + "，原日期: " + contract.getEndDate() + "。审批意见: " + (comments != null ? comments : "无"); //
-                // 审批通过，但日期不合法，不更新合同日期，流程仍然标记为APPROVED（表示审批已完成）
                 logger.warn("管理员批准延期请求，但新日期 {} 早于或等于原日期 {}，合同 ID: {} 未延期。", requestedNewEndDate, contract.getEndDate(), contract.getId()); //
+                finalMessage = "延期请求已批准，但新到期日期 (" + requestedNewEndDate + ") 早于或等于原到期日期 (" + contract.getEndDate() + ")，合同未实际延期。";
             } else if (requestedNewEndDate.isBefore(LocalDate.now())) { //
                 auditLogAction = "CONTRACT_EXTENSION_APPROVAL_PAST_DATE"; // 定义新的日志类型
                 auditLogDetails = "管理员批准延期请求，但新日期是过去日期，合同未延期。合同 ID: " + contract.getId() + " (" + contract.getContractName() + ")，请求新日期: " + requestedNewEndDate + "。审批意见: " + (comments != null ? comments : "无"); //
                 logger.warn("管理员批准延期请求，但新日期 {} 是过去日期，合同 ID: {} 未延期。", requestedNewEndDate, contract.getId()); //
+                finalMessage = "延期请求已批准，但新到期日期 (" + requestedNewEndDate + ") 是过去日期，合同未实际延期。";
             }
             else if (anyExtensionRequestRejected) { //
                 // 如果在任何延期请求被拒绝之后，即使当前的请求被批准，也不应该延期合同
                 auditLogAction = "CONTRACT_EXTENSION_APPROVAL_REJECTED_PREVIOUSLY"; // 定义新的日志类型
                 auditLogDetails = "管理员批准延期请求，但此前有其他延期请求被拒绝，合同未延期。合同 ID: " + contract.getId() + " (" + contract.getContractName() + ")，请求新日期: " + requestedNewEndDate + "。审批意见: " + (comments != null ? comments : "无"); //
                 logger.warn("合同 ID: {} 延期请求批准，但此前有其他请求被拒绝，合同未延期。", contract.getId()); //
+                finalMessage = "延期请求已批准，但由于此前有其他延期请求被拒绝，合同未实际延期。";
             }
             else { //
                 contract.setEndDate(requestedNewEndDate); //
@@ -1409,10 +1398,7 @@ public class ContractServiceImpl implements ContractService {
                 }
                 contract.setUpdatedAt(LocalDateTime.now()); //
                 contractRepository.save(contract); //
-
-                auditLogAction = "CONTRACT_EXTENSION_APPROVED"; //
-                auditLogDetails = "管理员批准合同 ID: " + contract.getId() + " (" + contract.getContractName() + //
-                        ") 的延期请求，新到期日期: " + requestedNewEndDate + "。审批意见: " + (comments != null ? comments : "无"); //
+                finalMessage = "延期请求已批准，合同到期日期已更新至 " + requestedNewEndDate + "。";
             }
 
         } else { //
@@ -1420,13 +1406,21 @@ public class ContractServiceImpl implements ContractService {
             auditLogAction = "CONTRACT_EXTENSION_REJECTED"; //
             auditLogDetails = "管理员拒绝合同 ID: " + contract.getId() + " (" + contract.getContractName() + //
                     ") 的延期请求。审批意见: " + (comments != null ? comments : "无"); //
+            finalMessage = "延期请求已拒绝。";
         }
+
+        // 更新 comments 字段，以反映审批结果和意见，不再包含请求的详细信息
+        requestProcess.setComments(finalMessage + (StringUtils.hasText(comments) ? " 审批意见: " + comments : "")); //
 
         ContractProcess savedProcess = contractProcessRepository.save(requestProcess); //
         auditLogService.logAction(username, auditLogAction, auditLogDetails); //
         logger.info("管理员 '{}' 处理延期请求 {}: {}。合同 ID: {}", username, processId, (isApproved ? "批准" : "拒绝"), contract.getId()); //
 
-        return savedProcess; //
+        // 可以在这里设置一个返回给控制器（前端）的 success message
+        // 例如，如果 processExtensionRequest 的返回类型是一个 ResultDTO 或其他 DTO
+        // return new ResultDTO(true, finalMessage);
+        // 如果返回 ContractProcess，则只能通过审计日志或前端重新查询来获取详细信息
+        return savedProcess;
     }
 
     @Override
@@ -1517,20 +1511,20 @@ public class ContractServiceImpl implements ContractService {
     public void deleteContract(Long id) {
         // 检查合同是否存在
         Contract contract = contractRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Contract not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Contract not found with ID: " + id)); //
 
         // 删除 contractprocess 表中与该合同相关的记录
-        contractProcessRepository.deleteByContract(id);
+        contractProcessRepository.deleteByContract(id); //
 
         // 删除 contract 表中的记录
-        contractRepository.deleteById(id);
+        contractRepository.deleteById(id); //
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<DashboardPendingTaskDto> getDashboardPendingTasks(String username, boolean isAdmin) {
         User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new BusinessLogicException("User not found: " + username));
+                .orElseThrow(() -> new BusinessLogicException("User not found: " + username)); //
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<DashboardPendingTaskDto> query = cb.createQuery(DashboardPendingTaskDto.class);
@@ -1549,59 +1543,56 @@ public class ContractServiceImpl implements ContractService {
         ));
 
         // [最终修正逻辑]
-        // 1. 构建一个针对普通用户任务的组合条件 (A OR B OR C ...)
+        // 1. 构建一个针对个人任务的组合条件 (A OR B OR C ...)
         Predicate userTasksPredicate = cb.or(
                 // 会签任务
                 cb.and(
-                        cb.equal(p.get("type"), ContractProcessType.COUNTERSIGN),
-                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_COUNTERSIGN)
+                        cb.equal(p.get("type"), ContractProcessType.COUNTERSIGN), //
+                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_COUNTERSIGN) //
                 ),
                 // 定稿任务
                 cb.and(
-                        cb.equal(p.get("type"), ContractProcessType.FINALIZE),
-                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_FINALIZATION)
+                        cb.equal(p.get("type"), ContractProcessType.FINALIZE), //
+                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_FINALIZATION) //
                 ),
                 // 审批任务
                 cb.and(
-                        cb.equal(p.get("type"), ContractProcessType.APPROVAL),
-                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_APPROVAL)
+                        cb.equal(p.get("type"), ContractProcessType.APPROVAL), //
+                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_APPROVAL) //
                 ),
                 // 签订任务
                 cb.and(
-                        cb.equal(p.get("type"), ContractProcessType.SIGNING),
-                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_SIGNING)
+                        cb.equal(p.get("type"), ContractProcessType.SIGNING), //
+                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_SIGNING) //
                 )
         );
 
         // 将“是当前用户的待办任务”这个条件与上面的组合条件用AND连接
         Predicate finalUserPredicate = cb.and(
-                cb.equal(p.get("operator"), currentUser),
-                cb.equal(p.get("state"), ContractProcessState.PENDING),
-                userTasksPredicate
+                cb.equal(p.get("operator"), currentUser), //
+                cb.equal(p.get("state"), ContractProcessState.PENDING), //
+                userTasksPredicate //
         );
 
         // 2. 构建最终的WHERE子句
         if (isAdmin) {
             // 如果是管理员，则最终条件是“(满足条件的个人任务) OR (所有待处理的延期请求)”
             Predicate adminExtensionTasks = cb.and(
-                    cb.equal(p.get("type"), ContractProcessType.EXTENSION_REQUEST),
-                    cb.equal(p.get("state"), ContractProcessState.PENDING)
+                    cb.equal(p.get("type"), ContractProcessType.EXTENSION_REQUEST), //
+                    cb.equal(p.get("state"), ContractProcessState.PENDING) //
             );
-            query.where(cb.or(finalUserPredicate, adminExtensionTasks));
+            query.where(cb.or(finalUserPredicate, adminExtensionTasks)); //
         } else {
             // 如果不是管理员，最终条件就是个人任务
-            query.where(finalUserPredicate);
+            query.where(finalUserPredicate); //
         }
 
-        query.orderBy(cb.desc(p.get("createdAt")));
+        query.orderBy(cb.desc(p.get("createdAt"))); //
 
         TypedQuery<DashboardPendingTaskDto> typedQuery = entityManager.createQuery(query);
         List<DashboardPendingTaskDto> results = typedQuery.getResultList();
 
         // distinct去重依然有必要，以防数据或JOIN逻辑的边缘情况导致重复
-        return results.stream().distinct().collect(Collectors.toList());
+        return results.stream().distinct().collect(Collectors.toList()); //
     }
-
-
-
 }

@@ -1,20 +1,28 @@
+// File: xhy2539/contractmanagementsystem/ContractManagementSystem-xhy/src/main/java/com/example/contractmanagementsystem/service/AuditLogServiceImpl.java
 package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.entity.AuditLog;
 import com.example.contractmanagementsystem.entity.User;
 import com.example.contractmanagementsystem.repository.AuditLogRepository;
-import com.example.contractmanagementsystem.repository.UserRepository; // 用于通过用户名查找User对象
+import com.example.contractmanagementsystem.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class AuditLogServiceImpl implements AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
-    private final UserRepository userRepository; // 可选，如果logAction(User user,...)方法需要通过username查找
+    private final UserRepository userRepository;
 
     @Autowired
     public AuditLogServiceImpl(AuditLogRepository auditLogRepository, UserRepository userRepository) {
@@ -29,11 +37,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         auditLog.setUsername(username);
         auditLog.setAction(action);
         auditLog.setDetails(details);
-        auditLog.setTimestamp(LocalDateTime.now()); // AuditLog实体中的@CreationTimestamp会自动处理，这里也可以手动设置
-
-        // 如果需要关联User实体，可以通过username查找
-        // userRepository.findByUsername(username).ifPresent(auditLog::setUser);
-
+        auditLog.setTimestamp(LocalDateTime.now());
         auditLogRepository.save(auditLog);
     }
 
@@ -45,12 +49,59 @@ public class AuditLogServiceImpl implements AuditLogService {
             auditLog.setUsername(user.getUsername());
             auditLog.setUser(user);
         } else {
-            auditLog.setUsername("SYSTEM_UNKNOWN"); // 或者其他默认值
+            auditLog.setUsername("SYSTEM_UNKNOWN");
         }
         auditLog.setAction(action);
         auditLog.setDetails(details);
-        auditLog.setTimestamp(LocalDateTime.now()); // 同上
-
+        auditLog.setTimestamp(LocalDateTime.now());
         auditLogRepository.save(auditLog);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AuditLog> searchLogs(String username, String action, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
+        Specification<AuditLog> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (StringUtils.hasText(username)) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("username")), "%" + username.toLowerCase() + "%"));
+            }
+            if (StringUtils.hasText(action)) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("action")), "%" + action.toLowerCase() + "%"));
+            }
+            if (startDate != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("timestamp"), startDate));
+            }
+            if (endDate != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("timestamp"), endDate));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+        return auditLogRepository.findAll(spec, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AuditLog> findAllLogsByCriteria(String username, String action, LocalDateTime startDate, LocalDateTime endDate) {
+        Specification<AuditLog> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (StringUtils.hasText(username)) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("username")), "%" + username.toLowerCase() + "%"));
+            }
+            if (StringUtils.hasText(action)) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("action")), "%" + action.toLowerCase() + "%"));
+            }
+            if (startDate != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("timestamp"), startDate));
+            }
+            if (endDate != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("timestamp"), endDate));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+        return auditLogRepository.findAll(spec); // findAll(Specification<T> spec) 不分页
     }
 }

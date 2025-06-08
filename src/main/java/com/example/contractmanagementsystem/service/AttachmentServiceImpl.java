@@ -7,12 +7,11 @@ import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.FileUploadProgressRepository;
 
-import org.hibernate.Hibernate; // 新增导入，用于某些场景下的显式初始化
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.access.AccessDeniedException; // 新增导入
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -76,33 +75,17 @@ public class AttachmentServiceImpl implements AttachmentService {
     @Override
     @Transactional
     public FileUploadInitiateResponse initiateUpload(FileUploadInitiateRequest request, String username) throws IOException {
-        // --- 开始替换的代码 ---
         String originalFileName = StringUtils.cleanPath(request.getFileName());
 
-// 1. 获取并格式化当前时间戳
-        String timestamp = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(java.time.LocalDateTime.now());
-
-// 2. 获取一个简短的唯一ID，防止同一秒内上传同名文件
-        String shortUuid = UUID.randomUUID().toString().substring(0, 6
-        );
-
-// 3. 安全地处理原始文件名，移除非法字符，保留扩展名
+        // 使用 UUID 作为服务器端文件名，并保留原始文件扩展名
         String fileExtension = "";
-        String baseName = originalFileName;
-        if (originalFileName.contains(".")) {
-            fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
-            baseName = originalFileName.substring(0, originalFileName.lastIndexOf("."));
+        int dotIndex = originalFileName.lastIndexOf(".");
+        if (dotIndex > 0 && dotIndex < originalFileName.length() - 1) {
+            fileExtension = originalFileName.substring(dotIndex); // 包括点在内的扩展名
         }
-// 将文件名中的非法字符替换为下划线
-        String safeBaseName = baseName.replaceAll("[^a-zA-Z0-9\\u4e00-\\u9fa5.\\-_]", "_");
-// 限制文件名长度，避免过长
-        if (safeBaseName.length() > 50) {
-            safeBaseName = safeBaseName.substring(0, 50);
-        }
+        String serverSideFileName = UUID.randomUUID().toString() + fileExtension;
+        // --- 优化后的文件名生成逻辑结束 ---
 
-// 4. 拼接成新的、信息丰富的服务器端文件名
-        String serverSideFileName = String.format("%s_%s_%s%s", safeBaseName, timestamp, shortUuid, fileExtension);
-// --- 结束替换的代码 ---
         String uploadId = UUID.randomUUID().toString();
         String tempSubDirName = uploadId;
         Path chunkDirForThisUpload = this.tempUploadPath.resolve(tempSubDirName);
@@ -269,59 +252,96 @@ public class AttachmentServiceImpl implements AttachmentService {
             throw new BusinessLogicException("非法的文件路径，无法删除。");
         }
 
+        // 尝试查找数据库记录，以便在物理文件删除后清理它，或在物理文件不存在时清理它
         FileUploadProgress progress = fileUploadProgressRepository.findByServerSideFileNameAndUploaderUsername(serverFileName, username)
                 .orElseGet(() -> fileUploadProgressRepository.findByServerSideFileName(serverFileName)
                         .orElse(null));
 
-        boolean fileDeleted = false;
         if (Files.exists(filePathToDelete)) {
             try {
-                Files.delete(filePathToDelete);
-                fileDeleted = true;
+                Files.delete(filePathToDelete); // 尝试删除物理文件
                 logger.info("用户 '{}' 已成功删除附件物理文件: {}", username, serverFileName);
                 auditLogService.logAction(username, "ATTACHMENT_FILE_DELETED", "删除附件物理文件: " + serverFileName);
+
+                // --- 物理文件删除成功后，才执行数据库记录和临时目录的清理 ---
+                if (progress != null) {
+                    logger.info("找到附件 '{}' 的上传进度记录 (UploadId: {}), 准备清理。", serverFileName, progress.getUploadId());
+                    // 清理临时分块目录
+                    Path chunkDir = this.tempUploadPath.resolve(progress.getTempFileDirectory());
+                    if (Files.exists(chunkDir) && Files.isDirectory(chunkDir)) {
+                        logger.info("尝试删除附件 '{}' 的临时分块目录: {}", serverFileName, chunkDir);
+                        try (Stream<Path> walk = Files.walk(chunkDir)) {
+                            walk.sorted(Comparator.reverseOrder())
+                                    .forEach(path -> {
+                                        try {
+                                            Files.delete(path);
+                                            logger.debug("已删除临时文件/目录: {}", path);
+                                        } catch (IOException e) {
+                                            logger.warn("删除临时分块 {} 失败: {}", path, e.getMessage());
+                                        }
+                                    });
+                            logger.info("临时分块目录 {} 内容已删除。", chunkDir);
+                        } catch (IOException e) {
+                            logger.warn("遍历临时分块目录 {} 失败: {}", chunkDir, e.getMessage());
+                        }
+                    } else {
+                        logger.info("附件 '{}' 的临时分块目录 {} 不存在或不是目录。", serverFileName, chunkDir);
+                    }
+
+                    // 删除数据库记录
+                    try {
+                        fileUploadProgressRepository.delete(progress);
+                        logger.info("已从数据库删除附件 '{}' (UploadId: {}) 的上传进度记录。", serverFileName, progress.getUploadId());
+                        auditLogService.logAction(username, "ATTACHMENT_RECORD_DELETED", "删除附件上传记录: " + serverFileName + ", UploadId: " + progress.getUploadId());
+                    } catch (Exception e) {
+                        logger.error("从数据库删除附件 '{}' (UploadId: {}) 的上传进度记录失败: {}", serverFileName, progress.getUploadId(), e.getMessage(), e);
+                    }
+                } else {
+                    logger.warn("物理文件 '{}' 已成功删除，但未找到对应的上传进度记录。", serverFileName);
+                    auditLogService.logAction(username, "ATTACHMENT_FILE_DELETED_NO_RECORD", "删除了附件物理文件 " + serverFileName + "，但未找到其上传记录。");
+                }
+                // --- 物理文件删除成功后的清理逻辑结束 ---
+
             } catch (IOException e) {
                 logger.error("用户 '{}' 删除附件物理文件 {} 失败: {}", username, serverFileName, e.getMessage(), e);
-                throw new IOException("删除附件物理文件失败: " + serverFileName, e);
+                // 如果物理文件删除失败，抛出异常，不进行数据库操作
+                throw new IOException("删除附件物理文件失败: " + serverFileName + ". 可能文件被占用或权限不足。", e);
             }
         } else {
+            // 如果物理文件本身就不存在
             logger.warn("用户 '{}' 尝试删除的附件物理文件不存在: {}", username, serverFileName);
-        }
+            if (progress != null) {
+                // 如果文件不存在但数据库有记录，则清理数据库记录
+                logger.info("物理文件不存在，但找到附件 '{}' 的上传进度记录 (UploadId: {}), 清理数据库记录。", serverFileName, progress.getUploadId());
+                try {
+                    // 清理临时分块目录 (即使物理文件不存在，临时分块目录也可能存在)
+                    Path chunkDir = this.tempUploadPath.resolve(progress.getTempFileDirectory());
+                    if (Files.exists(chunkDir) && Files.isDirectory(chunkDir)) {
+                        try (Stream<Path> walk = Files.walk(chunkDir)) {
+                            walk.sorted(Comparator.reverseOrder())
+                                    .forEach(path -> {
+                                        try {
+                                            Files.delete(path);
+                                            logger.debug("已删除临时文件/目录: {}", path);
+                                        } catch (IOException e) {
+                                            logger.warn("删除临时分块 {} 失败: {}", path, e.getMessage());
+                                        }
+                                    });
+                            logger.info("临时分块目录 {} 内容已删除。", chunkDir);
+                        } catch (IOException e) {
+                            logger.warn("遍历临时分块目录 {} 失败: {}", chunkDir, e.getMessage());
+                        }
+                    }
 
-        if (progress != null) {
-            logger.info("找到附件 '{}' 的上传进度记录 (UploadId: {}), 准备清理。", serverFileName, progress.getUploadId());
-            Path chunkDir = this.tempUploadPath.resolve(progress.getTempFileDirectory());
-            if (Files.exists(chunkDir) && Files.isDirectory(chunkDir)) {
-                logger.info("尝试删除附件 '{}' 的临时分块目录: {}", serverFileName, chunkDir);
-                try (Stream<Path> walk = Files.walk(chunkDir)) {
-                    walk.sorted(Comparator.reverseOrder())
-                            .forEach(path -> {
-                                try {
-                                    Files.delete(path);
-                                    logger.debug("已删除临时文件/目录: {}", path);
-                                } catch (IOException e) {
-                                    logger.warn("删除临时分块 {} 失败: {}", path, e.getMessage());
-                                }
-                            });
-                    logger.info("临时分块目录 {} 内容已删除。", chunkDir);
-                } catch (IOException e) {
-                    logger.warn("遍历临时分块目录 {} 失败: {}", chunkDir, e.getMessage());
+                    fileUploadProgressRepository.delete(progress);
+                    logger.info("已从数据库删除附件 '{}' (UploadId: {}) 的上传进度记录，因物理文件不存在。", serverFileName, progress.getUploadId());
+                    auditLogService.logAction(username, "ATTACHMENT_RECORD_CLEANED_NO_FILE", "清理附件上传记录 " + serverFileName + "，因物理文件不存在。");
+                } catch (Exception e) {
+                    logger.error("清理不存在的附件 '{}' 的数据库记录失败: {}", serverFileName, e.getMessage(), e);
                 }
             } else {
-                logger.info("附件 '{}' 的临时分块目录 {} 不存在或不是目录。", serverFileName, chunkDir);
-            }
-
-            try {
-                fileUploadProgressRepository.delete(progress);
-                logger.info("已从数据库删除附件 '{}' (UploadId: {}) 的上传进度记录。", serverFileName, progress.getUploadId());
-                auditLogService.logAction(username, "ATTACHMENT_RECORD_DELETED", "删除附件上传记录: " + serverFileName + ", UploadId: " + progress.getUploadId());
-            } catch (Exception e) {
-                logger.error("从数据库删除附件 '{}' (UploadId: {}) 的上传进度记录失败: {}", serverFileName, progress.getUploadId(), e.getMessage(), e);
-            }
-        } else {
-            logger.warn("未找到附件 '{}' 对应的上传进度记录。可能已被清理或从未完整记录。", serverFileName);
-            if (fileDeleted) {
-                auditLogService.logAction(username, "ATTACHMENT_FILE_DELETED_NO_RECORD", "删除了附件物理文件 " + serverFileName + "，但未找到其上传记录。");
+                logger.info("尝试删除附件 '{}'，但物理文件和对应的上传进度记录均不存在。无需操作。", serverFileName);
+                auditLogService.logAction(username, "ATTACHMENT_DELETE_SKIPPED_NO_FILE_NO_RECORD", "尝试删除附件 " + serverFileName + "，但物理文件和记录均不存在。");
             }
         }
     }
@@ -330,19 +350,14 @@ public class AttachmentServiceImpl implements AttachmentService {
     @Override
     @Transactional(readOnly = true)
     public FileUploadProgress getUploadProgressDetails(String uploadId, String username) throws ResourceNotFoundException, AccessDeniedException {
-        FileUploadProgress progress = fileUploadProgressRepository.findById(uploadId) // FileUploadProgress 的主键是 uploadId (String)
+        FileUploadProgress progress = fileUploadProgressRepository.findById(uploadId)
                 .orElseThrow(() -> new ResourceNotFoundException("上传ID '" + uploadId + "' 未找到。"));
 
-        // 验证操作用户是否为该上传的发起者
         if (!progress.getUploaderUsername().equals(username)) {
-            // 此处可以根据业务逻辑决定是否允许非上传者（例如管理员）查看，
-            // 但对于前端恢复上传状态，通常只应允许原上传者。
             logger.warn("用户 '{}' 尝试访问不属于自己的上传记录 (ID: {}, 属于: {})。", username, uploadId, progress.getUploaderUsername());
             throw new AccessDeniedException("您无权查看此上传 (ID: " + uploadId + ") 的状态。");
         }
 
-        // FileUploadProgress 中的 uploadedChunks 字段是 EAGER fetch，所以不需要显式初始化。
-        // 如果它是 LAZY，则需要： Hibernate.initialize(progress.getUploadedChunks());
         return progress;
     }
 }

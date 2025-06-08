@@ -1,3 +1,4 @@
+// File: xhy2539/contractmanagementsystem/ContractManagementSystem-xhy/src/main/resources/static/js/audit-logs.js
 document.addEventListener('DOMContentLoaded', function () {
     // DOM 元素获取
     const filterForm = document.getElementById('filterForm');
@@ -24,7 +25,6 @@ document.addEventListener('DOMContentLoaded', function () {
             auditLogTableBody.innerHTML = '<tr><td colspan="5" class="text-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">正在加载...</span></div> 正在加载日志...</td></tr>';
             paginationControlsContainer.innerHTML = ''; // 清空分页，避免旧控件可点
         }
-        // else { // 实际清空由renderTable完成 }
     }
 
     /**
@@ -47,15 +47,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (username) queryParams += `&username=${encodeURIComponent(username)}`;
         if (action) queryParams += `&action=${encodeURIComponent(action)}`;
 
-        if (startDate && endDate) {
+        // 对于日期，只有当两者都有效时才发送到后端，或者根据后端API设计灵活发送
+        if (startDate) {
             queryParams += `&startDate=${startDate}`;
+        }
+        if (endDate) {
             queryParams += `&endDate=${endDate}`;
-        } else if (startDate && !endDate) {
-            console.warn("筛选：仅填写了开始日期，未填写结束日期。后端可能无法按预期处理单个日期。");
-            // queryParams += `&startDate=${startDate}`; // 根据后端API决定是否发送单个日期
-        } else if (!startDate && endDate) {
-            console.warn("筛选：仅填写了结束日期，未填写开始日期。后端可能无法按预期处理单个日期。");
-            // queryParams += `&endDate=${endDate}`; // 根据后端API决定是否发送单个日期
         }
 
         fetch(`/api/system/audit-logs?${queryParams}`)
@@ -66,11 +63,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         window.location.href = '/login';
                         throw new Error(`认证或授权错误: ${response.status}`);
                     }
-                    // 尝试解析错误信息体 (如果后端返回JSON错误信息)
                     return response.json().then(errData => {
                         throw new Error(`HTTP错误! 状态: ${response.status}, 信息: ${errData.message || response.statusText}`);
                     }).catch(() => {
-                        // 如果错误信息体不是JSON或解析失败
                         throw new Error(`HTTP错误! 状态: ${response.status}, 信息: ${response.statusText}`);
                     });
                 }
@@ -102,32 +97,30 @@ document.addEventListener('DOMContentLoaded', function () {
         if (logs && logs.length > 0) {
             logs.forEach(log => {
                 const row = auditLogTableBody.insertRow();
-                row.insertCell().textContent = log.id != null ? log.id : 'N/A'; // 简化了null/undefined检查
+                row.insertCell().textContent = log.id != null ? log.id : 'N/A';
                 row.insertCell().textContent = log.username || 'N/A';
                 row.insertCell().textContent = log.action || 'N/A';
 
                 const detailsCell = row.insertCell();
                 detailsCell.textContent = log.details || '无详情';
                 detailsCell.title = log.details || '无详情';
-                detailsCell.style.maxWidth = '300px'; // 这些样式可以考虑移到CSS文件中
+                detailsCell.style.maxWidth = '300px';
                 detailsCell.style.overflow = 'hidden';
                 detailsCell.style.textOverflow = 'ellipsis';
                 detailsCell.style.whiteSpace = 'nowrap';
-                // detailsCell.classList.add('details-column'); // 如果HTML中有对应CSS类
 
                 let formattedTimestamp = 'N/A';
                 if (log.timestamp) {
                     try {
-                        // 尝试更完整的日期时间格式，并确保时区正确（toLocaleString默认使用本地时区）
                         const date = new Date(log.timestamp);
-                        if (!isNaN(date)) { // 检查日期是否有效
+                        if (!isNaN(date)) {
                             formattedTimestamp = date.toLocaleString('zh-CN', {
                                 year: 'numeric', month: '2-digit', day: '2-digit',
                                 hour: '2-digit', minute: '2-digit', second: '2-digit',
                                 hour12: false
-                            }).replace(/\//g, '-'); // 将 yyyy/MM/dd 替换为 yyyy-MM-dd
+                            }).replace(/\//g, '-');
                         } else {
-                            formattedTimestamp = log.timestamp; // 无效日期则显示原始值
+                            formattedTimestamp = log.timestamp;
                         }
                     } catch (e) {
                         console.warn("无法格式化时间戳: ", log.timestamp, e);
@@ -148,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderPagination(pageData) {
         paginationControlsContainer.innerHTML = ''; // 清空现有分页
         if (!pageData || pageData.totalPages === undefined || pageData.totalPages <= 0) {
-            return; // 如果没有页码信息或总页数为0，则不渲染分页控件
+            return;
         }
 
         const { totalPages, number: currentPageIndex, first: isFirstPage, last: isLastPage } = pageData;
@@ -185,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const DOTS = '...';
 
         // 渲染页码
-        if (totalPages <= (SIBLING_COUNT * 2) + 5) { // 总页数较少时，显示所有页码（例如 SIBLING_COUNT=1时，1+1+1+1+1 + 2*1 = 7页以内全显示）
+        if (totalPages <= (SIBLING_COUNT * 2) + 5) {
             for (let i = 0; i < totalPages; i++) {
                 paginationControlsContainer.appendChild(createPageItem(i + 1, i, i === currentPageIndex));
             }
@@ -194,25 +187,19 @@ document.addEventListener('DOMContentLoaded', function () {
             paginationControlsContainer.appendChild(createPageItem(1, 0, 0 === currentPageIndex));
 
             // 2. 左边省略号和其前的页码 (如果需要)
-            if (currentPageIndex > SIBLING_COUNT + 1) { // (当前页索引 > (兄弟数+第一页本身)) 才显示左省略号
-                // (currentPageIndex > 2 for SIBLING_COUNT=1)
+            if (currentPageIndex > SIBLING_COUNT + 1) {
                 paginationControlsContainer.appendChild(createPageItem(DOTS, undefined, false, true, true));
             }
 
             // 3. 渲染当前页及其 SIBLING_COUNT 个邻近页码
-            // 计算显示的起始页码索引 (不能小于1, 因为0是第一页，已单独处理)
             let startPage = Math.max(1, currentPageIndex - SIBLING_COUNT);
-            // 计算显示的结束页码索引 (不能大于totalPages-2, 因为totalPages-1是最后一页，将单独处理)
             let endPage = Math.min(totalPages - 2, currentPageIndex + SIBLING_COUNT);
 
-            // 确保即使在边缘情况下，中间显示的数字页码（不含首尾）尽量满足 SIBLING_COUNT*2 + 1 的数量
-            // 如果左边空间不足，则向右扩展
-            if (currentPageIndex < SIBLING_COUNT * 2 && totalPages > SIBLING_COUNT*2+2) { // 当前页比较靠前
-                endPage = Math.min(totalPages - 2, SIBLING_COUNT * 2 +1); // 例: SIBLING=1, 显示 1 (2 3 4) ... N
+            if (currentPageIndex < SIBLING_COUNT * 2 && totalPages > SIBLING_COUNT*2+2) {
+                endPage = Math.min(totalPages - 2, SIBLING_COUNT * 2 +1);
             }
-            // 如果右边空间不足，则向左扩展
-            if (currentPageIndex > totalPages - 1 - (SIBLING_COUNT * 2) && totalPages > SIBLING_COUNT*2+2) { // 当前页比较靠后
-                startPage = Math.max(1, totalPages - 2 - (SIBLING_COUNT * 2) ); // 例: SIBLING=1, 显示 1 ... (N-3 N-2 N-1) N
+            if (currentPageIndex > totalPages - 1 - (SIBLING_COUNT * 2) && totalPages > SIBLING_COUNT*2+2) {
+                startPage = Math.max(1, totalPages - 2 - (SIBLING_COUNT * 2) );
             }
 
 
@@ -221,13 +208,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // 4. 右边省略号和其后的页码 (如果需要)
-            if (currentPageIndex < totalPages - SIBLING_COUNT - 2) { // (当前页索引 < (总页数 - 1(最后一页) - 兄弟数 - 1)) 才显示右省略号
-                // (currentPageIndex < totalPages - 3 for SIBLING_COUNT=1)
+            if (currentPageIndex < totalPages - SIBLING_COUNT - 2) {
                 paginationControlsContainer.appendChild(createPageItem(DOTS, undefined, false, true, true));
             }
 
             // 5. 渲染最后一页 (除非总页数就是1页，但这种情况已在最开始totalPages <= ...中处理)
-            if (totalPages > 1) { // 避免总页数为1时重复添加
+            if (totalPages > 1) {
                 paginationControlsContainer.appendChild(createPageItem(totalPages, totalPages - 1, (totalPages - 1) === currentPageIndex));
             }
         }
@@ -271,22 +257,18 @@ document.addEventListener('DOMContentLoaded', function () {
             if (action) params.push(`action=${encodeURIComponent(action)}`);
 
             // 对于导出，日期范围的策略也需要明确
-            if (startDate && endDate) {
+            if (startDate) {
                 params.push(`startDate=${startDate}`);
+            }
+            if (endDate) {
                 params.push(`endDate=${endDate}`);
-            } else if (startDate) {
-                params.push(`startDate=${startDate}`); // 或根据API设计决定是否允许单个日期
-                console.warn("导出：仅填写了开始日期。");
-            } else if (endDate) {
-                params.push(`endDate=${endDate}`); // 或根据API设计决定是否允许单个日期
-                console.warn("导出：仅填写了结束日期。");
             }
 
             if (params.length > 0) {
                 exportUrl += `?${params.join('&')}`;
             }
 
-            console.log("Exporting with URL: ", exportUrl); // 调试用
+            console.log("Exporting with URL: ", exportUrl);
             window.location.href = exportUrl; // 触发浏览器下载
         });
     }
@@ -294,19 +276,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // 页面初始加载时获取第一页数据
     fetchAndDisplayLogs(currentPage, DEFAULT_PAGE_SIZE);
 
-    // 为详情列添加点击展开/提示功能 (如果需要更复杂的交互)
-    // 这个部分可以保留，或者根据需要实现更复杂的交互如 Bootstrap Popover
-    if (auditLogTableBody) {
-        auditLogTableBody.addEventListener('click', function(event) {
-            const targetCell = event.target.closest('td'); // 点击的是td
-            // 假设详情列的父元素是tr，并且该td有特定的class或通过列索引判断
-            // 这里简单判断父元素是否是td，并且内容和title相同（表示可能是截断的内容）
-            if (targetCell && targetCell.textContent !== targetCell.title && targetCell.title) {
-                // 检查是否是详情列，例如通过列索引 (假设详情列是第4列，索引为3)
-                if (Array.from(targetCell.parentNode.children).indexOf(targetCell) === 3) {
-                    // 简单地用 alert 显示完整内容
-                    // 更佳方案是使用Bootstrap Popover/Tooltip或自定义模态框
-                    alert('完整详情: \n' + targetCell.title);
+    // 示例：为详情列添加点击展开/提示功能 (如果需要更复杂的交互)
+    const tableBody = document.querySelector('#auditLogTable tbody');
+    if (tableBody) {
+        tableBody.addEventListener('click', function(event) {
+            const targetCell = event.target.closest('td');
+            if (targetCell) {
+                if (Array.from(targetCell.parentNode.children).indexOf(targetCell) === 3) { // 假设详情列是第四列
+                    if (targetCell.scrollWidth > targetCell.clientWidth) { // 如果内容溢出
+                        alert('完整详情: \n' + targetCell.textContent); // 使用textContent获取实际内容
+                    }
                 }
             }
         });
