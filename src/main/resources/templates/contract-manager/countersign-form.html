@@ -74,25 +74,85 @@
         <p th:text="${successMessage}"></p>
     </div>
 
-    <h2>合同详情</h2>
     <div th:if="${contract}">
-        <div class="detail-item"><strong>合同编号:</strong> <span th:text="${contract.contractNumber}"></span></div>
-        <div class="detail-item"><strong>合同名称:</strong> <span th:text="${contract.contractName}"></span></div>
-        <div class="detail-item"><strong>客户名称:</strong> <span th:text="${contract.customer.customerName}"></span></div>
-        <div class="detail-item"><strong>起草人:</strong> <span th:text="${contract.drafter.username}"></span></div>
-        <div class="detail-item"><strong>起草日期:</strong> <span th:text="${#temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm')}"></span></div>
-        <div class="detail-item"><strong>开始日期:</strong> <span th:text="${#temporals.format(contract.startDate, 'yyyy-MM-dd')}"></span></div>
-        <div class="detail-item"><strong>结束日期:</strong> <span th:text="${#temporals.format(contract.endDate, 'yyyy-MM-dd')}"></span></div>
-        <div class="detail-item"><strong>当前状态:</strong> <span th:text="${contract.status.description}"></span></div>
-
-        <h3>合同内容:</h3>
-        <div class="contract-content" th:text="${contract.content}"></div>
-
-        <div class="attachment-section">
-            <h3>附件:</h3>
-            <div id="attachmentListContainer"></div>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同编号</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractNumber ?: '-'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">合同名称</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractName ?: '-'}"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">开始日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">结束日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">合同状态</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.status?.description ?: '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">起草人</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.drafter?.username ?: '-'}"></div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">起草日期</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm') : '-'}"></div>
+                </div>
+            </div>
         </div>
 
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-person-badge-fill me-2"></i>客户信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">签约客户</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.customer?.customerName ?: '-'}"></div>
+                </div>
+                <div class="card mt-2" th:if="${contract.customer != null}">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1 small"><strong th:text="${contract.customer?.customerName ?: '-'}"></strong></h6>
+                        <p class="card-text mb-0 small">
+                            <strong>编号:</strong> <span th:text="${contract.customer?.customerNumber ?: '-'}"></span> <br>
+                            <strong>电话:</strong> <span th:text="${contract.customer?.contactPhone ?: '-'}"></span> <br>
+                            <strong>邮箱:</strong> <span th:text="${contract.customer?.contactEmail ?: '-'}"></span> <br>
+                            <strong>地址:</strong> <span th:text="${contract.customer?.address ?: '-'}"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-file-text-fill me-2"></i>合同条款与附件
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同主要内容</label>
+                    <div class="form-control form-control-sm bg-light" style="min-height: 150px; white-space: pre-wrap;" th:text="${contract.content ?: '暂无内容'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">上传合同附件</label>
+                    <div id="attachmentListContainer"></div>
+                </div>
+            </div>
+        </div>
     </div>
     <div th:unless="${contract}">
         <p class="no-records">合同信息加载失败。</p>

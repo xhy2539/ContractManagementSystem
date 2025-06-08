@@ -10,7 +10,7 @@ import com.example.contractmanagementsystem.repository.ContractProcessRepository
 import com.example.contractmanagementsystem.repository.ContractRepository;
 import com.example.contractmanagementsystem.repository.CustomerRepository;
 import com.example.contractmanagementsystem.repository.UserRepository;
-
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -137,19 +137,32 @@ public class ContractServiceImpl implements ContractService {
         contract.setStartDate(request.getStartDate());
         contract.setEndDate(request.getEndDate());
 
-        // ===== 新增：模板处理逻辑 =====
+        // ===== 模板处理逻辑 =====
         if (request.getTemplateId() != null) {
             ContractTemplate template = templateService.getTemplateById(request.getTemplateId())
                     .orElseThrow(() -> new ResourceNotFoundException("所选合同模板不存在，ID: " + request.getTemplateId()));
             String populatedContent = template.getTemplateContent();
-            if (request.getPlaceholderValues() != null && !request.getPlaceholderValues().isEmpty()) {
-                // 替换占位符，例如: {{placeholderName}}
-                Pattern pattern = Pattern.compile("\\{\\{(\\w+)\\}\\}");
+
+            // 新增：解析 placeholderValuesJson 字符串为 Map
+            Map<String, String> placeholderValues = new HashMap<>();
+            if (StringUtils.hasText(request.getPlaceholderValuesJson())) { // 检查字符串是否非空
+                try {
+                    placeholderValues = objectMapper.readValue(request.getPlaceholderValuesJson(), new TypeReference<Map<String, String>>() {});
+                } catch (JsonProcessingException e) {
+                    logger.error("Error parsing placeholder values JSON: {}", request.getPlaceholderValuesJson(), e);
+                    throw new BusinessLogicException("占位符数据格式不正确。");
+                }
+            }
+
+
+            if (placeholderValues != null && !placeholderValues.isEmpty()) {
+                Pattern pattern = Pattern.compile("\\{\\{([a-zA-Z0-9_\\u4e00-\\u9fa5]+?)\\}\\}");
                 Matcher matcher = pattern.matcher(populatedContent);
                 StringBuffer sb = new StringBuffer();
                 while (matcher.find()) {
                     String placeholderName = matcher.group(1);
-                    String replacement = request.getPlaceholderValues().getOrDefault(placeholderName, "");
+                    // 使用解析后的 Map 来获取值
+                    String replacement = placeholderValues.getOrDefault(placeholderName, "");
                     matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
                 }
                 matcher.appendTail(sb);
@@ -163,10 +176,9 @@ public class ContractServiceImpl implements ContractService {
         }
         // ===== 模板处理逻辑结束 =====
 
-
         contract.setDrafter(drafter);
 
-        // 统一附件路径存储，无论列表是否为空都序列化为JSON字符串
+        // 统一附件路径存储
         try {
             String attachmentsJson = objectMapper.writeValueAsString(request.getAttachmentServerFileNames());
             contract.setAttachmentPath(attachmentsJson);
@@ -176,7 +188,7 @@ public class ContractServiceImpl implements ContractService {
             throw new BusinessLogicException("Error processing attachment information: " + e.getMessage());
         }
 
-        // 新增：电子签名数据处理 - 甲方
+        // 电子签名数据处理 - 甲方
         if (request.getSignatureDataPartyA() != null && !request.getSignatureDataPartyA().isEmpty()) {
             contract.setSignatureDataPartyA(request.getSignatureDataPartyA());
             logger.info("Contract '{}' drafted with Party A signature data present.", contract.getContractName());
@@ -184,14 +196,13 @@ public class ContractServiceImpl implements ContractService {
             logger.info("Contract '{}' drafted without Party A signature data.", contract.getContractName());
         }
 
-        // 新增：电子签名数据处理 - 乙方
+        // 电子签名数据处理 - 乙方
         if (request.getSignatureDataPartyB() != null && !request.getSignatureDataPartyB().isEmpty()) {
             contract.setSignatureDataPartyB(request.getSignatureDataPartyB());
             logger.info("Contract '{}' drafted with Party B signature data present.", contract.getContractName());
         } else {
             logger.info("Contract '{}' drafted without Party B signature data.", contract.getContractName());
         }
-
 
         contract.setStatus(ContractStatus.PENDING_ASSIGNMENT);
 

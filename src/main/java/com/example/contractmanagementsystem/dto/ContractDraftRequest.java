@@ -61,7 +61,7 @@ public class ContractDraftRequest {
     // 新增字段：用于传递占位符的具体值，键为占位符名称，值为其对应的内容
     @Setter
     @Getter
-    private Map<String, String> placeholderValues;
+    private String placeholderValuesJson;
 
     @Setter
     @Getter

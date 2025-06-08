@@ -55,22 +55,72 @@
     </div>
 
     <div th:if="${contractProcess}">
-        <h2>合同详情</h2>
-        <div class="contract-details">
-            <p><strong>合同编号:</strong> <span th:text="${contractProcess.contract.contractNumber}"></span></p>
-            <p><strong>合同名称:</strong> <span th:text="${contractProcess.contract.contractName}"></span></p>
-            <p><strong>客户名称:</strong> <span th:text="${contractProcess.contract.customer.customerName}"></span></p>
-            <p><strong>起草人:</strong> <span th:text="${contractProcess.contract.drafter.realName ?: contractProcess.contract.drafter.username}"></span></p>
-            <p><strong>开始日期:</strong> <span th:text="${contractProcess.contract.startDate}"></span></p>
-            <p><strong>结束日期:</strong> <span th:text="${contractProcess.contract.endDate}"></span></p>
-            <p><strong>合同内容:</strong></p>
-            <div style="border: 1px solid #eee; padding: 10px; margin-bottom: 15px; background-color: #f9f9f9; white-space: pre-wrap;">
-                <span th:text="${contractProcess.contract.content}"></span>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
             </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同编号</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contractProcess.contract.contractNumber ?: '-'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">合同名称</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contractProcess.contract.contractName ?: '-'}"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">开始日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contractProcess.contract.startDate ?: '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">结束日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contractProcess.contract.endDate ?: '-'}"></div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">起草人</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contractProcess.contract.drafter.realName ?: contractProcess.contract.drafter.username ?: '-'}"></div>
+                </div>
+            </div>
+        </div>
 
-            <div class="attachment-section mt-3">
-                <p><strong>附件:</strong></p>
-                <div id="attachmentListContainer"></div>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-person-badge-fill me-2"></i>客户信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">签约客户</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contractProcess.contract.customer?.customerName ?: '-'}"></div>
+                </div>
+                <div class="card mt-2" th:if="${contractProcess.contract.customer != null}">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1 small"><strong th:text="${contractProcess.contract.customer?.customerName ?: '-'}"></strong></h6>
+                        <p class="card-text mb-0 small">
+                            <strong>编号:</strong> <span th:text="${contractProcess.contract.customer?.customerNumber ?: '-'}"></span> <br>
+                            <strong>电话:</strong> <span th:text="${contractProcess.contract.customer?.contactPhone ?: '-'}"></span> <br>
+                            <strong>邮箱:</strong> <span th:text="${contractProcess.contract.customer?.contactEmail ?: '-'}"></span> <br>
+                            <strong>地址:</strong> <span th:text="${contractProcess.contract.customer?.address ?: '-'}"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-file-text-fill me-2"></i>合同条款与附件
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同主要内容</label>
+                    <div class="form-control form-control-sm bg-light" style="min-height: 150px; white-space: pre-wrap;" th:text="${contractProcess.contract.content ?: '暂无内容'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">上传合同附件</label>
+                    <div id="attachmentListContainer"></div>
+                </div>
             </div>
         </div>
         <h2 class="mt-4">审批意见汇总</h2>

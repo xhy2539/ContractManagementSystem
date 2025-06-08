@@ -132,77 +132,112 @@
             </a>
         </div>
 
-        <div class="contract-detail-card">
-            <h2 class="section-title">基本信息</h2>
-            <div class="detail-row">
-                <span class="detail-label">合同编号：</span>
-                <span class="detail-value" th:text="${contract.contractNumber}">-</span>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
             </div>
-            <div class="detail-row">
-                <span class="detail-label">合同名称：</span>
-                <span class="detail-value" th:text="${contract.contractName}">-</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">客户名称：</span>
-                <span class="detail-value" th:text="${contract.customer != null ? contract.customer.customerName : '-'}">-</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">合同状态：</span>
-                <span class="detail-value">
-                    <span th:if="${contract.status != null}"
-                          th:text="${contract.status.description}"
-                          class="status-badge"
-                          th:classappend="'status-' + ${contract.status.name()}">-</span>
-                </span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">起草人：</span>
-                <span class="detail-value" th:text="${contract.drafter != null ? contract.drafter.username : '-'}">-</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">签订日期：</span>
-                <span class="detail-value" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}">-</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">到期日期：</span>
-                <span class="detail-value" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}">-</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">创建时间：</span>
-                <span class="detail-value" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm:ss') : '-'}">-</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">最后更新：</span>
-                <span class="detail-value" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm:ss') : '-'}">-</span>
-            </div>
-        </div>
-
-        <div class="contract-detail-card">
-            <h2 class="section-title">合同内容</h2>
-            <div class="contract-content" th:text="${contract.content}">
-                暂无内容
-            </div>
-        </div>
-
-        <div class="contract-detail-card" th:if="${contract.attachmentPath != null}">
-            <h2 class="section-title">附件</h2>
-            <div class="attachment-section">
-                <a th:href="@{'/attachments/' + ${contract.attachmentPath}}"
-                   class="btn-download"
-                   target="_blank">
-                    <i class="bi bi-download"></i> 下载附件
-                </a>
-            </div>
-        </div>
-
-        <div class="contract-detail-card" th:if="${!#lists.isEmpty(contractProcesses)}">
-            <h2 class="section-title">处理记录</h2>
-            <div class="process-history">
-                <div class="timeline">
-                    <div class="timeline-item" th:each="process : ${contractProcesses}">
-                        <div class="timeline-date" th:text="${#temporals.format(process.createdAt, 'yyyy-MM-dd HH:mm:ss')}">
-                            2023-01-01 12:00:00
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同编号</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractNumber ?: '-'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">合同名称</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractName ?: '-'}"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">开始日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">结束日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">合同状态</label>
+                        <div class="form-control form-control-sm bg-light">
+                            <span th:if="${contract.status != null}"
+                                  th:text="${contract.status.description}"
+                                  class="status-badge"
+                                  th:classappend="'status-' + ${contract.status.name()}"></span>
+                            <span th:unless="${contract.status != null}">-</span>
                         </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">起草人</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.drafter != null ? contract.drafter.username : '-'}"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">创建时间</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">最后更新</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-person-badge-fill me-2"></i>客户信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">签约客户</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.customer != null ? contract.customer.customerName : '-'}"></div>
+                </div>
+                <div class="card mt-2" th:if="${contract.customer != null}">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1 small"><strong th:text="${contract.customer?.customerName ?: '-'}"></strong></h6>
+                        <p class="card-text mb-0 small">
+                            <strong>编号:</strong> <span th:text="${contract.customer?.customerNumber ?: '-'}"></span> <br>
+                            <strong>电话:</strong> <span th:text="${contract.customer?.contactPhone ?: '-'}"></span> <br>
+                            <strong>邮箱:</strong> <span th:text="${contract.customer?.contactEmail ?: '-'}"></span> <br>
+                            <strong>地址:</strong> <span th:text="${contract.customer?.address ?: '-'}"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-file-text-fill me-2"></i>合同条款与附件
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同主要内容</label>
+                    <div class="form-control form-control-sm bg-light" style="min-height: 150px; white-space: pre-wrap;" th:text="${contract.content ?: '暂无内容'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">上传合同附件</label>
+                    <div class="attachment-section" th:if="${contract.attachmentPath != null}">
+                        <a th:href="@{'/attachments/' + ${contract.attachmentPath}}"
+                           class="btn btn-outline-info btn-sm"
+                           target="_blank">
+                            <i class="bi bi-download"></i> 下载附件
+                        </a>
+                    </div>
+                    <div th:unless="${contract.attachmentPath != null}" class="text-muted">无附件</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm" th:if="${!#lists.isEmpty(contractProcesses)}">
+            <div class="card-header bg-light">
+                <i class="bi bi-clock-history me-2"></i>处理记录
+            </div>
+            <div class="card-body">
+                <ul class="timeline">
+                    <li th:each="process : ${contractProcesses}" class="timeline-item">
+                        <div class="timeline-date" th:text="${#temporals.format(process.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></div>
                         <div class="timeline-content">
                             <strong th:text="${process.type.description + ' - ' + process.state.description}">处理类型 - 状态</strong>
                             <div th:if="${process.operator != null}">
@@ -212,8 +247,8 @@
                                 处理意见：<span th:text="${process.opinion}">处理意见</span>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </li>
+                </ul>
             </div>
         </div>
     </div>

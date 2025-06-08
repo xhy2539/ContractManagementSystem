@@ -111,6 +111,7 @@
             user-select: text;
         }
         /* 如果 span 为空，显示 data-placeholder-key 的值作为提示 */
+        /* 由于JS已经默认填充了placeholderName，此CSS可能不再严格需要，但保留以防万一 */
         .mce-content-body .contract-placeholder:empty::before {
             content: attr(data-placeholder-key);
             color: #aaa;
@@ -172,43 +173,47 @@
         <form th:action="@{/contract-manager/draft}" method="post" th:object="${contractDraftRequest}" id="draftContractForm" class="needs-validation" novalidate>
             <div id="hiddenAttachmentInputsContainer"></div>
             <input type="hidden" id="placeholderValuesJson" name="placeholderValues">
-            <input type="hidden" id="signatureDataPartyA" name="signatureDataPartyA"> <input type="hidden" id="signatureDataPartyB" name="signatureDataPartyB"> <div class="card mb-4 shadow-sm">
-            <div class="card-header bg-light">
-                <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label for="templateSelect" class="form-label">选择合同模板 (可选)</label>
-                    <select class="form-select form-control-sm" id="templateSelect" th:field="*{templateId}">
-                        <option value="">-- 不使用模板 --</option>
-                        <option th:each="template : ${contractTemplates}"
-                                th:value="${template.id}"
-                                th:text="${template.templateName}"></option>
-                    </select>
-                </div>
+            <input type="hidden" id="signatureDataPartyA" name="signatureDataPartyA">
+            <input type="hidden" id="signatureDataPartyB" name="signatureDataPartyB">
 
-                <div class="mb-3">
-                    <label for="contractName" class="form-label">合同名称 <span class="required-asterisk">*</span></label>
-                    <input type="text" class="form-control form-control-sm" id="contractName" th:field="*{contractName}" required>
-                    <div class="invalid-feedback" th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}">合同名称不能为空。</div>
-                    <div class="invalid-feedback">请输入合同名称。</div>
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header bg-light">
+                    <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
                 </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="startDate" class="form-label">开始日期 <span class="required-asterisk">*</span></label>
-                        <input type="date" class="form-control form-control-sm" id="startDate" th:field="*{startDate}" required>
-                        <div class="invalid-feedback" th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}">开始日期不能为空。</div>
-                        <div class="invalid-feedback">请选择开始日期。</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="templateSelect" class="form-label">选择合同模板 (可选)</label>
+                        <select class="form-select form-control-sm" id="templateSelect" th:field="*{templateId}">
+                            <option value="">-- 不使用模板 --</option>
+                            <option th:each="template : ${contractTemplates}"
+                                    th:value="${template.id}"
+                                    th:text="${template.templateName}"></option>
+                        </select>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="endDate" class="form-label">结束日期 <span class="required-asterisk">*</span></label>
-                        <input type="date" class="form-control form-control-sm" id="endDate" th:field="*{endDate}" required>
-                        <div class="invalid-feedback" id="endDateValidationFeedback" th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}">结束日期不能为空。</div>
-                        <div class="invalid-feedback">结束日期不可以是过去时间</div>
+
+                    <div class="mb-3">
+                        <label for="contractName" class="form-label">合同名称 <span class="required-asterisk">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="contractName" th:field="*{contractName}" required>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}">合同名称不能为空。</div>
+                        <div class="invalid-feedback">请输入合同名称。</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="startDate" class="form-label">开始日期 <span class="required-asterisk">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="startDate" th:field="*{startDate}" required>
+                            <div class="invalid-feedback" th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}">开始日期不能为空。</div>
+                            <div class="invalid-feedback">请选择开始日期。</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="endDate" class="form-label">结束日期 <span class="required-asterisk">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="endDate" th:field="*{endDate}" required>
+                            <div class="invalid-feedback" id="endDateValidationFeedback" th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}">结束日期不能为空。</div>
+                            <div class="invalid-feedback">结束日期不可以是过去时间</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
             <div class="card mb-4 shadow-sm">
                 <div class="card-header bg-light">
@@ -423,7 +428,9 @@
 
             tinymce.init({
                 selector: '#contractContent',
-                plugins: 'advlist autolink lists link image charmap print preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount autoresize',
+                // 修正插件列表：移除可能不存在或有问题的插件，例如 'print', 'paste'
+                // 确保只包含您确实需要且当前版本支持的插件
+                plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table help wordcount autoresize',
                 toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
                 autoresize_bottom_margin: 20,
                 menubar: false,
@@ -431,6 +438,14 @@
                     contractEditor = editor;
                     editor.on('change', function () {
                         editor.save();
+                    });
+                    // 确保编辑器初始化完成后再尝试操作，避免 'getRng' 错误
+                    editor.on('init', function() {
+                        // 如果 templateSelect 有初始值，触发其change事件以加载内容
+                        const templateSelect = document.getElementById('templateSelect');
+                        if (templateSelect && templateSelect.value) {
+                            templateSelect.dispatchEvent(new Event('change'));
+                        }
                     });
                 }
             });
@@ -458,8 +473,8 @@
                                 // 1. 从 TinyMCE 内容中提取占位符值并填充到 placeholderValuesJson
                                 extractAndPreparePlaceholderValues();
                                 // 2. 从签名画布中获取签名数据
-                                prepareSignatureForSubmission('PartyA'); // 为甲方准备签名数据
-                                prepareSignatureForSubmission('PartyB'); // 为乙方准备签名数据
+                                prepareSignatureForSubmission('PartyA');
+                                prepareSignatureForSubmission('PartyB');
                             }
 
                             let isFormValid = form.checkValidity();
@@ -982,7 +997,7 @@
                 canvas.addEventListener('mousedown', (e) => {
                     isDrawing = true;
                     [lastX, lastY] = [e.offsetX, e.offsetY];
-                    if (previewImg) previewImg.style.display = 'none'; // 开始手绘时隐藏预览图
+                    if (previewImg) previewImg.style.display = 'none';
                 });
 
                 canvas.addEventListener('mousemove', (e) => {
@@ -1026,13 +1041,13 @@
                         reader.onload = (e) => {
                             const img = new Image();
                             img.onload = () => {
-                                initSignatureCanvas(canvas, ctx); // 清空画布
+                                initSignatureCanvas(canvas, ctx);
                                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                                 if (previewImg) {
                                     previewImg.src = e.target.result;
                                     previewImg.style.display = 'block';
                                 }
-                                dataInput.value = canvas.toDataURL('image/png'); // 确保隐藏字段更新
+                                dataInput.value = canvas.toDataURL('image/png');
                             };
                             img.src = e.target.result;
                         };
@@ -1072,21 +1087,57 @@
 
 
             // --- 开始：模板选择和直接编辑占位符逻辑 ---
-            const templateSelect = document.getElementById('templateSelect');
-
+            // originalTemplateContent 变量用于存储从后端获取的原始模板内容
             let originalTemplateContent = '';
+
+            // extractAndPreparePlaceholderValues 函数用于从 TinyMCE 内容中提取占位符值
+            function extractAndPreparePlaceholderValues() {
+                if (!contractEditor) return;
+
+                const editorContent = contractEditor.getContent(); // 获取 TinyMCE 当前的 HTML 内容
+                const placeholderValues = {};
+
+                // 创建一个临时的 DOM 元素来解析编辑器内容，方便查找 span
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = editorContent;
+
+                // 查找所有具有 .contract-placeholder 类和 data-placeholder-key 属性的可编辑 span
+                const placeholderSpans = tempDiv.querySelectorAll('.contract-placeholder[data-placeholder-key][contenteditable="true"]');
+
+                placeholderSpans.forEach(span => {
+                    const key = span.dataset.placeholderKey;
+                    const value = span.textContent || ''; // 获取用户实际填写的值
+
+                    if (key) {
+                        placeholderValues[key] = value;
+                    }
+                });
+
+                // 将占位符值打包到隐藏字段中
+                document.getElementById('placeholderValuesJson').value = JSON.stringify(placeholderValues);
+            }
+
+            // escapeRegExp 函数用于转义正则表达式特殊字符
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            // templateSelect 的 change 事件监听器
+            const templateSelect = document.getElementById('templateSelect');
+            // 注意：templateSelect.dispatchEvent(new Event('change')); 已被移至 tinymce.init 的 'init' 事件中
 
             if (templateSelect) {
                 templateSelect.addEventListener('change', async function() {
                     const templateId = this.value;
 
+                    // 清除编辑器内容和原始模板内容
                     if (contractEditor) {
                         contractEditor.setContent('');
                     }
                     originalTemplateContent = '';
 
                     if (!templateId) {
-                        return;
+                        return; // 选择了 "-- 不使用模板 --"
                     }
 
                     try {
@@ -1106,13 +1157,14 @@
                         const placeholderRegex = /\{\{([a-zA-Z0-9_\u4e00-\u9fa5]+?)\}\}/g;
 
                         let contentToDisplayInEditor = originalTemplateContent.replace(placeholderRegex, (match, placeholderName) => {
+                            // 在 span 内部直接放置占位符名称，作为默认内容
                             return `<span class="contract-placeholder" data-placeholder-key="${placeholderName}" contenteditable="true">___________</span>`; // 11个下划线作为示例
                         });
 
                         if (contractEditor) {
                             contractEditor.setContent(contentToDisplayInEditor);
                             contractEditor.save();
-                            contractEditor.execCommand('mceRepaint');
+                            // 移除 mceRepaint，因为其可能导致 getRng 错误
                         }
 
                     } catch (error) {
@@ -1120,37 +1172,6 @@
                         showAlertOnMainPage('加载模板失败: ' + error.message, 'danger');
                     }
                 });
-            }
-
-            function extractAndPreparePlaceholderValues() {
-                if (!contractEditor) return;
-
-                const editorContent = contractEditor.getContent();
-                const placeholderValues = {};
-
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = editorContent;
-
-                const placeholderSpans = tempDiv.querySelectorAll('.contract-placeholder[data-placeholder-key][contenteditable="true"]');
-
-                placeholderSpans.forEach(span => {
-                    const key = span.dataset.placeholderKey;
-                    const value = span.textContent || '';
-
-                    if (key) {
-                        placeholderValues[key] = value;
-                    }
-                });
-
-                document.getElementById('placeholderValuesJson').value = JSON.stringify(placeholderValues);
-            }
-
-            function escapeRegExp(string) {
-                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            }
-
-            if (templateSelect && templateSelect.value) {
-                templateSelect.dispatchEvent(new Event('change'));
             }
             // --- 模板选择和直接编辑占位符逻辑结束 ---
 
