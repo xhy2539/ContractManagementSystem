@@ -57,7 +57,7 @@ public class EmailServiceImpl implements EmailService {
             Context thymeleafContext = new Context();
             thymeleafContext.setVariables(context);
 
-            String htmlContent = templateEngine.process("email/" + templateName, thymeleafContext);
+            String htmlContent = templateEngine.process( templateName, thymeleafContext);
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
