@@ -1,4 +1,4 @@
-package com.example.contractmanagementsystem.service.impl;
+package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.service.EmailService;
 import jakarta.mail.MessagingException;
