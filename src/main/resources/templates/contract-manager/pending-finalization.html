@@ -91,7 +91,7 @@
                 <span class="badge bg-primary rounded-pill" th:text="'总计: ' + ${pendingFinalizationContracts.totalElements} + ' 条'"></span>
             </div>
             <div class="card-body p-0"> <div class="table-responsive">
-                <table class="table table-striped table-hover table-bordered mb-0"> <thead class="table-dark"> <tr>
+                <table id="contractsTable" class="table table-striped table-hover table-bordered mb-0"> <thead class="table-dark"> <tr>
                     <th scope="col" style="width: 15%;">合同编号</th>
                     <th scope="col">合同名称</th>
                     <th scope="col" style="width: 18%;">客户名称</th>
@@ -146,6 +146,23 @@
     <script th:inline="javascript">
         document.addEventListener('DOMContentLoaded', function() {
             console.log("待定稿合同列表页面已成功加载。");
+
+            // 使用性能优化工具
+            if (window.PerformanceUtils) {
+                // 为搜索框添加防抖功能
+                const searchInput = document.getElementById('contractNameSearch');
+                if (searchInput) {
+                    const debouncedSearch = window.PerformanceUtils.debounce(function(e) {
+                        const form = e.target.closest('form');
+                        if (form && e.target.value.length > 2) {
+                            window.PerformanceUtils.LoadingManager.show('contractsTable');
+                            form.submit();
+                        }
+                    }, 500);
+                    
+                    searchInput.addEventListener('input', debouncedSearch);
+                }
+            }
 
             var alertList = document.querySelectorAll('.alert-dismissible');
             alertList.forEach(function (alertNode) {

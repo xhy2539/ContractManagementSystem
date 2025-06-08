@@ -1,30 +1,16 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}" lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>待会签合同</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <style>
-        body { font-family: sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
-        .navbar { background-color: #333; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .navbar .brand { font-size: 1.5em; }
-        .navbar .user-info { font-size: 0.9em; }
-        .navbar a { color: white; text-decoration: none; margin-left: 15px; }
-        .container { padding: 20px; max-width: 1200px; margin: 20px auto; background-color: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .page-header { display: flex; justify-content: space-between; align-items: center; }
-        h1 { color: #333; margin-bottom: 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: middle; }
-        th { background-color: #f2f2f2; }
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>待会签合同 - 合同管理系统</title>
+    <th:block layout:fragment="css-links">
+    </th:block>
+    <style layout:fragment="inline-css">
         .search-form { display: flex; gap: 10px; margin-bottom: 20px; }
         .search-form input[type="text"] { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
         .search-form button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .pagination { margin-top: 20px; text-align: center; }
-        .pagination a, .pagination span { display: inline-block; padding: 8px 12px; margin: 0 5px; border: 1px solid #ddd; text-decoration: none; color: #007bff; border-radius: 4px; }
-        .pagination span.current-page { background-color: #007bff; color: white; border-color: #007bff; }
         .no-records { text-align: center; padding: 20px; color: #666; }
         .btn-action { background-color: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 0.9em; }
         .btn-view-attachment { background-color: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 0.9em; margin-left: 5px; }
@@ -38,97 +24,95 @@
 </head>
 <body>
 
-<div class="navbar">
-    <div class="brand">合同管理系统</div>
-    <div class="user-info">
-        欢迎, <span sec:authentication="name">用户</span>!
-        <a th:href="@{/perform_logout}" onclick="document.getElementById('logout-form-inline').submit(); return false;">注销</a>
-        <form id="logout-form-inline" th:action="@{/perform_logout}" method="post" style="display: none;"></form>
-    </div>
-</div>
-
-<div class="container">
-    <div class="page-header mb-4">
-        <h1 th:text="${listTitle ?: '待会签合同'}">待会签合同</h1>
-        <a th:href="@{/dashboard}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left-circle me-1"></i>
-            返回仪表盘
-        </a>
-    </div>
-
-    <p>以下是需要您进行会签的合同列表。</p>
-
-    <form th:action="@{/contract-manager/pending-countersign}" method="get" class="search-form">
-        <input type="text" name="contractNameSearch" th:value="${contractNameSearch}" placeholder="输入合同名称搜索..."/>
-        <button type="submit">搜索</button>
-    </form>
-
-    <div th:if="${pendingCountersigns.isEmpty()}" class="no-records">
-        <p>没有待会签的合同。</p>
-    </div>
-
-    <div th:unless="${pendingCountersigns.isEmpty()}">
-        <table>
-            <thead>
-            <tr>
-                <th>ID</th>
-                <th>合同编号</th>
-                <th>合同名称</th>
-                <th>客户名称</th>
-                <th>起草人</th>
-                <th>起草日期</th>
-                <th>状态</th>
-                <th>操作</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="process : ${pendingCountersigns.content}">
-                <td th:text="${process.contract.id}"></td>
-                <td th:text="${process.contract.contractNumber}"></td>
-                <td th:text="${process.contract.contractName}"></td>
-                <td th:text="${process.contract.customer.customerName}"></td>
-                <td th:text="${process.contract.drafter.username}"></td>
-                <td th:text="${#temporals.format(process.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
-                <td th:text="${process.contract.status.description}"></td>
-                <td>
-                    <a th:href="@{/contract-manager/countersign-form/{id}(id=${process.contract.id})}" class="btn-action">会签</a>
-                    <button type="button" class="btn btn-view-attachment"
-                            th:if="${process.contract.attachmentPath != null and !#strings.equals(process.contract.attachmentPath, '[]')}"
-                            th:data-attachments="${process.contract.attachmentPath}"
-                            th:data-contract-name="${process.contract.contractName}"
-                            data-bs-toggle="modal"
-                            data-bs-target="#attachmentListModal">
-                        查看附件
-                    </button>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-
-        <div class="pagination" th:if="${pendingCountersigns.totalPages > 1}">
+<section layout:fragment="content">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0 h2" th:text="${listTitle ?: '待会签合同'}"><i class="bi bi-file-earmark-check-fill text-primary me-2"></i>待会签合同</h1>
+            <a th:href="@{/dashboard}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left-circle me-1"></i>返回仪表盘
+            </a>
         </div>
-    </div>
-</div>
 
-<div class="modal fade" id="attachmentListModal" tabindex="-1" aria-labelledby="attachmentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="attachmentModalLabel">附件列表</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <p>以下是需要您进行会签的合同列表。</p>
+
+        <form th:action="@{/contract-manager/pending-countersign}" method="get" class="search-form">
+            <input type="text" name="contractNameSearch" th:value="${contractNameSearch}" placeholder="输入合同名称搜索..."/>
+            <button type="submit">搜索</button>
+        </form>
+
+        <div th:if="${pendingCountersigns.isEmpty()}" class="no-records">
+            <p>没有待会签的合同。</p>
+        </div>
+
+        <div th:unless="${pendingCountersigns.isEmpty()}">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-bordered">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>合同编号</th>
+                        <th>合同名称</th>
+                        <th>客户名称</th>
+                        <th>起草人</th>
+                        <th>起草日期</th>
+                        <th>状态</th>
+                        <th class="action-column">操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="process : ${pendingCountersigns.content}">
+                        <td th:text="${process.contract.id}"></td>
+                        <td th:text="${process.contract.contractNumber}"></td>
+                        <td th:text="${process.contract.contractName}"></td>
+                        <td th:text="${process.contract.customer.customerName}"></td>
+                        <td th:text="${process.contract.drafter.username}"></td>
+                        <td th:text="${#temporals.format(process.contract.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+                        <td th:text="${process.contract.status.description}"></td>
+                        <td>
+                            <a th:href="@{/contract-manager/countersign-form/{id}(id=${process.contract.id})}" class="btn btn-sm btn-success me-1">
+                                <i class="bi bi-check-circle me-1"></i>会签
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    th:if="${process.contract.attachmentPath != null and !#strings.equals(process.contract.attachmentPath, '[]')}"
+                                    th:data-attachments="${process.contract.attachmentPath}"
+                                    th:data-contract-name="${process.contract.contractName}"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#attachmentListModal">
+                                <i class="bi bi-paperclip me-1"></i>查看附件
+                            </button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="modal-body">
-                <p class="text-muted small">合同: <strong id="modalContractName"></strong></p>
-                <hr>
-                <div id="attachmentListContainer"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+
+            <div class="pagination" th:if="${pendingCountersigns.totalPages > 1}">
             </div>
         </div>
     </div>
-</div>
 
+    <!-- 附件模态框 -->
+    <div class="modal fade" id="attachmentListModal" tabindex="-1" aria-labelledby="attachmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="attachmentModalLabel">附件列表</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">合同: <strong id="modalContractName"></strong></p>
+                    <hr>
+                    <div id="attachmentListContainer"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<th:block layout:fragment="scripts">
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script th:inline="javascript">
@@ -177,7 +161,7 @@
                         window.open(downloadUrl, '_blank');
                     } else {
                         const userAgreedToDownload = confirm(
-                            `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击“确定”将尝试下载该文件。`
+                            `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击"确定"将尝试下载该文件。`
                         );
                         if (userAgreedToDownload) {
                             const link = document.createElement('a');
@@ -210,6 +194,7 @@
         }
     });
 </script>
+</th:block>
 
 </body>
 </html>

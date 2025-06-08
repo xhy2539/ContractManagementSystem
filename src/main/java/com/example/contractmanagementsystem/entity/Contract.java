@@ -17,12 +17,14 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "contracts", indexes = { // 在这里添加 indexes 属性
-        @Index(name = "idx_contract_number", columnList = "contractNumber"), // 为 contractNumber 添加索引
-        @Index(name = "idx_contract_name", columnList = "contractName"),     // 为 contractName 添加索引
-        @Index(name = "idx_status", columnList = "status"),               // 为 status 添加索引
-        @Index(name = "idx_end_date", columnList = "endDate"),           // 为 endDate 添加索引
-        @Index(name = "idx_drafter_id", columnList = "drafter_user_id")  // 为 drafter_user_id (外键) 添加索引
+@Table(name = "contracts", indexes = {
+    @Index(name = "idx_contract_status", columnList = "status"),
+    @Index(name = "idx_contract_name", columnList = "contract_name"),
+    @Index(name = "idx_contract_number", columnList = "contract_number"),
+    @Index(name = "idx_contract_drafter", columnList = "drafter_user_id"),
+    @Index(name = "idx_contract_customer", columnList = "customer_id"),
+    @Index(name = "idx_contract_dates", columnList = "start_date, end_date"),
+    @Index(name = "idx_contract_updated_at", columnList = "updated_at")
 })
 public class Contract {
     @Lob // Added for signature data storage

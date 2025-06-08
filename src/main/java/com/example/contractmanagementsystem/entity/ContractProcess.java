@@ -16,14 +16,14 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "contract_process", indexes = { // 在这里添加 indexes 属性
-        @Index(name = "idx_cp_contract_id", columnList = "contract_id"),
-        @Index(name = "idx_cp_operator_id", columnList = "user_id"), // operator 的外键列名通常是 user_id
-        @Index(name = "idx_cp_type", columnList = "type"),
-        @Index(name = "idx_cp_state", columnList = "state"),
-        @Index(name = "idx_cp_created_at", columnList = "createdAt"),
-        // 组合索引，针对经常同时使用的查询条件
-        @Index(name = "idx_cp_operator_type_state", columnList = "user_id, type, state")
+@Table(name = "contract_processes", indexes = {
+    @Index(name = "idx_process_operator", columnList = "user_id"),
+    @Index(name = "idx_process_contract", columnList = "contract_id"),
+    @Index(name = "idx_process_type", columnList = "type"),
+    @Index(name = "idx_process_state", columnList = "state"),
+    @Index(name = "idx_process_created_at", columnList = "created_at"),
+    @Index(name = "idx_process_compound", columnList = "user_id, type, state"),
+    @Index(name = "idx_process_contract_type", columnList = "contract_id, type, state")
 })
 public class ContractProcess {
 

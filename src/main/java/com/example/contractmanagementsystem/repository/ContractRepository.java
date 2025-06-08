@@ -2,6 +2,9 @@ package com.example.contractmanagementsystem.repository;
 
 import com.example.contractmanagementsystem.dto.DashboardStatsDto;
 import com.example.contractmanagementsystem.entity.Contract;
+import com.example.contractmanagementsystem.entity.ContractProcess;
+import com.example.contractmanagementsystem.entity.ContractProcessState;
+import com.example.contractmanagementsystem.entity.ContractProcessType;
 import com.example.contractmanagementsystem.entity.ContractStatus;
 import com.example.contractmanagementsystem.entity.Customer;
 import com.example.contractmanagementsystem.entity.User;
@@ -147,5 +150,21 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
     @Modifying
     @Query("UPDATE Contract c SET c.status = 'EXPIRED', c.updatedAt = :now WHERE c.endDate < :today AND c.status <> 'EXPIRED'")
     int updateStatusForExpiredContracts(@Param("now") LocalDateTime now, @Param("today") LocalDate today);
+
+    /**
+     * 优化的查询方法：获取待定稿合同（包含必要的关联数据）
+     */
+    @Query("SELECT DISTINCT c FROM Contract c " +
+           "LEFT JOIN FETCH c.customer " +
+           "LEFT JOIN FETCH c.drafter d " +
+           "LEFT JOIN FETCH d.roles " +
+           "WHERE c.status = 'PENDING_FINALIZATION' " +
+           "AND (:contractNameSearch IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractNameSearch, '%'))) " +
+           "AND EXISTS (SELECT cp FROM ContractProcess cp WHERE cp.contract = c AND cp.operator = :user AND cp.type = 'FINALIZE' AND cp.state = 'PENDING')")
+    Page<Contract> findContractsPendingFinalizationForUserOptimized(@Param("user") User user, 
+                                                                   @Param("contractNameSearch") String contractNameSearch, 
+                                                                   Pageable pageable);
+
+
 
 }

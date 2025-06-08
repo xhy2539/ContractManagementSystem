@@ -42,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -922,48 +923,10 @@ public class ContractServiceImpl implements ContractService {
     @Transactional(readOnly = true)
     public Page<Contract> getContractsPendingFinalizationForUser(String username, String contractNameSearch, Pageable pageable) {
         User currentUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User '" + username + "' not found.")); //
+                .orElseThrow(() -> new ResourceNotFoundException("User '" + username + "' not found."));
 
-        Specification<Contract> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>(); //
-            predicates.add(cb.equal(root.get("status"), ContractStatus.PENDING_FINALIZATION)); //
-            //predicates.add(cb.equal(root.get("drafter"), currentUser)); // 这一行是原代码的起草人过滤，需要移除或修改
-
-            // 新增：检查当前用户是否是FINALIZE类型流程的PENDING状态的操作员
-            Subquery<Long> subquery = query.subquery(Long.class); //
-            Root<ContractProcess> processRoot = subquery.from(ContractProcess.class); //
-            subquery.select(processRoot.get("contract").get("id")); //
-            Predicate processPredicate = cb.and( //
-                    cb.equal(processRoot.get("contract").get("id"), root.get("id")), //
-                    cb.equal(processRoot.get("type"), ContractProcessType.FINALIZE), //
-                    cb.equal(processRoot.get("state"), ContractProcessState.PENDING), //
-                    cb.equal(processRoot.get("operator"), currentUser) //
-            );
-            subquery.where(processPredicate); //
-            predicates.add(cb.exists(subquery)); // 添加子查询作为条件
-
-
-            if (StringUtils.hasText(contractNameSearch)) { //
-                predicates.add(cb.like(cb.lower(root.get("contractName")), "%" + contractNameSearch.toLowerCase().trim() + "%")); //
-            }
-
-            if (query.getResultType().equals(Contract.class)) { //
-                root.fetch("customer", JoinType.LEFT); //
-                root.fetch("drafter", JoinType.LEFT); //
-            }
-            return cb.and(predicates.toArray(new Predicate[0])); //
-        };
-
-        Page<Contract> contractsPage = contractRepository.findAll(spec, pageable); //
-        contractsPage.getContent().forEach(contract -> { //
-            Hibernate.initialize(contract.getCustomer()); //
-            User drafter = contract.getDrafter(); //
-            if (drafter != null) { //
-                Hibernate.initialize(drafter.getRoles()); //
-                drafter.getRoles().forEach(role -> Hibernate.initialize(role.getFunctionalities())); //
-            }
-        });
-        return contractsPage; //
+        // 使用优化的查询方法
+        return contractRepository.findContractsPendingFinalizationForUserOptimized(currentUser, contractNameSearch, pageable);
     }
 
     @Override
@@ -1280,7 +1243,7 @@ public class ContractServiceImpl implements ContractService {
         }
 
         if (contract.getStatus() != ContractStatus.ACTIVE && contract.getStatus() != ContractStatus.EXPIRED) { //
-            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法直接延期。合同必须是“有效”或“过期”状态。"); //
+            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法直接延期。合同必须是有效或过期状态。"); //
         }
 
         if (newEndDate.isBefore(contract.getEndDate()) || newEndDate.isEqual(contract.getEndDate())) { //
@@ -1335,7 +1298,7 @@ public class ContractServiceImpl implements ContractService {
         }
 
         if (contract.getStatus() != ContractStatus.ACTIVE && contract.getStatus() != ContractStatus.EXPIRED) { //
-            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法提交延期请求。合同必须是“有效”或“过期”状态。"); //
+            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法提交延期请求。合同必须是有效或过期状态。"); //
         }
 
         if (requestedNewEndDate.isBefore(contract.getEndDate()) || requestedNewEndDate.isEqual(contract.getEndDate())) { //
@@ -1562,7 +1525,7 @@ public class ContractServiceImpl implements ContractService {
                         additionalComments = additionalComments.substring(0, additionalComments.length() - 1); //
                     }
                 } else { //
-                    // 没有“附加备注”部分，原因取到字符串末尾
+                    // 没有"附加备注"部分，原因取到字符串末尾
                     // 将此行从 `reason = comments.substring(reasonStartIdx).trim();`
                     // 修改为 `reason = comments.substring(reasonStartKeywordIdx).trim();`
                     reason = comments.substring(reasonStartKeywordIdx).trim(); //
@@ -1657,7 +1620,7 @@ public class ContractServiceImpl implements ContractService {
                 )
         );
 
-        // 将“是当前用户的待办任务”这个条件与上面的组合条件用AND连接
+        // 将"是当前用户的待办任务"这个条件与上面的组合条件用AND连接
         Predicate finalUserPredicate = cb.and(
                 cb.equal(p.get("operator"), currentUser), //
                 cb.equal(p.get("state"), ContractProcessState.PENDING), //
@@ -1666,7 +1629,7 @@ public class ContractServiceImpl implements ContractService {
 
         // 2. 构建最终的WHERE子句
         if (isAdmin) {
-            // 如果是管理员，则最终条件是“(满足条件的个人任务) OR (所有待处理的延期请求)”
+            // 如果是管理员，则最终条件是"(满足条件的个人任务) OR (所有待处理的延期请求)"
             Predicate adminExtensionTasks = cb.and(
                     cb.equal(p.get("type"), ContractProcessType.EXTENSION_REQUEST), //
                     cb.equal(p.get("state"), ContractProcessState.PENDING) //

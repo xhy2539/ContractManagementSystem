@@ -13,6 +13,9 @@ import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.service.ContractService;
 import com.example.contractmanagementsystem.service.TemplateService; // 新增导入 TemplateService
+import com.example.contractmanagementsystem.service.TemplateParsingService;
+
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -74,12 +77,14 @@ public class ContractController {
     private final ContractService contractService;
     private final ObjectMapper objectMapper;
     private final TemplateService templateService; // 新增注入
+    private final TemplateParsingService templateParsingService;
 
     @Autowired
-    public ContractController(ContractService contractService, ObjectMapper objectMapper, TemplateService templateService) { // 新增注入
+    public ContractController(ContractService contractService, ObjectMapper objectMapper, TemplateService templateService, TemplateParsingService templateParsingService) { // 新增注入
         this.contractService = contractService;
         this.objectMapper = objectMapper;
         this.templateService = templateService; // 初始化
+        this.templateParsingService = templateParsingService;
     }
 
     // This old download logic is replaced by the one in AttachmentController for consistency
@@ -252,6 +257,9 @@ public class ContractController {
                 }
             }
 
+            // 解析合同内容中的占位符
+            String parsedContent = templateParsingService.parseContractContent(contract.getContent(), contract);
+            contract.setContent(parsedContent);
 
             model.addAttribute("contract", contract);
             model.addAttribute("currentProcess", currentProcess);
@@ -306,6 +314,11 @@ public class ContractController {
         try {
             String username = principal.getName();
             Contract contract = contractService.getContractForFinalization(contractId, username);
+
+            // 解析合同内容中的占位符
+            String parsedContent = templateParsingService.parseContractContent(contract.getContent(), contract);
+            contract.setContent(parsedContent);
+
             model.addAttribute("contract", contract);
 
             List<ContractProcess> countersignOpinions = contractService.getContractCountersignOpinions(contractId);
@@ -483,6 +496,11 @@ public class ContractController {
             if (contract.getStatus() != ContractStatus.PENDING_APPROVAL && contract.getStatus() != ContractStatus.REJECTED ) {
                 model.addAttribute("infoMessage", "提示：此合同当前状态为 " + contract.getStatus().getDescription() + "，可能并非处于标准的待审批环节。");
             }
+
+            // 解析合同内容中的占位符
+            String parsedContent = templateParsingService.parseContractContent(contract.getContent(), contract);
+            contract.setContent(parsedContent);
+
             model.addAttribute("contract", contract);
 
             // ⭐ NEW: 获取所有定稿意见和所有审批意见 ⭐
@@ -551,6 +569,10 @@ public class ContractController {
             String username = principal.getName();
             ContractProcess contractProcess = contractService.getContractProcessByIdAndOperator(
                     processId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
+
+            // 解析合同内容中的占位符
+            String parsedContent = templateParsingService.parseContractContent(contractProcess.getContract().getContent(), contractProcess.getContract());
+            contractProcess.getContract().setContent(parsedContent);
 
             model.addAttribute("contractProcess", contractProcess);
             // 获取合同ID用于查询其他流程意见
@@ -626,6 +648,10 @@ public class ContractController {
         try {
             Contract contract = contractService.getContractById(contractId);
             List<ContractProcess> contractProcesses = contractService.getContractProcessHistory(contractId);
+
+            // 解析合同内容中的占位符
+            String parsedContent = templateParsingService.parseContractContent(contract.getContent(), contract);
+            contract.setContent(parsedContent);
 
             model.addAttribute("contract", contract);
             model.addAttribute("contractProcesses", contractProcesses);

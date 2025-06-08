@@ -154,9 +154,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 const actionsCell = row.insertCell();
                 actionsCell.classList.add('action-buttons', 'text-nowrap');
                 actionsCell.innerHTML = `
-                    <button class="btn btn-sm btn-info edit-user-btn" data-user-id="${user.id}" data-username="${user.username}" title="编辑用户"><i class="bi bi-pencil-square"></i></button>
-                    <button class="btn btn-sm btn-warning assign-roles-btn" data-user-id="${user.id}" data-username="${user.username}" title="分配角色"><i class="bi bi-person-check-fill"></i></button>
-                    <button class="btn btn-sm btn-danger delete-user-btn" data-user-id="${user.id}" data-username="${user.username}" title="删除用户"><i class="bi bi-trash"></i></button>
+                    <button class="btn btn-sm btn-info edit-user-btn me-1" data-user-id="${user.id}" data-username="${user.username}" title="编辑用户">
+                        <i class="bi bi-pencil-square me-1"></i>编辑
+                    </button>
+                    <button class="btn btn-sm btn-warning assign-roles-btn me-1" data-user-id="${user.id}" data-username="${user.username}" title="分配角色">
+                        <i class="bi bi-person-check-fill me-1"></i>角色
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-user-btn" data-user-id="${user.id}" data-username="${user.username}" title="删除用户">
+                        <i class="bi bi-trash me-1"></i>删除
+                    </button>
                 `;
             });
         } else {

@@ -96,8 +96,8 @@
                     <h6 class="card-title mb-1 small"><strong th:text="${contract.customer?.customerName ?: '-'}"></strong></h6>
                     <p class="card-text mb-0 small">
                         <strong>编号:</strong> <span th:text="${contract.customer?.customerNumber ?: '-'}"></span> <br>
-                        <strong>电话:</strong> <span th:text="${contract.customer?.contactPhone ?: '-'}"></span> <br>
-                        <strong>邮箱:</strong> <span th:text="${contract.customer?.contactEmail ?: '-'}"></span> <br>
+                                                                <strong>电话:</strong> <span th:text="${contract.customer?.phoneNumber ?: '-'}"></span> <br>
+                                        <strong>邮箱:</strong> <span th:text="${contract.customer?.email ?: '-'}"></span> <br>
                         <strong>地址:</strong> <span th:text="${contract.customer?.address ?: '-'}"></span>
                     </p>
                 </div>

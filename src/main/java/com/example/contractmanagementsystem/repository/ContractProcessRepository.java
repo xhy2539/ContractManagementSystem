@@ -66,6 +66,23 @@ public interface ContractProcessRepository extends JpaRepository<ContractProcess
             "FROM ContractProcess p JOIN p.contract c JOIN c.drafter d " +
             "WHERE p.type = 'EXTENSION_REQUEST' AND p.state = 'PENDING'")
     List<DashboardPendingTaskDto> findPendingExtensionRequestsForAdminDashboard();
+
+    /**
+     * 优化的查询方法：获取用户的待处理流程（包含必要的关联数据）
+     */
+    @Query("SELECT DISTINCT cp FROM ContractProcess cp " +
+           "LEFT JOIN FETCH cp.contract c " +
+           "LEFT JOIN FETCH c.customer " +
+           "LEFT JOIN FETCH c.drafter " +
+           "LEFT JOIN FETCH cp.operator " +
+           "WHERE cp.operator = :operator " +
+           "AND cp.type = :type " +
+           "AND cp.state = :state " +
+           "AND (:contractNameSearch IS NULL OR LOWER(c.contractName) LIKE LOWER(CONCAT('%', :contractNameSearch, '%')))")
+    List<ContractProcess> findPendingProcessesForUserOptimized(@Param("operator") User operator,
+                                                              @Param("type") ContractProcessType type,
+                                                              @Param("state") ContractProcessState state,
+                                                              @Param("contractNameSearch") String contractNameSearch);
 }
 
 
