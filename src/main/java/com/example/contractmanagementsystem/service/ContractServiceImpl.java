@@ -1,5 +1,3 @@
-// File: xhy2539/contractmanagementsystem/ContractManagementSystem-xhy/src/main/java/com/example/contractmanagementsystem/service/ContractServiceImpl.java
-
 package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.dto.ContractDraftRequest;
@@ -43,25 +41,16 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
-import java.util.Optional;
-import java.util.Comparator;
-import java.util.EnumSet;
-import java.util.UUID;
+import java.util.*;
+import java.util.regex.Matcher; // 新增导入
+import java.util.regex.Pattern; // 新增导入
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class ContractServiceImpl implements ContractService {
@@ -77,6 +66,8 @@ public class ContractServiceImpl implements ContractService {
     private final AttachmentService attachmentService;
     private final ObjectMapper objectMapper;
     private final EmailService emailService;
+    private final TemplateService templateService; // 新增注入
+
     @Autowired
     public ContractServiceImpl(ContractRepository contractRepository,
                                CustomerRepository customerRepository,
@@ -85,7 +76,8 @@ public class ContractServiceImpl implements ContractService {
                                AuditLogService auditLogService,
                                AttachmentService attachmentService,
                                ObjectMapper objectMapper,
-                               EmailService emailService) {
+                               EmailService emailService,
+                               TemplateService templateService) { // 新增注入参数
         this.contractRepository = contractRepository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
@@ -94,6 +86,7 @@ public class ContractServiceImpl implements ContractService {
         this.attachmentService = attachmentService;
         this.objectMapper = objectMapper;
         this.emailService = emailService;
+        this.templateService = templateService; // 初始化
     }
 
     @PostConstruct
@@ -143,7 +136,34 @@ public class ContractServiceImpl implements ContractService {
         contract.setCustomer(selectedCustomer);
         contract.setStartDate(request.getStartDate());
         contract.setEndDate(request.getEndDate());
-        contract.setContent(request.getContractContent());
+
+        // ===== 新增：模板处理逻辑 =====
+        if (request.getTemplateId() != null) {
+            ContractTemplate template = templateService.getTemplateById(request.getTemplateId())
+                    .orElseThrow(() -> new ResourceNotFoundException("所选合同模板不存在，ID: " + request.getTemplateId()));
+            String populatedContent = template.getTemplateContent();
+            if (request.getPlaceholderValues() != null && !request.getPlaceholderValues().isEmpty()) {
+                // 替换占位符，例如: {{placeholderName}}
+                Pattern pattern = Pattern.compile("\\{\\{(\\w+)\\}\\}");
+                Matcher matcher = pattern.matcher(populatedContent);
+                StringBuffer sb = new StringBuffer();
+                while (matcher.find()) {
+                    String placeholderName = matcher.group(1);
+                    String replacement = request.getPlaceholderValues().getOrDefault(placeholderName, "");
+                    matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+                }
+                matcher.appendTail(sb);
+                populatedContent = sb.toString();
+            }
+            contract.setContent(populatedContent);
+            logger.info("Contract '{}' drafted using template ID {} with populated content.", contract.getContractName(), request.getTemplateId());
+        } else {
+            contract.setContent(request.getContractContent());
+            logger.info("Contract '{}' drafted with direct content input.", contract.getContractName());
+        }
+        // ===== 模板处理逻辑结束 =====
+
+
         contract.setDrafter(drafter);
 
         // 统一附件路径存储，无论列表是否为空都序列化为JSON字符串
@@ -382,7 +402,7 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<Contract> searchContracts(String currentUsername, boolean isAdmin, String contractName, String contractNumber, String status, Pageable pageable) {
+    public Page<Contract> searchContracts(String currentUsername, boolean isAdmin, String contractName, String contractNumber, String status, Boolean expiringSoon, Pageable pageable) {
         Specification<Contract> spec = (Root<Contract> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -392,13 +412,38 @@ public class ContractServiceImpl implements ContractService {
             if (StringUtils.hasText(contractNumber)) {
                 predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("contractNumber")), "%" + contractNumber.toLowerCase().trim() + "%"));
             }
+
+            // 修改点1: 处理逗号分隔的status
             if (StringUtils.hasText(status)) {
-                try {
-                    ContractStatus contractStatusEnum = ContractStatus.valueOf(status.toUpperCase());
-                    predicates.add(criteriaBuilder.equal(root.get("status"), contractStatusEnum));
-                } catch (IllegalArgumentException e) {
-                    logger.warn("Invalid status value provided in contract search: {}. Ignoring this status condition.", status);
+                Set<ContractStatus> statusEnums = Arrays.stream(status.toUpperCase().split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .map(s -> {
+                            try {
+                                return ContractStatus.valueOf(s);
+                            } catch (IllegalArgumentException e) {
+                                logger.warn("Invalid status value provided in contract search: {}. Skipping this status value.", s);
+                                return null;
+                            }
+                        })
+                        .filter(Objects::nonNull) // 过滤掉无效的状态值
+                        .collect(Collectors.toSet());
+                if (!statusEnums.isEmpty()) {
+                    predicates.add(root.get("status").in(statusEnums));
                 }
+            }
+
+            // 修改点2: 处理 expiringSoon 逻辑
+            if (expiringSoon != null && expiringSoon) {
+                LocalDate today = LocalDate.now();
+                LocalDate futureDate = today.plusDays(30); // 30天内到期
+
+                // 必须是 ACTIVE 状态才算即将到期
+                predicates.add(criteriaBuilder.equal(root.get("status"), ContractStatus.ACTIVE));
+                // 结束日期必须在今天之后（排除今天）
+                predicates.add(criteriaBuilder.greaterThan(root.get("endDate"), today));
+                // 结束日期必须在未来30天内（包括30天后那一天）
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("endDate"), futureDate));
             }
 
             if (!isAdmin && StringUtils.hasText(currentUsername)) {
@@ -1100,7 +1145,7 @@ public class ContractServiceImpl implements ContractService {
         List<ContractProcess> processes = contractProcessRepository.findByContractAndType(contract, type); //
         processes.forEach(process -> Hibernate.initialize(process.getOperator())); //
         return processes.stream()
-                .sorted(Comparator.comparing(ContractProcess::getCreatedAt))
+                .sorted(Comparator.comparing(ContractProcess::getProcessedAt, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList()); //
     }
 

@@ -246,21 +246,49 @@
             }, 7000);
         }
 
+        // --- 新增：获取URL参数的函数 ---
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            var results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+
         // 合同查询相关函数
         async function searchContracts(page = 1) {
             const searchForm = document.getElementById('contractSearchForm');
-            if (!searchForm) { // 再次防御性检查
+            if (!searchForm) {
                 console.error('searchContracts: 元素 #contractSearchForm 未找到。');
                 showAlert('系统错误：查询表单未加载，请刷新页面。', 'danger');
                 return;
             }
             const formData = new FormData(searchForm);
             const searchParams = new URLSearchParams();
-            formData.forEach((value, key) => {
-                if (value) searchParams.append(key, value);
-            });
+
+            // 优先从URL参数获取status，以处理逗号分隔的情况
+            const urlStatusParam = getUrlParameter('status');
+            if (urlStatusParam) {
+                searchParams.append('status', urlStatusParam); // 直接使用URL中的status参数
+            } else { // 如果URL中没有status参数，则从表单中获取
+                const formStatus = formData.get('status');
+                if (formStatus) searchParams.append('status', formStatus);
+            }
+
+            // 其他表单参数（合同名称、合同编号）
+            const contractName = formData.get('contractName');
+            if (contractName) searchParams.append('contractName', contractName);
+
+            const contractNumber = formData.get('contractNumber');
+            if (contractNumber) searchParams.append('contractNumber', contractNumber);
+
             searchParams.append('page', page - 1);
             searchParams.append('size', 10);
+
+            // 添加 expiringSoon 参数
+            const expiringSoonParam = getUrlParameter('expiringSoon');
+            if (expiringSoonParam) {
+                searchParams.append('expiringSoon', expiringSoonParam);
+            }
 
             const currentUserRoles = /*[[${#authentication.authorities.![authority]}]]*/ [];
             const isAdmin = currentUserRoles.includes('ROLE_ADMIN');
@@ -293,7 +321,7 @@
         // 渲染合同表格，根据角色显示延期按钮
         function renderContractTable(contracts, isAdmin, isContractOperator) {
             const tbody = document.getElementById('contractTableBody');
-            if (!tbody) { // 防御性检查
+            if (!tbody) {
                 console.error('renderContractTable: 元素 #contractTableBody 未找到。');
                 return;
             }
@@ -363,7 +391,7 @@
 
             // 为动态生成的延期按钮添加事件监听器
             const extendButtons = document.querySelectorAll('.extend-contract-btn');
-            if (extendButtons && extendButtons.length > 0) { // 防御性检查
+            if (extendButtons && extendButtons.length > 0) {
                 extendButtons.forEach(button => {
                     button.addEventListener('click', handleExtendButtonClick);
                 });
@@ -372,7 +400,7 @@
 
         function renderPagination(pageData) {
             const pagination = document.getElementById('pagination');
-            if (!pagination) { // 防御性检查
+            if (!pagination) {
                 console.error('renderPagination: 元素 #pagination 未找到。');
                 return;
             }
@@ -725,9 +753,34 @@
 
         // 页面加载完成后的初始化
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOMContentLoaded 已触发！');
+            // --- 新增：从URL参数预填充表单字段 ---
+            const contractNameParam = getUrlParameter('contractName');
+            const contractNumberParam = getUrlParameter('contractNumber');
+            const statusParam = getUrlParameter('status'); // 可能包含逗号分隔的状态字符串
+            const expiringSoonParam = getUrlParameter('expiringSoon'); // 新增：获取 expiringSoon 参数
 
-            // 显式检查模态框元素是否存在
+            if (contractNameParam) {
+                document.getElementById('contractName').value = contractNameParam;
+            }
+            if (contractNumberParam) {
+                document.getElementById('contractNumber').value = contractNumberParam;
+            }
+
+            // 处理状态参数，特别是来自“流程中”链接的逗号分隔值
+            const contractStatusSelect = document.getElementById('contractStatus');
+            if (statusParam) {
+                // 如果是单个状态，直接设置
+                if (!statusParam.includes(',')) {
+                    contractStatusSelect.value = statusParam;
+                } else {
+                    // 如果是多个状态（例如来自“流程中”链接），将下拉框设置为“全部状态”
+                    // 因为单个下拉框无法同时显示多个选中值。
+                    contractStatusSelect.value = "";
+                }
+            }
+            // `expiringSoon` 标志不直接映射到下拉菜单，但它会作为 URL 参数的一部分被后端逻辑处理。
+            // --- 预填充表单字段结束 ---
+
             const adminModalCheck = document.getElementById('adminExtendModal');
             const operatorModalCheck = document.getElementById('operatorRequestExtendModal');
             console.log('adminExtendModal 元素:', adminModalCheck);
@@ -762,6 +815,7 @@
                 });
             }
 
+            // --- 新增：在预填充表单字段后立即调用 searchContracts ---
             searchContracts(1); // 页面加载时自动加载第一页数据
 
             // 自动关闭提示消息
@@ -773,7 +827,7 @@
                         // 在调用 close() 之前，再次检查实例是否存在，因为元素可能已被移除
                         if (bootstrap.Alert.getInstance(alertNode)) {
                             bsAlert.close();
-                        } else if (alertNode.parentNode) { // 如果实例不存在但元素还在，直接从DOM移除
+                        } else if (alertNode.parentNode) {
                             alertNode.parentNode.removeChild(alertNode);
                         }
                     }, 7000);

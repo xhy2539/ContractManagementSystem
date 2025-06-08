@@ -126,12 +126,27 @@
 
         <form th:action="@{/contract-manager/draft}" method="post" th:object="${contractDraftRequest}" id="draftContractForm" class="needs-validation" novalidate>
             <div id="hiddenAttachmentInputsContainer"></div>
+            <input type="hidden" id="placeholderValuesJson" name="placeholderValuesJson">
+
 
             <div class="card mb-4 shadow-sm">
                 <div class="card-header bg-light">
                     <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
                 </div>
                 <div class="card-body">
+                    <div class="mb-3">
+                        <label for="templateSelect" class="form-label">选择合同模板 (可选)</label>
+                        <select class="form-select form-control-sm" id="templateSelect" th:field="*{templateId}">
+                            <option value="">-- 不使用模板 --</option>
+                            <option th:each="template : ${contractTemplates}"
+                                    th:value="${template.id}"
+                                    th:text="${template.templateName}"></option>
+                        </select>
+                    </div>
+                    <div id="placeholderInputArea" class="mb-3" style="display: none;">
+                        <p class="form-label">请填写模板占位符:</p>
+                    </div>
+
                     <div class="mb-3">
                         <label for="contractName" class="form-label">合同名称 <span class="required-asterisk">*</span></label>
                         <input type="text" class="form-control form-control-sm" id="contractName" th:field="*{contractName}" required>
@@ -326,6 +341,7 @@
 
 
 <th:block layout:fragment="scripts">
+    <script src="https://cdn.tiny.cloud/1/epd4u3q4czck41xhryufu73clhe4jzhzc0bxvnmw9t0z6ayk/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
     <script th:inline="javascript">
         /*<![CDATA[*/
         document.addEventListener('DOMContentLoaded', function () {

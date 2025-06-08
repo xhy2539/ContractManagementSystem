@@ -62,7 +62,7 @@ public class ContractInfoManagerController {
         String usernameForSearchFilter = isAdmin ? null : currentUsername;
 
         Pageable pageable = PageRequest.of(page, size);
-        return contractService.searchContracts(usernameForSearchFilter, isAdmin, contractName, contractNumber, status, pageable);
+        return contractService.searchContracts(usernameForSearchFilter, isAdmin, contractName, contractNumber, status, null, pageable);
     }
 
     @DeleteMapping("/delete/{contractId}")

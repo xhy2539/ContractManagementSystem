@@ -1,4 +1,3 @@
-// File: src/main/java/com/example/contractmanagementsystem/dto/ContractDraftRequest.java
 package com.example.contractmanagementsystem.dto;
 
 import jakarta.validation.constraints.NotBlank;
@@ -8,6 +7,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map; // 新增导入 Map
 
 public class ContractDraftRequest {
 
@@ -32,6 +32,13 @@ public class ContractDraftRequest {
 
     // 用于存储附件文件名列表的JSON字符串 (在起草和定稿时都可能用到)
     private List<String> attachmentServerFileNames = new ArrayList<>();
+
+    // 新增字段：用于选择模板的ID (可选)
+    private Long templateId;
+
+    // 新增字段：用于传递占位符的具体值，键为占位符名称，值为其对应的内容
+    private Map<String, String> placeholderValues;
+
 
     // Getters and Setters
     public String getContractName() {
@@ -89,5 +96,23 @@ public class ContractDraftRequest {
 
     public void setUpdatedContent(String updatedContent) {
         this.updatedContent = updatedContent;
+    }
+
+    // 新增 templateId 的 Getter 和 Setter
+    public Long getTemplateId() {
+        return templateId;
+    }
+
+    public void setTemplateId(Long templateId) {
+        this.templateId = templateId;
+    }
+
+    // 新增 placeholderValues 的 Getter 和 Setter
+    public Map<String, String> getPlaceholderValues() {
+        return placeholderValues;
+    }
+
+    public void setPlaceholderValues(Map<String, String> placeholderValues) {
+        this.placeholderValues = placeholderValues;
     }
 }

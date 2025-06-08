@@ -8,9 +8,11 @@ import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
 import com.example.contractmanagementsystem.entity.ContractProcessType;
 import com.example.contractmanagementsystem.entity.ContractStatus;
+import com.example.contractmanagementsystem.entity.ContractTemplate; // 新增导入
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
 import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.service.ContractService;
+import com.example.contractmanagementsystem.service.TemplateService; // 新增导入 TemplateService
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,19 +73,18 @@ public class ContractController {
     private static final Logger logger = LoggerFactory.getLogger(ContractController.class);
     private final ContractService contractService;
     private final ObjectMapper objectMapper;
-
-    // This property is no longer used here, AttachmentService handles the path
-    // private final Path attachmentStorageLocation = Paths.get("uploads/attachments").toAbsolutePath().normalize();
+    private final TemplateService templateService; // 新增注入
 
     @Autowired
-    public ContractController(ContractService contractService, ObjectMapper objectMapper) {
+    public ContractController(ContractService contractService, ObjectMapper objectMapper, TemplateService templateService) { // 新增注入
         this.contractService = contractService;
         this.objectMapper = objectMapper;
+        this.templateService = templateService; // 初始化
     }
 
     // This old download logic is replaced by the one in AttachmentController for consistency
     // The one in AttachmentController should be the single source of truth.
-    // However, if you want a quick fix here, this is how you'd do it:
+    // The one in AttachmentController should be the single source of truth.
     /*
     @GetMapping("/api/attachments/download/{filename:.+}")
     @ResponseBody
@@ -99,6 +100,8 @@ public class ContractController {
         if (!model.containsAttribute("contractDraftRequest")) {
             model.addAttribute("contractDraftRequest", new ContractDraftRequest());
         }
+        // 新增：加载所有合同模板并添加到模型中
+        model.addAttribute("contractTemplates", templateService.getAllTemplates());
         return "contract-manager/draft-contract";
     }
 
@@ -113,6 +116,8 @@ public class ContractController {
     ) {
         if (bindingResult.hasErrors()) {
             model.addAttribute("contractDraftRequest", contractDraftRequest);
+            // 重新添加模板列表，以便页面重新渲染时可用
+            model.addAttribute("contractTemplates", templateService.getAllTemplates());
             return "contract-manager/draft-contract";
         }
         try {
@@ -126,24 +131,43 @@ public class ContractController {
                 model.addAttribute("attachmentError", e.getMessage());
             }
             model.addAttribute("contractDraftRequest", contractDraftRequest);
+            // 重新添加模板列表
+            model.addAttribute("contractTemplates", templateService.getAllTemplates());
             return "contract-manager/draft-contract";
         } catch (ResourceNotFoundException e) {
             model.addAttribute("errorMessage", "起草合同失败：" + e.getMessage());
             model.addAttribute("contractDraftRequest", contractDraftRequest);
+            // 重新添加模板列表
+            model.addAttribute("contractTemplates", templateService.getAllTemplates());
             return "contract-manager/draft-contract";
         }
         catch (IOException e) {
             model.addAttribute("errorMessage", "处理请求时发生I/O错误：" + e.getMessage());
             model.addAttribute("contractDraftRequest", contractDraftRequest);
+            // 重新添加模板列表
+            model.addAttribute("contractTemplates", templateService.getAllTemplates());
             return "contract-manager/draft-contract";
         }
         catch (Exception e) {
             model.addAttribute("errorMessage", "起草合同失败，发生未知系统错误。");
             model.addAttribute("contractDraftRequest", contractDraftRequest);
             logger.error("起草合同未知错误", e);
+            // 重新添加模板列表
+            model.addAttribute("contractTemplates", templateService.getAllTemplates());
             return "contract-manager/draft-contract";
         }
     }
+
+    // 新增：获取合同模板详情的API端点
+    @GetMapping("/api/templates/{templateId}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('CON_DRAFT_NEW')") // 允许有起草权限的用户访问
+    public ResponseEntity<ContractTemplate> getContractTemplateDetails(@PathVariable Long templateId) {
+        return templateService.getTemplateById(templateId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
 
     @GetMapping("/pending-countersign")
     @PreAuthorize("hasAuthority('CON_CSIGN_VIEW')")
@@ -574,18 +598,20 @@ public class ContractController {
             @RequestParam(required = false) String contractName,
             @RequestParam(required = false) String contractNumber,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) Boolean expiringSoon, // 新增参数
             Model model) {
 
         String currentUsername = authentication.getName();
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(ga -> ga.getAuthority().equals("ROLE_ADMIN"));
 
-        Page<Contract> contractsPage = contractService.searchContracts(currentUsername, isAdmin, contractName, contractNumber, status, pageable);
+        Page<Contract> contractsPage = contractService.searchContracts(currentUsername, isAdmin, contractName, contractNumber, status, expiringSoon, pageable);
 
         model.addAttribute("contractsPage", contractsPage);
         model.addAttribute("contractName", contractName != null ? contractName : "");
         model.addAttribute("contractNumber", contractNumber != null ? contractNumber : "");
         model.addAttribute("status", status != null ? status : "");
+        model.addAttribute("expiringSoon", expiringSoon != null ? expiringSoon : false); // 传回模型
         model.addAttribute("listTitle", "合同列表查询");
         return "reports/contract-search";
     }

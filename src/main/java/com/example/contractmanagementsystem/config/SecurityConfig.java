@@ -54,7 +54,10 @@ public class SecurityConfig {
                         // anyRequest().authenticated() 会确保其需要认证
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         // 新增：延期请求审批的路径，仅管理员可见
-                        .requestMatchers("/admin/approve-extension-request/**").hasAuthority("CON_EXTEND_APPROVAL_VIEW") //
+                        .requestMatchers("/admin/approve-extension-request/**").hasAuthority("CON_EXTEND_APPROVAL_VIEW")
+                        // 新增：合同模板管理页面和API
+                        .requestMatchers("/admin/templates/**").hasAuthority("TEMP_VIEW_LIST") // View access to template management page
+                        .requestMatchers("/admin/templates/api/**").hasRole("ADMIN") // API access restricted to ADMIN for now, finer-grained with @PreAuthorize in controller
                         .requestMatchers("/api/system/**").authenticated()
                         .anyRequest().authenticated() // 任何其他请求都需要认证
                 )

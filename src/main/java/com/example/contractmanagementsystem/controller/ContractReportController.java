@@ -47,13 +47,14 @@ public class ContractReportController {
 
     @GetMapping("/api/contracts/search")
     @ResponseBody
-    // 权限可以保持不变
+// 权限可以保持不变
     @PreAuthorize("hasRole('ROLE_ADMIN') or hasAuthority('QUERY_CONTRACT_INFO')")
     public Page<Contract> searchContracts(
             Authentication authentication, // 获取认证信息
             @RequestParam(required = false) String contractName,
             @RequestParam(required = false) String contractNumber,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) Boolean expiringSoon, // 新增参数
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
@@ -78,6 +79,6 @@ public class ContractReportController {
         String usernameForSearchFilter = isAdmin ? null : currentUsername;
 
         Pageable pageable = PageRequest.of(page, size);
-        return contractService.searchContracts(usernameForSearchFilter, isAdmin, contractName, contractNumber, status, pageable);
+        return contractService.searchContracts(usernameForSearchFilter, isAdmin, contractName, contractNumber, status, expiringSoon, pageable);
     }
 }

@@ -36,5 +36,9 @@ public class AdminController {
         return "admin/contract-assignment"; // 新的HTML页面
     }
 
+//    @GetMapping("/templates") // 新增：模板管理页面
+//    public String templateManagementPage() {
+//        return "admin/template-management";
+//    }
 
 }

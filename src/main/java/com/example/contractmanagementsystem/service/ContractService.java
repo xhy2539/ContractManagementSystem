@@ -55,10 +55,11 @@ public interface ContractService {
      * @param contractName   合同名称的模糊搜索关键字（可选）。
      * @param contractNumber 合同编号的模糊搜索关键字（可选）。
      * @param status         合同状态的精确匹配（可选，应为ContractStatus枚举的字符串表示）。
+     * @param expiringSoon   新增：是否查询即将到期的合同（布尔值，可选）。
      * @param pageable       分页和排序信息。
      * @return 包含合同列表的分页结果。
      */
-    Page<Contract> searchContracts(String currentUsername, boolean isAdmin, String contractName, String contractNumber, String status, Pageable pageable);
+    Page<Contract> searchContracts(String currentUsername, boolean isAdmin, String contractName, String contractNumber, String status, Boolean expiringSoon, Pageable pageable);
 
     /**
      * 查询指定用户、指定类型和指定状态的合同流程（如待会签、待审批、待签订等），并支持按合同名称搜索和分页。

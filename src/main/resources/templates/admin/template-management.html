@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+  <meta charset="UTF-8">
+  <title>合同模板管理</title>
+  <th:block layout:fragment="css-links"></th:block>
+  <style layout:fragment="inline-css">
+    .action-buttons button {
+      margin-right: 5px;
+    }
+    .filter-card .card-header {
+      padding: 0.5rem 1rem;
+    }
+    .filter-card .card-body {
+      padding: 1rem;
+    }
+    /* For rich text editor in modal */
+    .tox-tinymce {
+      border: 1px solid #ced4da !important;
+      border-radius: 0.25rem !important;
+    }
+  </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+  <div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1><i class="bi bi-file-earmark-text-fill"></i> 合同模板管理</h1>
+      <button type="button" id="addTemplateBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#templateFormModal"
+              sec:authorize="hasAuthority('TEMP_CREATE')">
+        <i class="bi bi-plus-circle"></i> 添加模板
+      </button>
+    </div>
+
+    <div id="globalAlertContainer"></div>
+
+    <div class="card filter-card shadow-sm mb-3">
+      <div class="card-header">
+        <i class="bi bi-funnel-fill"></i> 筛选条件
+      </div>
+      <div class="card-body">
+        <form id="templateFilterForm" class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label for="templateNameSearch" class="form-label form-label-sm">模板名称</label>
+            <input type="text" class="form-control form-control-sm" id="templateNameSearch" placeholder="按模板名称搜索...">
+          </div>
+          <div class="col-md-4">
+            <label for="templateTypeSearch" class="form-label form-label-sm">模板类型</label>
+            <input type="text" class="form-control form-control-sm" id="templateTypeSearch" placeholder="按模板类型搜索...">
+          </div>
+          <div class="col-md-4 d-flex justify-content-start align-items-end">
+            <button type="button" id="searchTemplateBtn" class="btn btn-sm btn-primary me-2">
+              <i class="bi bi-search"></i> 查询
+            </button>
+            <button type="reset" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-arrow-counterclockwise"></i> 重置
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+
+    <div id="templatesTableSpinner" class="text-center my-3" style="display:none;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">加载中...</span>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table id="templatesTable" class="table table-striped table-hover table-bordered caption-top">
+        <caption>合同模板列表</caption>
+        <thead class="table-dark">
+        <tr>
+          <th scope="col" style="width: 5%;">ID</th>
+          <th scope="col" style="width: 25%;">模板名称</th>
+          <th scope="col" style="width: 15%;">模板类型</th>
+          <th scope="col">占位符列表</th>
+          <th scope="col" style="width: 20%;">操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+
+    <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-center">
+      <ul class="pagination" id="paginationControlsTemplate">
+      </ul>
+    </nav>
+  </div>
+
+  <div class="modal fade" id="templateFormModal" tabindex="-1" aria-labelledby="templateFormModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <form id="templateForm">
+          <div class="modal-header">
+            <h5 class="modal-title" id="templateFormModalLabel">模板信息</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="templateId" name="id">
+            <div class="mb-3">
+              <label for="templateName" class="form-label">模板名称 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="templateName" name="templateName" required maxlength="100">
+            </div>
+            <div class="mb-3">
+              <label for="templateType" class="form-label">模板类型</label>
+              <input type="text" class="form-control" id="templateType" name="templateType" maxlength="50">
+            </div>
+            <div class="mb-3">
+              <label for="templateContent" class="form-label">模板内容 <span class="text-danger">*</span></label>
+              <textarea class="form-control" id="templateContent" name="templateContent" rows="15" required></textarea>
+              <small class="form-text text-muted">请在此处输入合同模板的详细内容，可以使用 `{{占位符名称}}` 格式来定义可替换字段。</small>
+            </div>
+            <div class="mb-3">
+              <label for="placeholderFields" class="form-label">占位符列表 (逗号分隔)</label>
+              <input type="text" class="form-control" id="placeholderFields" name="placeholderFields" placeholder="例如: customerName, contractAmount, startDate">
+              <small class="form-text text-muted">输入模板中用到的所有占位符名称，用英文逗号分隔。例如 `{{customerName}}` 对应输入 `customerName`。</small>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<th:block layout:fragment="scripts">
+  <script src="https://cdn.tiny.cloud/1/epd4u3q4czck41xhryufu73clhe4jzhzc0bxvnmw9t0z6ayk/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+  <script th:src="@{/js/utils.js}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // --- DOM Element References ---
+      const templatesTableBody = document.querySelector('#templatesTable tbody');
+      const templateFormModalEl = document.getElementById('templateFormModal');
+      const templateFormModal = new bootstrap.Modal(templateFormModalEl);
+      const templateForm = document.getElementById('templateForm');
+      const addTemplateBtn = document.getElementById('addTemplateBtn');
+      const templateIdInput = document.getElementById('templateId');
+      const templateNameInput = document.getElementById('templateName');
+      const templateTypeInput = document.getElementById('templateType');
+      const templateContentTextarea = document.getElementById('templateContent');
+      const placeholderFieldsInput = document.getElementById('placeholderFields');
+      const templateFormModalLabel = document.getElementById('templateFormModalLabel');
+
+      // Filter and Search Elements
+      const templateFilterForm = document.getElementById('templateFilterForm');
+      const templateNameSearchInput = document.getElementById('templateNameSearch');
+      const templateTypeSearchInput = document.getElementById('templateTypeSearch');
+      const searchTemplateBtn = document.getElementById('searchTemplateBtn');
+
+      const paginationControlsContainerId = 'paginationControlsTemplate';
+      const globalAlertContainerId = 'globalAlertContainer';
+      const templatesTableSpinnerId = 'templatesTableSpinner';
+
+      // --- State & Configuration ---
+      let currentPageTemplate = 0;
+      const DEFAULT_PAGE_SIZE_TEMPLATE = 10;
+      let tinymceEditor; // Reference to TinyMCE editor instance
+
+      // --- API Endpoints ---
+      const API_TEMPLATES_URL = '/admin/templates/api'; // Use the new controller path
+
+      // --- Initialization ---
+      async function initializePage() {
+        // Initialize TinyMCE for the template content textarea
+        tinymce.init({
+          selector: '#templateContent',
+          plugins: 'advlist autolink lists link image charmap print preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount',
+          toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
+          height: 300,
+          menubar: false,
+          setup: function (editor) {
+            tinymceEditor = editor; // Store editor instance
+            editor.on('change', function () {
+              editor.save(); // Ensure content is saved back to textarea
+            });
+          }
+        });
+
+        await fetchTemplates(); // Load templates on page load
+
+        if (addTemplateBtn) {
+          addTemplateBtn.addEventListener('click', handleOpenCreateTemplateModal);
+        }
+        if (templateForm) {
+          templateForm.addEventListener('submit', handleTemplateFormSubmit);
+        }
+        if (templatesTableBody) {
+          templatesTableBody.addEventListener('click', handleTableActions);
+        }
+        if (searchTemplateBtn) {
+          searchTemplateBtn.addEventListener('click', () => fetchTemplates(0));
+        }
+        if (templateFilterForm) {
+          templateFilterForm.addEventListener('reset', () => {
+            setTimeout(() => fetchTemplates(0), 0);
+          });
+          [templateNameSearchInput, templateTypeSearchInput].forEach(input => {
+            if (input) input.addEventListener('keypress', (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                fetchTemplates(0);
+              }
+            });
+          });
+        }
+        // Reset TinyMCE content when modal is hidden
+        templateFormModalEl.addEventListener('hidden.bs.modal', function () {
+          if (tinymceEditor) {
+            tinymceEditor.setContent('');
+          }
+          resetForm(templateForm); // utils.js function to clear form and validation
+        });
+      }
+
+      // --- Data Fetching and Rendering ---
+      async function fetchTemplates(page = 0, size = DEFAULT_PAGE_SIZE_TEMPLATE) {
+        currentPageTemplate = page;
+        const nameSearchVal = templateNameSearchInput ? templateNameSearchInput.value.trim() : '';
+        const typeSearchVal = templateTypeSearchInput ? templateTypeSearchInput.value.trim() : '';
+
+        let queryParams = `page=${page}&size=${size}`; // Sorting is handled by the backend directly for now
+
+        if (nameSearchVal) {
+          queryParams += `&templateNameSearch=${encodeURIComponent(nameSearchVal)}`;
+        }
+        if (typeSearchVal) {
+          queryParams += `&templateTypeSearch=${encodeURIComponent(typeSearchVal)}`;
+        }
+
+        toggleLoading(true, null, templatesTableSpinnerId);
+        try {
+          const pageData = await authenticatedFetch(`${API_TEMPLATES_URL}?${queryParams}`, {}, globalAlertContainerId);
+          if (pageData && pageData.content) {
+            renderTemplatesTable(pageData.content);
+            renderPaginationControls(pageData, paginationControlsContainerId, fetchTemplates, DEFAULT_PAGE_SIZE_TEMPLATE);
+          } else {
+            templatesTableBody.innerHTML = `<tr><td colspan="5" class="text-center">无模板数据。</td></tr>`;
+            renderPaginationControls(null, paginationControlsContainerId, fetchTemplates, DEFAULT_PAGE_SIZE_TEMPLATE);
+          }
+        } catch (error) {
+          templatesTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">加载模板列表失败。</td></tr>`;
+          renderPaginationControls(null, paginationControlsContainerId, fetchTemplates, DEFAULT_PAGE_SIZE_TEMPLATE);
+        } finally {
+          toggleLoading(false, null, templatesTableSpinnerId);
+        }
+      }
+
+      function renderTemplatesTable(templates) {
+        templatesTableBody.innerHTML = '';
+        if (templates && templates.length > 0) {
+          templates.forEach(template => {
+            const row = templatesTableBody.insertRow();
+            row.insertCell().textContent = template.id;
+            row.insertCell().textContent = template.templateName;
+            row.insertCell().textContent = template.templateType || 'N/A';
+
+            const placeholderFieldsArray = template.placeholderFields ? JSON.parse(template.placeholderFields) : [];
+            row.insertCell().textContent = Array.isArray(placeholderFieldsArray) && placeholderFieldsArray.length > 0 ? placeholderFieldsArray.join(', ') : '无';
+
+            const actionsCell = row.insertCell();
+            actionsCell.classList.add('action-buttons', 'text-nowrap');
+            actionsCell.innerHTML = `
+                            <button class="btn btn-sm btn-info edit-template-btn" data-template-id="${template.id}" title="编辑模板"
+                                sec:authorize="hasAuthority('TEMP_EDIT')"><i class="bi bi-pencil-square"></i></button>
+                            <button class="btn btn-sm btn-danger delete-template-btn" data-template-id="${template.id}" data-template-name="${template.templateName}" title="删除模板"
+                                sec:authorize="hasAuthority('TEMP_DELETE')"><i class="bi bi-trash"></i></button>
+                        `;
+          });
+        } else {
+          templatesTableBody.innerHTML = `<tr><td colspan="5" class="text-center">无模板数据。</td></tr>`;
+        }
+      }
+
+      // --- Event Handlers ---
+      function handleOpenCreateTemplateModal() {
+        resetForm(templateForm);
+        templateIdInput.value = '';
+        templateFormModalLabel.textContent = '添加新模板';
+        if (tinymceEditor) {
+          tinymceEditor.setContent(''); // Clear TinyMCE content
+        }
+        templateFormModal.show();
+      }
+
+      async function handleTemplateFormSubmit(event) {
+        event.preventDefault();
+        // Ensure TinyMCE content is saved back to textarea before validation
+        if (tinymceEditor) {
+          tinymceEditor.save();
+        }
+
+        if (!validateForm(templateForm)) {
+          showAlert('请检查表单中的必填项。', 'warning', globalAlertContainerId);
+          return;
+        }
+
+        const saveButton = templateForm.querySelector('button[type="submit"]');
+        toggleLoading(true, saveButton);
+
+        const currentTemplateId = templateIdInput.value;
+        const templateName = templateNameInput.value;
+        const templateType = templateTypeInput.value;
+        const templateContent = templateContentTextarea.value;
+
+        let placeholderFieldsArray = [];
+        if (placeholderFieldsInput.value.trim()) {
+          placeholderFieldsArray = placeholderFieldsInput.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+        const placeholderFieldsJson = JSON.stringify(placeholderFieldsArray); // Convert to JSON string
+
+        const templateData = {
+          templateName,
+          templateType,
+          templateContent,
+          placeholderFields: placeholderFieldsJson // Send as JSON string
+        };
+
+        let apiUrl = API_TEMPLATES_URL;
+        let method = 'POST';
+
+        if (currentTemplateId) { // Edit mode
+          apiUrl = `${API_TEMPLATES_URL}/${currentTemplateId}`;
+          method = 'PUT';
+        }
+
+        try {
+          await authenticatedFetch(apiUrl, { method, body: templateData }, globalAlertContainerId);
+          showAlert(currentTemplateId ? '模板更新成功！' : '模板创建成功！', 'success', globalAlertContainerId);
+          fetchTemplates(currentTemplateId ? currentPageTemplate : 0);
+          templateFormModal.hide();
+        } catch (error) {
+          // authenticatedFetch already handles displaying the alert
+        } finally {
+          toggleLoading(false, saveButton);
+        }
+      }
+
+      async function handleTableActions(event) {
+        const targetButton = event.target.closest('button');
+        if (!targetButton) return;
+
+        const templateId = targetButton.dataset.templateId;
+
+        if (targetButton.classList.contains('edit-template-btn')) {
+          try {
+            const template = await authenticatedFetch(`${API_TEMPLATES_URL}/${templateId}`, {}, globalAlertContainerId);
+            if (template) {
+              resetForm(templateForm); // Clear form and validation
+              templateFormModalLabel.textContent = '编辑模板';
+              templateIdInput.value = template.id;
+              templateNameInput.value = template.templateName;
+              templateTypeInput.value = template.templateType || '';
+
+              if (tinymceEditor) {
+                tinymceEditor.setContent(template.templateContent || ''); // Set TinyMCE content
+              } else {
+                templateContentTextarea.value = template.templateContent || '';
+              }
+
+              // Parse and display placeholder fields
+              let placeholderFieldsArray = [];
+              if (template.placeholderFields) {
+                try {
+                  placeholderFieldsArray = JSON.parse(template.placeholderFields);
+                } catch (e) {
+                  console.error("Error parsing placeholderFields JSON:", e);
+                }
+              }
+              placeholderFieldsInput.value = Array.isArray(placeholderFieldsArray) ? placeholderFieldsArray.join(', ') : '';
+
+              templateFormModal.show();
+            } else {
+              showAlert('无法加载模板信息进行编辑。', 'warning', globalAlertContainerId);
+            }
+          } catch (error) {
+            console.error("编辑模板 - 加载模板信息失败:", error);
+            showAlert('加载模板信息进行编辑失败，详情请查看控制台。', 'danger', globalAlertContainerId);
+          }
+        } else if (targetButton.classList.contains('delete-template-btn')) {
+          const templateName = targetButton.dataset.templateName;
+          if (confirm(`确定要删除模板 "${templateName}" (ID: ${templateId})吗？此操作无法撤销。`)) {
+            toggleLoading(true, targetButton);
+            try {
+              await authenticatedFetch(`${API_TEMPLATES_URL}/${templateId}`, { method: 'DELETE' }, globalAlertContainerId);
+              showAlert(`模板 "${templateName}" 删除成功！`, 'success', globalAlertContainerId);
+              const currentRows = templatesTableBody.rows.length;
+              if (currentRows === 1 && currentPageTemplate > 0) {
+                fetchTemplates(currentPageTemplate - 1);
+              } else {
+                fetchTemplates(currentPageTemplate);
+              }
+            } catch (error) {
+              // authenticatedFetch already handles displaying the alert
+            } finally {
+              toggleLoading(false, targetButton);
+            }
+          }
+        }
+      }
+
+      // --- Initial Page Load ---
+      initializePage();
+    });
+  </script>
+</th:block>
+
+</body>
+</html>

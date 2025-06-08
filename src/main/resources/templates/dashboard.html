@@ -168,6 +168,8 @@
                 </div>
             </div>
 
+
+
             <div class="col-lg-6 col-xl-4" sec:authorize="isAuthenticated()">
                 <div class="card dashboard-card">
                     <div class="card-header">
@@ -263,7 +265,18 @@
                     </ul>
                 </div>
             </div>
-
+            <div class="col-lg-6 col-xl-4" sec:authorize="hasAuthority('TEMP_VIEW_LIST')">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <i class="bi bi-file-earmark-text-fill me-2"></i>模板管理
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <a th:href="@{/admin/templates}"><i class="bi bi-file-earmark-text-fill"></i>合同模板管理</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 </section>
