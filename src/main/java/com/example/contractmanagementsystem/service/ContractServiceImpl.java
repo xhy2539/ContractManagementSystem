@@ -766,66 +766,83 @@ public class ContractServiceImpl implements ContractService {
     @Transactional
     public void signContract(Long contractProcessId, String signingOpinion, String username) {
         ContractProcess process = getContractProcessByIdAndOperator(
-                contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
+                contractProcessId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING); //
 
-        Contract contract = process.getContract();
-        if (contract.getStatus() != ContractStatus.PENDING_SIGNING) {
-            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法签订。必须处于待签订状态。");
+        Contract contract = process.getContract(); //
+        if (contract.getStatus() != ContractStatus.PENDING_SIGNING) { //
+            throw new BusinessLogicException("合同当前状态为 " + contract.getStatus().getDescription() + "，无法签订。必须处于待签订状态。"); //
         }
 
-        process.setState(ContractProcessState.COMPLETED);
-        process.setComments(signingOpinion);
-        process.setProcessedAt(LocalDateTime.now());
-        process.setCompletedAt(LocalDateTime.now());
-        contractProcessRepository.save(process);
+        process.setState(ContractProcessState.COMPLETED); //
+        process.setComments(signingOpinion); //
+        process.setProcessedAt(LocalDateTime.now()); //
+        process.setCompletedAt(LocalDateTime.now()); //
+        contractProcessRepository.save(process); //
 
-        contract.setUpdatedAt(LocalDateTime.now());
-        String logDetails = "用户 " + username + " 完成了合同 ID " + contract.getId() +
-                " (" + contract.getContractName() + ") 的签订。签订意见: " +
-                (StringUtils.hasText(signingOpinion) ? signingOpinion : "无");
+        contract.setUpdatedAt(LocalDateTime.now()); //
+        String logDetails = "用户 " + username + " 完成了合同 ID " + contract.getId() + //
+                " (" + contract.getContractName() + ") 的签订。签订意见: " + //
+                (StringUtils.hasText(signingOpinion) ? signingOpinion : "无"); //
 
-        List<ContractProcess> allSigningProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.SIGNING);
+        List<ContractProcess> allSigningProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.SIGNING); //
 
-        boolean allRelevantSigningsCompleted = allSigningProcesses.stream()
-                .allMatch(p -> p.getState() == ContractProcessState.COMPLETED);
+        // --- START OF MODIFICATION ---
+        // 检查是否有任何签订流程被拒绝
+        boolean anySigningRejected = allSigningProcesses.stream()
+                .anyMatch(p -> p.getState() == ContractProcessState.REJECTED);
 
-        if (allRelevantSigningsCompleted) {
-            contract.setStatus(ContractStatus.ACTIVE);
-            logDetails += " 所有签订流程已完成，合同状态更新为有效。";
-            auditLogService.logAction(username, "CONTRACT_ALL_SIGNED_ACTIVE", logDetails);
+        if (anySigningRejected) {
+            contract.setStatus(ContractStatus.REJECTED);
+            logDetails += " 某个签订流程被拒绝，合同状态变更为已拒绝。";
+            auditLogService.logAction(username, "CONTRACT_SIGNING_REJECTED", logDetails);
+            contractRepository.save(contract);
+            return;
+        }
+
+        // 检查所有签订流程是否都已完成 (COMPLETED 或 APPROVED)
+        // 对于签订，通常只有 COMPLETED 状态，但为了与其他流程类型保持一致性，也可以考虑 APPROVED
+        // 这里根据您的描述，我们明确要求所有都COMPLETED。
+        boolean allSigningsCompletedAndApproved = allSigningProcesses.stream()
+                .allMatch(p -> p.getState() == ContractProcessState.COMPLETED); // 确认所有都COMPLETED
+
+        if (allSigningsCompletedAndApproved) {
+            // --- END OF MODIFICATION ---
+            contract.setStatus(ContractStatus.ACTIVE); //
+            logDetails += " 所有签订流程已完成，合同状态更新为有效。"; //
+            auditLogService.logAction(username, "CONTRACT_ALL_SIGNED_ACTIVE", logDetails); //
 
             // --- 通知起草人合同已生效 ---
-            User drafter = contract.getDrafter();
-            sendTaskNotificationEmail(drafter, "合同已生效", contract);
+            User drafter = contract.getDrafter(); //
+            sendTaskNotificationEmail(drafter, "合同已生效", contract); //
 
             // ========== 新增的通知客户逻辑 ==========
-            Customer customer = contract.getCustomer();
-            if (customer != null && StringUtils.hasText(customer.getEmail())) {
-                Map<String, Object> context = new HashMap<>();
+            Customer customer = contract.getCustomer(); //
+            if (customer != null && StringUtils.hasText(customer.getEmail())) { //
+                Map<String, Object> context = new HashMap<>(); //
                 // 您可以在这里定义您的公司名称
-                context.put("companyName", "您的公司名称");
-                context.put("customerName", customer.getCustomerName());
-                context.put("contractName", contract.getContractName());
-                context.put("contractNumber", contract.getContractNumber());
+                context.put("companyName", "您的公司名称"); //
+                context.put("customerName", customer.getCustomerName()); //
+                context.put("contractName", contract.getContractName()); //
+                context.put("contractNumber", contract.getContractNumber()); //
                 context.put("effectiveDate", LocalDate.now().toString()); // 使用当前日期作为生效日
 
                 emailService.sendHtmlMessage(
-                        customer.getEmail(),
-                        "【合同生效通知】关于您与" + "您的公司名称" + "的合同：" + contract.getContractName(),
+                        customer.getEmail(), //
+                        "【合同生效通知】关于您与" + "您的公司名称" + "的合同：" + contract.getContractName(), //
                         "customer-notification-email", // 使用新的客户通知模板
-                        context
+                        context //
                 );
-                logger.info("已向客户 {} ({}) 发送合同生效通知邮件。", customer.getCustomerName(), customer.getEmail());
+                logger.info("已向客户 {} ({}) 发送合同生效通知邮件。", customer.getCustomerName(), customer.getEmail()); //
             } else {
-                logger.warn("合同 {} (ID: {}) 的客户或客户邮箱为空，无法发送生效通知邮件。", contract.getContractName(), contract.getId());
+                logger.warn("合同 {} (ID: {}) 的客户或客户邮箱为空，无法发送生效通知邮件。", contract.getContractName(), contract.getId()); //
             }
             // ========== 逻辑结束 ==========
 
         } else {
-            logDetails += " 其他签订流程仍在进行中。合同状态保持待签订。";
-            auditLogService.logAction(username, "CONTRACT_PARTIALLY_SIGNED", logDetails);
+            logDetails += " 其他签订流程仍在进行中。合同状态保持待签订。"; //
+            auditLogService.logAction(username, "CONTRACT_PARTIALLY_SIGNED", logDetails); //
         }
-        contractRepository.save(contract);
+        contractRepository.save(contract); //
     }
 
     @Override
