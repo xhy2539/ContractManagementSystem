@@ -1,5 +1,6 @@
 package com.example.contractmanagementsystem.repository;
 
+import com.example.contractmanagementsystem.dto.DashboardPendingTaskDto;
 import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.entity.ContractProcessState;
@@ -51,4 +52,20 @@ public interface ContractProcessRepository extends JpaRepository<ContractProcess
     @Query("DELETE FROM ContractProcess cp WHERE cp.contract.id = :contractId")
     void deleteByContract(Long contractId);
 
+
+    //  为仪表盘优化的待办事项查询，增加 p.state = 'PENDING' 条件
+    @Query("SELECT new com.example.contractmanagementsystem.dto.DashboardPendingTaskDto(" +
+            "p.id, p.type, p.createdAt, c.id, c.contractName, c.contractNumber, d.username) " +
+            "FROM ContractProcess p JOIN p.contract c JOIN c.drafter d " +
+            "WHERE p.operator = :user AND p.state = 'PENDING'") 
+    List<DashboardPendingTaskDto> findPendingTasksForDashboard(@Param("user") User user);
+
+    // 为管理员优化的延期请求查询，也明确增加 p.state = 'PENDING' 条件
+    @Query("SELECT new com.example.contractmanagementsystem.dto.DashboardPendingTaskDto(" +
+            "p.id, p.type, p.createdAt, c.id, c.contractName, c.contractNumber, d.username) " +
+            "FROM ContractProcess p JOIN p.contract c JOIN c.drafter d " +
+            "WHERE p.type = 'EXTENSION_REQUEST' AND p.state = 'PENDING'")
+    List<DashboardPendingTaskDto> findPendingExtensionRequestsForAdminDashboard();
 }
+
+

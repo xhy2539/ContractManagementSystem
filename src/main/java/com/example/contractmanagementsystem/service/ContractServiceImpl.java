@@ -1,6 +1,7 @@
 package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.dto.ContractDraftRequest;
+import com.example.contractmanagementsystem.dto.DashboardPendingTaskDto;
 import com.example.contractmanagementsystem.dto.DashboardStatsDto;
 import com.example.contractmanagementsystem.entity.*;
 import com.example.contractmanagementsystem.exception.BusinessLogicException;
@@ -14,6 +15,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.Fetch;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
@@ -56,10 +59,12 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class ContractServiceImpl implements ContractService {
-
+    @Autowired
+    private EntityManager entityManager;
     private static final Logger logger = LoggerFactory.getLogger(ContractServiceImpl.class);
 
     private final ContractRepository contractRepository;
@@ -518,6 +523,7 @@ public class ContractServiceImpl implements ContractService {
 
 
     @Override
+    @Deprecated
     @Transactional(readOnly = true)
     public List<ContractProcess> getAllPendingTasksForUser(String username) {
         User currentUser = userRepository.findByUsername(username)
@@ -553,10 +559,9 @@ public class ContractServiceImpl implements ContractService {
 
             List<Predicate> finalPredicates = new ArrayList<>();
 
-            // 任务状态必须是“待处理”
+            // [重要修正] 在所有条件的最外层，强制要求流程状态必须是 PENDING
             finalPredicates.add(cb.equal(root.get("state"), ContractProcessState.PENDING));
 
-            // 连接到Contract实体以过滤合同状态
             Join<ContractProcess, Contract> contractJoin = root.join("contract", JoinType.INNER);
 
             // 定义各类任务的条件
@@ -587,11 +592,10 @@ public class ContractServiceImpl implements ContractService {
             allOrConditions.add(signingTasks);
             allOrConditions.add(finalizeTasks);
 
-            // 如果是管理员，额外添加所有待审批的延期请求
             if (isAdmin) {
                 Predicate allPendingExtensionRequests = cb.and(
                         cb.equal(root.get("type"), ContractProcessType.EXTENSION_REQUEST),
-                        cb.equal(root.get("state"), ContractProcessState.PENDING)
+                        cb.equal(root.get("state"), ContractProcessState.PENDING) // 这个条件在isAdmin分支中是重复的，但无害
                 );
                 allOrConditions.add(allPendingExtensionRequests);
             }
@@ -603,9 +607,7 @@ public class ContractServiceImpl implements ContractService {
             return cb.and(finalPredicates.toArray(new Predicate[0]));
         };
 
-        // 移除显式的 Hibernate.initialize 调用，因为 JOIN FETCH 会处理它们
-        List<ContractProcess> tasks = contractProcessRepository.findAll(spec);
-        return tasks;
+        return contractProcessRepository.findAll(spec);
     }
 
 
@@ -1523,5 +1525,83 @@ public class ContractServiceImpl implements ContractService {
         // 删除 contract 表中的记录
         contractRepository.deleteById(id);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DashboardPendingTaskDto> getDashboardPendingTasks(String username, boolean isAdmin) {
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new BusinessLogicException("User not found: " + username));
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<DashboardPendingTaskDto> query = cb.createQuery(DashboardPendingTaskDto.class);
+        Root<ContractProcess> p = query.from(ContractProcess.class);
+        Join<Contract, User> d = p.join("contract").join("drafter", JoinType.LEFT);
+
+        query.select(cb.construct(
+                DashboardPendingTaskDto.class,
+                p.get("id"),
+                p.get("type"),
+                p.get("createdAt"),
+                p.get("contract").get("id"),
+                p.get("contract").get("contractName"),
+                p.get("contract").get("contractNumber"),
+                d.get("username")
+        ));
+
+        // [最终修正逻辑]
+        // 1. 构建一个针对普通用户任务的组合条件 (A OR B OR C ...)
+        Predicate userTasksPredicate = cb.or(
+                // 会签任务
+                cb.and(
+                        cb.equal(p.get("type"), ContractProcessType.COUNTERSIGN),
+                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_COUNTERSIGN)
+                ),
+                // 定稿任务
+                cb.and(
+                        cb.equal(p.get("type"), ContractProcessType.FINALIZE),
+                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_FINALIZATION)
+                ),
+                // 审批任务
+                cb.and(
+                        cb.equal(p.get("type"), ContractProcessType.APPROVAL),
+                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_APPROVAL)
+                ),
+                // 签订任务
+                cb.and(
+                        cb.equal(p.get("type"), ContractProcessType.SIGNING),
+                        cb.equal(p.get("contract").get("status"), ContractStatus.PENDING_SIGNING)
+                )
+        );
+
+        // 将“是当前用户的待办任务”这个条件与上面的组合条件用AND连接
+        Predicate finalUserPredicate = cb.and(
+                cb.equal(p.get("operator"), currentUser),
+                cb.equal(p.get("state"), ContractProcessState.PENDING),
+                userTasksPredicate
+        );
+
+        // 2. 构建最终的WHERE子句
+        if (isAdmin) {
+            // 如果是管理员，则最终条件是“(满足条件的个人任务) OR (所有待处理的延期请求)”
+            Predicate adminExtensionTasks = cb.and(
+                    cb.equal(p.get("type"), ContractProcessType.EXTENSION_REQUEST),
+                    cb.equal(p.get("state"), ContractProcessState.PENDING)
+            );
+            query.where(cb.or(finalUserPredicate, adminExtensionTasks));
+        } else {
+            // 如果不是管理员，最终条件就是个人任务
+            query.where(finalUserPredicate);
+        }
+
+        query.orderBy(cb.desc(p.get("createdAt")));
+
+        TypedQuery<DashboardPendingTaskDto> typedQuery = entityManager.createQuery(query);
+        List<DashboardPendingTaskDto> results = typedQuery.getResultList();
+
+        // distinct去重依然有必要，以防数据或JOIN逻辑的边缘情况导致重复
+        return results.stream().distinct().collect(Collectors.toList());
+    }
+
+
 
 }

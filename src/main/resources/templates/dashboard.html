@@ -64,14 +64,12 @@
             padding: 0.25rem 0.5rem;
             font-size: 0.875rem;
         }
-        /* 为统计数字徽章内的链接去除下划线，除非悬停 */
         .stats-badge-link {
             text-decoration: none !important;
         }
         .stats-badge-link:hover {
             text-decoration: underline !important;
         }
-
     </style>
 </head>
 <body>
@@ -110,36 +108,28 @@
                         <li class="list-group-item d-flex justify-content-between align-items-center" th:each="task : ${pendingTasks}">
                             <div>
                                 <i th:classappend="${task.type.name() == 'COUNTERSIGN' ? 'bi-person-check-fill text-info action-icon' : (task.type.name() == 'APPROVAL' ? 'bi-clipboard-check-fill text-success action-icon' : (task.type.name() == 'SIGNING' ? 'bi-pen-fill text-primary action-icon' : (task.type.name() == 'FINALIZE' ? 'bi-file-earmark-check-fill text-warning action-icon' : (task.type.name() == 'EXTENSION_REQUEST' ? 'bi-calendar-plus-fill text-warning action-icon' : 'bi-question-circle-fill action-icon'))))}"></i>
-                                <strong><span th:text="${task.contract?.contractName ?: '未知合同'}">合同名称</span></strong> -
-                                <span th:switch="${task.type.name()}">
-                                    <span th:case="'COUNTERSIGN'">需要您会签</span>
-                                    <span th:case="'APPROVAL'">需要您审批</span>
-                                    <span th:case="'SIGNING'">需要您签订</span>
-                                    <span th:case="'FINALIZE'">需要您定稿</span>
-                                    <span th:case="'EXTENSION_REQUEST'">需要您审批延期请求</span>
-                                    <span th:case="*">待处理 (<span th:text="${task.type?.description ?: task.type.name()}">类型</span>)</span>
-                                </span>
+                                <strong><span th:text="${task.contractName ?: '未知合同'}">合同名称</span></strong> -
+                                <span th:text="${task.typeDescription}">需要您会签</span>
                                 <div class="task-details mt-1">
-                                    合同编号: <span th:text="${task.contract?.contractNumber ?: 'N/A'}"></span> |
-                                    起草人: <span th:text="${task.contract?.drafter?.username ?: 'N/A'}"></span> |
+                                    合同编号: <span th:text="${task.contractNumber ?: 'N/A'}"></span> |
+                                    起草人: <span th:text="${task.drafterUsername ?: 'N/A'}"></span> |
                                     流程创建时间: <span th:text="${task.createdAt != null ? #temporals.format(task.createdAt, 'yyyy-MM-dd HH:mm') : 'N/A'}"></span>
-                                    <span th:if="${task.type.name() == 'EXTENSION_REQUEST'}"> | 请求延期至: <span th:text="${task.comments?.split('延期至 ')[1]?.split('。')[0] ?: 'N/A'}"></span></span>
                                 </div>
                             </div>
                             <th:block th:switch="${task.type.name()}">
-                                <a th:case="'COUNTERSIGN'" th:href="@{/contract-manager/countersign-form/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                <a th:case="'COUNTERSIGN'" th:href="@{/contract-manager/countersign-form/{id}(id=${task.contractId})}" class="btn btn-sm btn-outline-primary btn-process-task">
                                     去会签 <i class="bi bi-arrow-right-short"></i>
                                 </a>
-                                <a th:case="'APPROVAL'" th:href="@{/contract-manager/approval-details/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                <a th:case="'APPROVAL'" th:href="@{/contract-manager/approval-details/{id}(id=${task.contractId})}" class="btn btn-sm btn-outline-primary btn-process-task">
                                     去审批 <i class="bi bi-arrow-right-short"></i>
                                 </a>
-                                <a th:case="'SIGNING'" th:href="@{/contract-manager/sign-contract/{id}(id=${task.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                <a th:case="'SIGNING'" th:href="@{/contract-manager/sign-contract/{id}(id=${task.processId})}" class="btn btn-sm btn-outline-primary btn-process-task">
                                     去签订 <i class="bi bi-arrow-right-short"></i>
                                 </a>
-                                <a th:case="'FINALIZE'" th:href="@{/contract-manager/finalize/{id}(id=${task.contract.id})}" class="btn btn-sm btn-outline-primary btn-process-task">
+                                <a th:case="'FINALIZE'" th:href="@{/contract-manager/finalize/{id}(id=${task.contractId})}" class="btn btn-sm btn-outline-primary btn-process-task">
                                     去定稿 <i class="bi bi-arrow-right-short"></i>
                                 </a>
-                                <a th:case="'EXTENSION_REQUEST'" th:href="@{/admin/approve-extension-request/{id}(id=${task.id})}" class="btn btn-sm btn-outline-warning btn-process-task" sec:authorize="hasAuthority('CON_EXTEND_APPROVAL_VIEW')">
+                                <a th:case="'EXTENSION_REQUEST'" th:href="@{/admin/approve-extension-request/{id}(id=${task.processId})}" class="btn btn-sm btn-outline-warning btn-process-task" sec:authorize="hasAuthority('CON_EXTEND_APPROVAL_VIEW')">
                                     去处理 <i class="bi bi-arrow-right-short"></i>
                                 </a>
                                 <a th:case="*" href="#" class="btn btn-sm btn-outline-secondary btn-process-task disabled" title="未知任务类型，无法直接处理">
@@ -157,7 +147,6 @@
         </div>
 
         <hr class="my-4" th:if="${(pendingTasks != null && not #lists.isEmpty(pendingTasks)) || (adminPendingAssignmentCount != null && adminPendingAssignmentCount > 0)}">
-
 
         <h2 class="mb-3" th:if="${#authorization.expression('isAuthenticated()')}">快速访问</h2>
         <div class="row">

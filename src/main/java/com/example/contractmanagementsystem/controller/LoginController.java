@@ -1,5 +1,6 @@
 package com.example.contractmanagementsystem.controller;
 
+import com.example.contractmanagementsystem.dto.DashboardPendingTaskDto;
 import com.example.contractmanagementsystem.dto.DashboardStatsDto;
 import com.example.contractmanagementsystem.entity.ContractProcess;
 import com.example.contractmanagementsystem.service.ContractService;
@@ -52,24 +53,15 @@ public class LoginController {
             model.addAttribute("username", username);
 
             if (contractService != null) {
-//                // 在加载仪表盘数据之前，先执行合同过期状态的更新 (这个逻辑可以保留或移至定时任务)
-//                try {
-//                    int updatedCount = contractService.updateExpiredContractStatuses();
-//                    System.out.println("成功在登录时更新了 " + updatedCount + " 份过期合同的状态。");
-//                } catch (Exception e) {
-//                    System.err.println("在登录时更新过期合同状态失败: " + e.getMessage());
-//                }
-
-                // 获取当前用户是否为管理员
                 Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
                 boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
                         .anyMatch(ga -> ga.getAuthority().equals("ROLE_ADMIN"));
 
-                // 获取当前用户的所有待处理任务 (此方法已在上一轮优化)
-                List<ContractProcess> pendingTasks = contractService.getAllPendingTasksForUser(username);
+                // [重要修改] 调用新的、为仪表盘优化的方法
+                List<DashboardPendingTaskDto> pendingTasks = contractService.getDashboardPendingTasks(username, isAdmin);
                 model.addAttribute("pendingTasks", pendingTasks);
 
-                // ==================== 优化点：一次性获取所有统计数据 ====================
+                // 全局统计部分保持不变，它已经优化为一次查询
                 DashboardStatsDto stats = contractService.getDashboardStatistics(username, isAdmin);
                 Map<String, Object> systemStats = new HashMap<>();
                 if (stats != null) {
@@ -78,14 +70,10 @@ public class LoginController {
                     systemStats.put("expiredContractsCount", stats.getExpiredContractsCount());
                     systemStats.put("inProcessContractsCount", stats.getInProcessContractsCount());
                     if (isAdmin) {
-                        // DTO中已包含此值，可以直接使用或传递给model
-                        if (stats.getPendingAssignmentCount() > 0) {
-                            model.addAttribute("adminPendingAssignmentCount", stats.getPendingAssignmentCount());
-                        }
+                        model.addAttribute("adminPendingAssignmentCount", stats.getPendingAssignmentCount());
                     }
                 }
                 model.addAttribute("systemStats", systemStats);
-                // ============================ 优化结束 ============================
 
             } else {
                 System.err.println("错误: ContractService 未在 LoginController 中注入!");
@@ -95,6 +83,7 @@ public class LoginController {
         }
         return "dashboard";
     }
+
 
     @GetMapping("/")
     public String rootPath(Principal principal) {

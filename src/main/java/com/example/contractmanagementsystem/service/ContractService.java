@@ -1,6 +1,7 @@
 package com.example.contractmanagementsystem.service;
 
 import com.example.contractmanagementsystem.dto.ContractDraftRequest;
+import com.example.contractmanagementsystem.dto.DashboardPendingTaskDto;
 import com.example.contractmanagementsystem.dto.DashboardStatsDto;
 import com.example.contractmanagementsystem.entity.Contract;
 import com.example.contractmanagementsystem.entity.ContractProcess;
@@ -387,4 +388,7 @@ public interface ContractService {
 
     @Transactional
     void deleteContract(Long id);
+
+    List<DashboardPendingTaskDto> getDashboardPendingTasks(String username, boolean isAdmin);
+
 }
