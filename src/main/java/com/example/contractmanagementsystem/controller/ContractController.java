@@ -287,6 +287,11 @@ public class ContractController {
             List<ContractProcess> countersignOpinions = contractService.getContractCountersignOpinions(contractId);
             model.addAttribute("countersignOpinions", countersignOpinions);
 
+            // ⭐ NEW: 获取所有定稿意见 ⭐
+            List<ContractProcess> allFinalizeProcesses = contractService.getContractFinalizeOpinions(contractId);
+            model.addAttribute("allFinalizeProcesses", allFinalizeProcesses);
+
+
             ContractDraftRequest draftRequest = new ContractDraftRequest();
             List<String> currentAttachmentFileNames = new ArrayList<>();
 
@@ -455,6 +460,13 @@ public class ContractController {
                 model.addAttribute("infoMessage", "提示：此合同当前状态为 " + contract.getStatus().getDescription() + "，可能并非处于标准的待审批环节。");
             }
             model.addAttribute("contract", contract);
+
+            // ⭐ NEW: 获取所有定稿意见和所有审批意见 ⭐
+            List<ContractProcess> allFinalizeProcesses = contractService.getContractFinalizeOpinions(contractId);
+            model.addAttribute("allFinalizeProcesses", allFinalizeProcesses);
+            List<ContractProcess> allApprovalProcesses = contractService.getContractApprovalOpinions(contractId);
+            model.addAttribute("allApprovalProcesses", allApprovalProcesses);
+
             return "contract-manager/approval-details";
         } catch (ResourceNotFoundException e) {
             redirectAttributes.addFlashAttribute("errorMessage", "无法加载审批详情：" + e.getMessage());
@@ -508,7 +520,6 @@ public class ContractController {
         return "contract-manager/pending-signing";
     }
 
-    // ========== THIS IS THE METHOD TO FIX ==========
     @GetMapping("/sign-contract/{processId}")
     @PreAuthorize("hasAuthority('CON_SIGN_VIEW') or hasAuthority('CONTRACT_SIGN_SUBMIT')")
     public String showSignContractForm(@PathVariable Long processId, Model model, Principal principal, RedirectAttributes redirectAttributes) {
@@ -518,6 +529,15 @@ public class ContractController {
                     processId, username, ContractProcessType.SIGNING, ContractProcessState.PENDING);
 
             model.addAttribute("contractProcess", contractProcess);
+            // 获取合同ID用于查询其他流程意见
+            Long contractId = contractProcess.getContract().getId();
+
+            // ⭐ NEW: 获取所有审批意见和所有签订意见 ⭐
+            List<ContractProcess> allApprovalProcesses = contractService.getContractApprovalOpinions(contractId);
+            model.addAttribute("allApprovalProcesses", allApprovalProcesses);
+            List<ContractProcess> allSigningProcesses = contractService.getContractSigningOpinions(contractId);
+            model.addAttribute("allSigningProcesses", allSigningProcesses); // 这里的列表包含当前用户已提交的签订意见
+
             return "contract-manager/sign-contract";
         } catch (ResourceNotFoundException | BusinessLogicException | AccessDeniedException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());

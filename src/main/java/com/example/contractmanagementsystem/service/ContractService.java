@@ -390,5 +390,8 @@ public interface ContractService {
     void deleteContract(Long id);
 
     List<DashboardPendingTaskDto> getDashboardPendingTasks(String username, boolean isAdmin);
+    List<ContractProcess> getContractFinalizeOpinions(Long contractId);
+    List<ContractProcess> getContractApprovalOpinions(Long contractId);
 
+    List<ContractProcess> getContractSigningOpinions(Long contractId);
 }

@@ -65,7 +65,41 @@
             <p class="contract-content" th:text="${contract.content}"></p>
         </div>
     </div>
+    <div class="card" th:if="${allFinalizeProcesses != null and not #lists.isEmpty(allFinalizeProcesses)}">
+        <div class="card-header"><i class="bi bi-person-lines-fill"></i>定稿意见汇总</div>
+        <div class="card-body">
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item" th:each="opinion : ${allFinalizeProcesses}">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1" th:text="${opinion.operatorUsername ?: '匿名用户'}"></h6>
+                        <small class="text-muted" th:text="${opinion.processedAt != null ? #temporals.format(opinion.processedAt, 'yyyy-MM-dd HH:mm') : '未处理'}"></small>
+                    </div>
+                    <p class="mb-1" th:text="${opinion.comments != null and !opinion.comments.isEmpty() ? opinion.comments : '(无具体意见)'}"></p>
+                    <small th:text="${opinion.state?.description ?: '未知状态'}"
+                           th:classappend="${(opinion.state?.name() == 'APPROVED' or opinion.state?.name() == 'COMPLETED') ? 'text-success fw-bold' : (opinion.state?.name() == 'REJECTED' ? 'text-danger fw-bold' : 'text-muted')}">
+                    </small>
+                </li>
+            </ul>
+        </div>
+    </div>
 
+    <div class="card" th:if="${allApprovalProcesses != null and not #lists.isEmpty(allApprovalProcesses)}">
+        <div class="card-header"><i class="bi bi-clipboard-check"></i>审批意见汇总</div>
+        <div class="card-body">
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item" th:each="opinion : ${allApprovalProcesses}">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1" th:text="${opinion.operatorUsername ?: '匿名用户'}"></h6>
+                        <small class="text-muted" th:text="${opinion.processedAt != null ? #temporals.format(opinion.processedAt, 'yyyy-MM-dd HH:mm') : '未处理'}"></small>
+                    </div>
+                    <p class="mb-1" th:text="${opinion.comments != null and !opinion.comments.isEmpty() ? opinion.comments : '(无具体意见)'}"></p>
+                    <small th:text="${opinion.state?.description ?: '未知状态'}"
+                           th:classappend="${(opinion.state?.name() == 'APPROVED' or opinion.state?.name() == 'COMPLETED') ? 'text-success fw-bold' : (opinion.state?.name() == 'REJECTED' ? 'text-danger fw-bold' : 'text-muted')}">
+                    </small>
+                </li>
+            </ul>
+        </div>
+    </div>
     <div class="card">
         <div class="card-header"><i class="bi bi-paperclip"></i>合同附件</div>
         <div class="card-body">

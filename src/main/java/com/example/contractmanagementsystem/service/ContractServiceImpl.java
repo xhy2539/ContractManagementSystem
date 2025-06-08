@@ -1612,4 +1612,40 @@ public class ContractServiceImpl implements ContractService {
         // distinct去重依然有必要，以防数据或JOIN逻辑的边缘情况导致重复
         return results.stream().distinct().collect(Collectors.toList()); //
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContractProcess> getContractFinalizeOpinions(Long contractId) {
+        Contract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResourceNotFoundException("获取定稿意见失败：合同未找到，ID: " + contractId));
+        List<ContractProcess> finalizeProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.FINALIZE);
+        finalizeProcesses.forEach(process -> Hibernate.initialize(process.getOperator()));
+        return finalizeProcesses.stream()
+                .sorted(Comparator.comparing(ContractProcess::getProcessedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContractProcess> getContractApprovalOpinions(Long contractId) {
+        Contract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResourceNotFoundException("获取审批意见失败：合同未找到，ID: " + contractId));
+        List<ContractProcess> approvalProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.APPROVAL);
+        approvalProcesses.forEach(process -> Hibernate.initialize(process.getOperator()));
+        return approvalProcesses.stream()
+                .sorted(Comparator.comparing(ContractProcess::getProcessedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContractProcess> getContractSigningOpinions(Long contractId) {
+        Contract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResourceNotFoundException("获取签订意见失败：合同未找到，ID: " + contractId));
+        List<ContractProcess> signingProcesses = contractProcessRepository.findByContractAndType(contract, ContractProcessType.SIGNING);
+        signingProcesses.forEach(process -> Hibernate.initialize(process.getOperator()));
+        return signingProcesses.stream()
+                .sorted(Comparator.comparing(ContractProcess::getProcessedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toList());
+    }
 }
