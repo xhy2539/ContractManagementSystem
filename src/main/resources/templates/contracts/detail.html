@@ -46,6 +46,14 @@
         .file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
         .file-status { font-size: 0.8em; color: #6c757d; }
         .file-actions button { margin-left: 0.5rem; }
+        /* Signature preview style */
+        .signature-display {
+            max-width: 200px; /* 调整签名显示的最大宽度 */
+            height: auto;
+            border: 1px solid #ddd;
+            margin-top: 5px;
+            display: block; /* 确保占据一行 */
+        }
     </style>
 </head>
 <body>
@@ -118,6 +126,28 @@
         <div class="contract-detail-card">
             <h2 class="section-title">合同内容</h2>
             <div class="contract-content" th:text="${contract.content ?: '暂无内容'}"></div>
+        </div>
+
+        <div class="contract-detail-card">
+            <h2 class="section-title">电子签名</h2>
+            <div class="detail-row">
+                <span class="detail-label">甲方签名：</span>
+                <span class="detail-value">
+                    <img th:if="${contract.signatureDataPartyA != null and !contract.signatureDataPartyA.isEmpty()}"
+                         th:src="${contract.signatureDataPartyA}"
+                         alt="甲方签名" class="signature-display"/>
+                    <span th:unless="${contract.signatureDataPartyA != null and !contract.signatureDataPartyA.isEmpty()}">无</span>
+                </span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">乙方签名：</span>
+                <span class="detail-value">
+                    <img th:if="${contract.signatureDataPartyB != null and !contract.signatureDataPartyB.isEmpty()}"
+                         th:src="${contract.signatureDataPartyB}"
+                         alt="乙方签名" class="signature-display"/>
+                    <span th:unless="${contract.signatureDataPartyB != null and !contract.signatureDataPartyB.isEmpty()}">无</span>
+                </span>
+            </div>
         </div>
 
         <div class="contract-detail-card">

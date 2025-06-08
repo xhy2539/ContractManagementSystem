@@ -17,10 +17,10 @@
             border-bottom-right-radius: .25rem;
             background-color: #e9ecef;
             line-height: 1.5;
-            min-height: calc(1.5em + .5rem + 2px); /* Updated from .75rem to .5rem for form-control-sm */
+            min-height: calc(1.5em + .5rem + 2px);
             display: flex;
             align-items: center;
-            flex-grow: 1; /* Ensure it takes available space */
+            flex-grow: 1;
         }
         #customerTableModal tbody tr { cursor: pointer; }
         #customerTableModal tbody tr:hover { background-color: #f8f9fa; }
@@ -48,14 +48,14 @@
         .file-info {
             flex-grow: 1;
             margin-right: 1rem;
-            overflow: hidden; /* Prevents long names from breaking layout */
+            overflow: hidden;
         }
         .file-name {
             font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            display: block; /* Important for text-overflow to work */
+            display: block;
         }
         .file-size, .file-status {
             font-size: 0.8em;
@@ -68,11 +68,11 @@
             height: 10px;
             margin-top: 0.25rem;
             background-color: #e9ecef;
-            border-radius: .25rem; /* Rounded corners for progress container */
-            overflow: hidden; /* Ensures progress bar stays within rounded corners */
+            border-radius: .25rem;
+            overflow: hidden;
         }
         .file-progress-bar {
-            background-color: #0d6efd; /* Bootstrap primary blue */
+            background-color: #0d6efd;
             height: 100%;
             transition: width 0.2s ease-in-out;
             color: white;
@@ -81,42 +81,42 @@
             text-align: center;
         }
         .file-list-item.upload-error {
-            border-left: 5px solid var(--bs-danger); /* Red for error */
-            background-color: #fbe9e7; /* Lighter red */
+            border-left: 5px solid var(--bs-danger);
+            background-color: #fbe9e7;
         }
         .file-list-item.upload-success {
-            border-left: 5px solid var(--bs-success); /* Green for success */
-            background-color: #e8f5e9; /* Lighter green */
+            border-left: 5px solid var(--bs-success);
+            background-color: #e8f5e9;
         }
 
         /* TinyMCE 内容中占位符的高亮样式 */
         .mce-content-body .contract-placeholder {
-            background-color: #fff3cd; /* 浅黄色背景 */
+            background-color: #fff3cd;
             padding: 2px 4px;
             border-radius: 3px;
-            border: 1px dashed #ffc107; /* 黄色虚线边框 */
+            border: 1px dashed #ffc107;
             font-weight: bold;
-            display: inline-block; /* 确保 padding 和 border 正确显示 */
-            min-width: 50px; /* 最小宽度，防止占位符过短 */
-            text-align: center; /* 文本居中 */
-            user-select: none; /* 禁用选择整个占位符，但允许内部文本编辑 */
-            cursor: text; /* 确保鼠标光标是文本输入光标 */
-            min-height: 1em; /* 确保内容为空时有高度 */
-            vertical-align: middle; /* 垂直对齐 */
+            display: inline-block;
+            min-width: 50px;
+            text-align: center;
+            user-select: none;
+            cursor: text;
+            min-height: 1em;
+            vertical-align: middle;
         }
         /* 当用户尝试选择或点击占位符时，允许文本选择/编辑 */
         .mce-content-body .contract-placeholder:focus,
         .mce-content-body .contract-placeholder:active,
         .mce-content-body .contract-placeholder:hover {
-            user-select: text; /* 允许文本选择 */
+            user-select: text;
         }
         /* 如果 span 为空，显示 data-placeholder-key 的值作为提示 */
         .mce-content-body .contract-placeholder:empty::before {
-            content: attr(data-placeholder-key); /* 显示 data-placeholder-key 的值作为提示 */
-            color: #aaa; /* 提示文本颜色 */
-            font-style: italic; /* 斜体 */
-            pointer-events: none; /* 确保点击提示时能触及 span 本身 */
-            display: inline-block; /* 确保能应用 padding 等 */
+            content: attr(data-placeholder-key);
+            color: #aaa;
+            font-style: italic;
+            pointer-events: none;
+            display: inline-block;
         }
 
         /* 电子签名画布样式 */
@@ -131,7 +131,7 @@
             height: auto;
             border: 1px solid #ddd;
             margin-top: 10px;
-            display: block; /* Ensure it takes full width */
+            display: block;
         }
     </style>
 </head>
@@ -172,46 +172,43 @@
         <form th:action="@{/contract-manager/draft}" method="post" th:object="${contractDraftRequest}" id="draftContractForm" class="needs-validation" novalidate>
             <div id="hiddenAttachmentInputsContainer"></div>
             <input type="hidden" id="placeholderValuesJson" name="placeholderValues">
-            <input type="hidden" id="signatureData" name="signatureData">
-
-
-            <div class="card mb-4 shadow-sm">
-                <div class="card-header bg-light">
-                    <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
+            <input type="hidden" id="signatureDataPartyA" name="signatureDataPartyA"> <input type="hidden" id="signatureDataPartyB" name="signatureDataPartyB"> <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="templateSelect" class="form-label">选择合同模板 (可选)</label>
+                    <select class="form-select form-control-sm" id="templateSelect" th:field="*{templateId}">
+                        <option value="">-- 不使用模板 --</option>
+                        <option th:each="template : ${contractTemplates}"
+                                th:value="${template.id}"
+                                th:text="${template.templateName}"></option>
+                    </select>
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="templateSelect" class="form-label">选择合同模板 (可选)</label>
-                        <select class="form-select form-control-sm" id="templateSelect" th:field="*{templateId}">
-                            <option value="">-- 不使用模板 --</option>
-                            <option th:each="template : ${contractTemplates}"
-                                    th:value="${template.id}"
-                                    th:text="${template.templateName}"></option>
-                        </select>
-                    </div>
 
-                    <div class="mb-3">
-                        <label for="contractName" class="form-label">合同名称 <span class="required-asterisk">*</span></label>
-                        <input type="text" class="form-control form-control-sm" id="contractName" th:field="*{contractName}" required>
-                        <div class="invalid-feedback" th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}">合同名称不能为空。</div>
-                        <div class="invalid-feedback">请输入合同名称。</div>
+                <div class="mb-3">
+                    <label for="contractName" class="form-label">合同名称 <span class="required-asterisk">*</span></label>
+                    <input type="text" class="form-control form-control-sm" id="contractName" th:field="*{contractName}" required>
+                    <div class="invalid-feedback" th:if="${#fields.hasErrors('contractName')}" th:errors="*{contractName}">合同名称不能为空。</div>
+                    <div class="invalid-feedback">请输入合同名称。</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="startDate" class="form-label">开始日期 <span class="required-asterisk">*</span></label>
+                        <input type="date" class="form-control form-control-sm" id="startDate" th:field="*{startDate}" required>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}">开始日期不能为空。</div>
+                        <div class="invalid-feedback">请选择开始日期。</div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="startDate" class="form-label">开始日期 <span class="required-asterisk">*</span></label>
-                            <input type="date" class="form-control form-control-sm" id="startDate" th:field="*{startDate}" required>
-                            <div class="invalid-feedback" th:if="${#fields.hasErrors('startDate')}" th:errors="*{startDate}">开始日期不能为空。</div>
-                            <div class="invalid-feedback">请选择开始日期。</div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="endDate" class="form-label">结束日期 <span class="required-asterisk">*</span></label>
-                            <input type="date" class="form-control form-control-sm" id="endDate" th:field="*{endDate}" required>
-                            <div class="invalid-feedback" id="endDateValidationFeedback" th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}">结束日期不能为空。</div>
-                            <div class="invalid-feedback">结束日期不可以是过去时间</div>
-                        </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="endDate" class="form-label">结束日期 <span class="required-asterisk">*</span></label>
+                        <input type="date" class="form-control form-control-sm" id="endDate" th:field="*{endDate}" required>
+                        <div class="invalid-feedback" id="endDateValidationFeedback" th:if="${#fields.hasErrors('endDate')}" th:errors="*{endDate}">结束日期不能为空。</div>
+                        <div class="invalid-feedback">结束日期不可以是过去时间</div>
                     </div>
                 </div>
             </div>
+        </div>
 
             <div class="card mb-4 shadow-sm">
                 <div class="card-header bg-light">
@@ -255,21 +252,39 @@
                         <textarea class="form-control form-control-sm" id="contractContent" rows="8" th:field="*{contractContent}" placeholder="请在此处填写合同的核心条款和内容..."></textarea>
                         <div class="invalid-feedback" th:if="${#fields.hasErrors('contractContent')}" th:errors="*{contractContent}"></div>
                     </div>
+
                     <div class="mb-3">
                         <label class="form-label">甲方签字 <span class="required-asterisk">*</span></label>
                         <div class="card">
                             <div class="card-body">
                                 <p class="small text-muted mb-2">请在下方画布上签名，或上传您的签名图片。</p>
-                                <canvas id="signatureCanvas" class="signature-pad" width="300" height="100"></canvas>
+                                <canvas id="signatureCanvasPartyA" class="signature-pad" width="300" height="100"></canvas>
                                 <div class="d-flex mt-2 mb-2">
-                                    <button type="button" class="btn btn-outline-danger btn-sm me-2" id="clearSignatureBtn"><i class="bi bi-x-circle me-1"></i>清空签名</button>
-                                    <label for="uploadSignatureInput" class="btn btn-outline-primary btn-sm mb-0"><i class="bi bi-upload me-1"></i>上传签名图片</label>
-                                    <input type="file" id="uploadSignatureInput" accept="image/png, image/jpeg" style="display: none;">
+                                    <button type="button" class="btn btn-outline-danger btn-sm me-2" id="clearSignatureBtnPartyA"><i class="bi bi-x-circle me-1"></i>清空签名</button>
+                                    <label for="uploadSignatureInputPartyA" class="btn btn-outline-primary btn-sm mb-0"><i class="bi bi-upload me-1"></i>上传签名图片</label>
+                                    <input type="file" id="uploadSignatureInputPartyA" accept="image/png, image/jpeg" style="display: none;">
                                 </div>
-                                <img id="signaturePreview" class="signature-preview" style="display:none;">
+                                <img id="signaturePreviewPartyA" class="signature-preview" style="display:none;">
                             </div>
                         </div>
                     </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">乙方签字 <span class="required-asterisk">*</span></label>
+                        <div class="card">
+                            <div class="card-body">
+                                <p class="small text-muted mb-2">请在下方画布上签名，或上传您的签名图片。</p>
+                                <canvas id="signatureCanvasPartyB" class="signature-pad" width="300" height="100"></canvas>
+                                <div class="d-flex mt-2 mb-2">
+                                    <button type="button" class="btn btn-outline-danger btn-sm me-2" id="clearSignatureBtnPartyB"><i class="bi bi-x-circle me-1"></i>清空签名</button>
+                                    <label for="uploadSignatureInputPartyB" class="btn btn-outline-primary btn-sm mb-0"><i class="bi bi-upload me-1"></i>上传签名图片</label>
+                                    <input type="file" id="uploadSignatureInputPartyB" accept="image/png, image/jpeg" style="display: none;">
+                                </div>
+                                <img id="signaturePreviewPartyB" class="signature-preview" style="display:none;">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="attachmentFilesInput" class="form-label">上传合同附件 (可选, 可多选)</label>
                         <input type="file" class="form-control form-control-sm" id="attachmentFilesInput" multiple>
@@ -404,7 +419,7 @@
         /*<![CDATA[*/
         document.addEventListener('DOMContentLoaded', function () {
             // TinyMCE 初始化
-            let contractEditor; // 声明一个变量来保存 TinyMCE 编辑器实例
+            let contractEditor;
 
             tinymce.init({
                 selector: '#contractContent',
@@ -443,7 +458,8 @@
                                 // 1. 从 TinyMCE 内容中提取占位符值并填充到 placeholderValuesJson
                                 extractAndPreparePlaceholderValues();
                                 // 2. 从签名画布中获取签名数据
-                                prepareSignatureForSubmission(); // 调用新的签名数据准备函数
+                                prepareSignatureForSubmission('PartyA'); // 为甲方准备签名数据
+                                prepareSignatureForSubmission('PartyB'); // 为乙方准备签名数据
                             }
 
                             let isFormValid = form.checkValidity();
@@ -748,7 +764,6 @@
             const mainDraftForm = document.getElementById('draftContractForm');
 
             let uploadedFilesData = [];
-            // 文件上传逻辑
             let fileUploadQueue = [];
             let isUploading = false;
 
@@ -762,9 +777,8 @@
 
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
-                    // 客户端基本验证
                     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-                    const maxSize = 5 * 1024 * 1024; // 5MB
+                    const maxSize = 5 * 1024 * 1024;
 
                     if (!allowedTypes.includes(file.type)) {
                         showAlertOnMainPage(`文件 "${file.name}" 类型不被支持。只允许PDF, 图片, Word文档。`, 'danger');
@@ -776,17 +790,17 @@
                     }
 
                     const fileEntry = {
-                        id: Date.now() + '-' + i, // 用于追踪的唯一ID
+                        id: Date.now() + '-' + i,
                         file: file,
-                        status: 'pending', // pending, uploading, completed, error
+                        status: 'pending',
                         progress: 0,
-                        serverFileName: null // 存储服务器返回的文件名
+                        serverFileName: null
                     };
                     uploadedFilesData.push(fileEntry);
                     addFileToUI(fileEntry);
                     fileUploadQueue.push(fileEntry);
                 }
-                attachmentFilesInput.value = ''; // 清空输入，允许再次选择相同文件
+                attachmentFilesInput.value = '';
 
                 processFileUploadQueue();
             }
@@ -847,7 +861,7 @@
                     const statusSpan = document.createElement('span');
                     statusSpan.classList.add('file-status', `text-${status === 'completed' ? 'success' : 'danger'}`);
                     statusSpan.textContent = status === 'completed' ? ' (上传成功)' : ` (上传失败: ${message})`;
-                    if (fileNameSpan && !fileNameSpan.querySelector('.file-status')) { // 避免添加多个状态span
+                    if (fileNameSpan && !fileNameSpan.querySelector('.file-status')) {
                         fileSizeSpan.parentNode.insertBefore(statusSpan, fileSizeSpan.nextSibling);
                     } else if (fileNameSpan && fileNameSpan.querySelector('.file-status')) {
                         fileNameSpan.querySelector('.file-status').textContent = status === 'completed' ? ' (上传成功)' : ` (上传失败: ${message})`;
@@ -865,7 +879,6 @@
                 if (listItem) {
                     listItem.remove();
                 }
-                // 如果文件已经上传，也要从隐藏输入中移除
                 prepareAttachmentsForSubmission();
             }
 
@@ -874,7 +887,7 @@
                 isUploading = true;
 
                 while (fileUploadQueue.length > 0) {
-                    const fileEntry = fileUploadQueue.shift(); // 获取下一个要上传的文件
+                    const fileEntry = fileUploadQueue.shift();
                     if (fileEntry.status === 'pending') {
                         await uploadFile(fileEntry);
                     }
@@ -901,15 +914,15 @@
                     const result = await response.json();
                     fileEntry.status = 'completed';
                     fileEntry.progress = 100;
-                    fileEntry.serverFileName = result.fileName; // 假设服务器返回的文件名
+                    fileEntry.serverFileName = result.fileName;
                     updateFileProgress(fileEntry.id, 100);
                     updateFileStatusUI(fileEntry.id, 'completed');
                     showAlertOnMainPage(`文件 "${fileEntry.file.name}" 上传成功。`, 'success', 3000);
                 } catch (error) {
                     console.error('文件上传错误:', error);
                     fileEntry.status = 'error';
-                    fileEntry.progress = 0; // 错误时重置进度
-                    updateFileProgress(fileEntry.id, 0); // 视觉重置
+                    fileEntry.progress = 0;
+                    updateFileProgress(fileEntry.id, 0);
                     updateFileStatusUI(fileEntry.id, 'error', error.message);
                     showAlertOnMainPage(`文件 "${fileEntry.file.name}" 上传失败: ${error.message}`, 'danger');
                 }
@@ -931,88 +944,116 @@
             }
 
             // --- 开始：电子签名逻辑 ---
-            const signatureCanvas = document.getElementById('signatureCanvas');
-            const signatureCtx = signatureCanvas.getContext('2d');
-            const clearSignatureBtn = document.getElementById('clearSignatureBtn');
-            const uploadSignatureInput = document.getElementById('uploadSignatureInput');
-            const signaturePreview = document.getElementById('signaturePreview');
-            const signatureDataInput = document.getElementById('signatureData'); // 隐藏字段，用于提交签名数据
+            // 甲方
+            const signatureCanvasPartyA = document.getElementById('signatureCanvasPartyA');
+            const signatureCtxPartyA = signatureCanvasPartyA.getContext('2d');
+            const clearSignatureBtnPartyA = document.getElementById('clearSignatureBtnPartyA');
+            const uploadSignatureInputPartyA = document.getElementById('uploadSignatureInputPartyA');
+            const signaturePreviewPartyA = document.getElementById('signaturePreviewPartyA');
+            const signatureDataInputPartyA = document.getElementById('signatureDataPartyA');
 
-            let isDrawing = false; // 标记是否正在绘制
-            let lastX = 0;
-            let lastY = 0;
+            // 乙方
+            const signatureCanvasPartyB = document.getElementById('signatureCanvasPartyB');
+            const signatureCtxPartyB = signatureCanvasPartyB.getContext('2d');
+            const clearSignatureBtnPartyB = document.getElementById('clearSignatureBtnPartyB');
+            const uploadSignatureInputPartyB = document.getElementById('uploadSignatureInputPartyB');
+            const signaturePreviewPartyB = document.getElementById('signaturePreviewPartyB');
+            const signatureDataInputPartyB = document.getElementById('signatureDataPartyB');
 
-            // 初始化画布
-            function initSignatureCanvas() {
-                signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
-                signatureCtx.fillStyle = '#ffffff'; // 设置背景为白色
-                signatureCtx.fillRect(0, 0, signatureCanvas.width, signatureCanvas.height); // 填充背景
-                signatureCtx.strokeStyle = '#000000'; // 黑色笔触
-                signatureCtx.lineWidth = 2; // 笔触粗细
-                signatureCtx.lineCap = 'round'; // 笔触末端圆形
+
+            // 统一初始化画布
+            function initSignatureCanvas(canvas, ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
             }
-            initSignatureCanvas();
+            initSignatureCanvas(signatureCanvasPartyA, signatureCtxPartyA);
+            initSignatureCanvas(signatureCanvasPartyB, signatureCtxPartyB);
 
-            // 绘制函数
-            function draw(e) {
-                if (!isDrawing) return;
-                signatureCtx.beginPath();
-                signatureCtx.moveTo(lastX, lastY);
-                signatureCtx.lineTo(e.offsetX, e.offsetY);
-                signatureCtx.stroke();
-                [lastX, lastY] = [e.offsetX, e.offsetY];
-            }
+            // 绘制函数工厂
+            function createDrawHandler(canvas, ctx, previewImg) {
+                let isDrawing = false;
+                let lastX = 0;
+                let lastY = 0;
 
-            // 鼠标事件监听
-            signatureCanvas.addEventListener('mousedown', (e) => {
-                isDrawing = true;
-                [lastX, lastY] = [e.offsetX, e.offsetY];
-                signaturePreview.style.display = 'none'; // 开始手绘时隐藏预览图
-            });
-            signatureCanvas.addEventListener('mousemove', draw);
-            signatureCanvas.addEventListener('mouseup', () => isDrawing = false);
-            signatureCanvas.addEventListener('mouseout', () => isDrawing = false);
-
-            // 清空签名
-            if (clearSignatureBtn) {
-                clearSignatureBtn.addEventListener('click', () => {
-                    initSignatureCanvas();
-                    signaturePreview.src = '';
-                    signaturePreview.style.display = 'none';
-                    signatureDataInput.value = ''; // 清空隐藏字段中的数据
+                canvas.addEventListener('mousedown', (e) => {
+                    isDrawing = true;
+                    [lastX, lastY] = [e.offsetX, e.offsetY];
+                    if (previewImg) previewImg.style.display = 'none'; // 开始手绘时隐藏预览图
                 });
+
+                canvas.addEventListener('mousemove', (e) => {
+                    if (!isDrawing) return;
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(e.offsetX, e.offsetY);
+                    ctx.stroke();
+                    [lastX, lastY] = [e.offsetX, e.offsetY];
+                });
+
+                canvas.addEventListener('mouseup', () => isDrawing = false);
+                canvas.addEventListener('mouseout', () => isDrawing = false);
             }
 
-            // 上传签名图片
-            if (uploadSignatureInput) {
-                uploadSignatureInput.addEventListener('change', (event) => {
+            // 为甲方和乙方签名板创建绘制处理函数
+            createDrawHandler(signatureCanvasPartyA, signatureCtxPartyA, signaturePreviewPartyA);
+            createDrawHandler(signatureCanvasPartyB, signatureCtxPartyB, signaturePreviewPartyB);
+
+
+            // 清空签名函数工厂
+            function createClearSignatureHandler(canvas, ctx, previewImg, dataInput) {
+                return () => {
+                    initSignatureCanvas(canvas, ctx);
+                    if (previewImg) {
+                        previewImg.src = '';
+                        previewImg.style.display = 'none';
+                    }
+                    dataInput.value = '';
+                };
+            }
+            if (clearSignatureBtnPartyA) clearSignatureBtnPartyA.addEventListener('click', createClearSignatureHandler(signatureCanvasPartyA, signatureCtxPartyA, signaturePreviewPartyA, signatureDataInputPartyA));
+            if (clearSignatureBtnPartyB) clearSignatureBtnPartyB.addEventListener('click', createClearSignatureHandler(signatureCanvasPartyB, signatureCtxPartyB, signaturePreviewPartyB, signatureDataInputPartyB));
+
+            // 上传签名图片函数工厂
+            function createUploadSignatureHandler(canvas, ctx, previewImg, dataInput) {
+                return (event) => {
                     const file = event.target.files[0];
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             const img = new Image();
                             img.onload = () => {
-                                initSignatureCanvas(); // 清空画布
-                                // 将图片绘制到画布上
-                                signatureCtx.drawImage(img, 0, 0, signatureCanvas.width, signatureCanvas.height);
-                                // 显示预览图（可选，直接在画布上画即可）
-                                signaturePreview.src = e.target.result;
-                                signaturePreview.style.display = 'block';
+                                initSignatureCanvas(canvas, ctx); // 清空画布
+                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                if (previewImg) {
+                                    previewImg.src = e.target.result;
+                                    previewImg.style.display = 'block';
+                                }
+                                dataInput.value = canvas.toDataURL('image/png'); // 确保隐藏字段更新
                             };
                             img.src = e.target.result;
                         };
                         reader.readAsDataURL(file);
                     }
-                });
+                };
             }
+            if (uploadSignatureInputPartyA) uploadSignatureInputPartyA.addEventListener('change', createUploadSignatureHandler(signatureCanvasPartyA, signatureCtxPartyA, signaturePreviewPartyA, signatureDataInputPartyA));
+            if (uploadSignatureInputPartyB) uploadSignatureInputPartyB.addEventListener('change', createUploadSignatureHandler(signatureCanvasPartyB, signatureCtxPartyB, signaturePreviewPartyB, signatureDataInputPartyB));
 
-            // 准备签名数据以供提交
-            function prepareSignatureForSubmission() {
-                // 检查画布上是否有内容（例如，是否不是全白）
-                const imageData = signatureCtx.getImageData(0, 0, signatureCanvas.width, signatureCanvas.height).data;
+
+            // 准备签名数据以供提交 (通用化)
+            function prepareSignatureForSubmission(party) {
+                const canvas = document.getElementById(`signatureCanvas${party}`);
+                const ctx = canvas.getContext('2d');
+                const preview = document.getElementById(`signaturePreview${party}`);
+                const dataInput = document.getElementById(`signatureData${party}`);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
                 let hasDrawn = false;
                 for (let i = 0; i < imageData.length; i += 4) {
-                    // 检查非透明像素 (非白色)
                     if (imageData[i + 3] !== 0 && (imageData[i] !== 255 || imageData[i+1] !== 255 || imageData[i+2] !== 255)) {
                         hasDrawn = true;
                         break;
@@ -1020,36 +1061,32 @@
                 }
 
                 if (hasDrawn) {
-                    // 将画布内容转换为 Base64 编码的图片数据
-                    signatureDataInput.value = signatureCanvas.toDataURL('image/png');
-                } else if (signaturePreview.src && signaturePreview.style.display !== 'none') {
-                    // 如果画布是空的，但有上传的预览图（表示用户上传了图片）
-                    signatureDataInput.value = signaturePreview.src;
+                    dataInput.value = canvas.toDataURL('image/png');
+                } else if (preview.src && preview.style.display !== 'none') {
+                    dataInput.value = preview.src;
                 } else {
-                    signatureDataInput.value = ''; // 没有签名
+                    dataInput.value = '';
                 }
             }
-            // --- 结束：电子签名逻辑 ---
+            // --- 电子签名逻辑结束 ---
 
 
             // --- 开始：模板选择和直接编辑占位符逻辑 ---
             const templateSelect = document.getElementById('templateSelect');
 
-            // 存储原始模板内容（包含占位符格式），用于后端替换或其他需要原始格式的场景
             let originalTemplateContent = '';
 
             if (templateSelect) {
                 templateSelect.addEventListener('change', async function() {
                     const templateId = this.value;
 
-                    // 清除编辑器内容和原始模板内容
                     if (contractEditor) {
                         contractEditor.setContent('');
                     }
-                    originalTemplateContent = ''; // 重置原始模板内容
+                    originalTemplateContent = '';
 
                     if (!templateId) {
-                        return; // 选择了 "-- 不使用模板 --"
+                        return;
                     }
 
                     try {
@@ -1059,34 +1096,23 @@
                         }
                         const template = await response.json();
 
-                        // 确保 template.templateContent 存在且不为空
                         originalTemplateContent = template.templateContent || '';
                         if (!originalTemplateContent) {
                             console.warn("DEBUG: 获取到的模板内容为空。");
                             showAlertOnMainPage('选择的模板内容为空，请检查模板配置。', 'warning');
-                            return; // 如果内容为空，直接返回，不设置编辑器
+                            return;
                         }
 
-                        // *** 核心修改：调整占位符正则表达式以匹配 {{...}} 格式 ***
-                        // 匹配 {{任意内容}} 模式，包括中文字符
                         const placeholderRegex = /\{\{([a-zA-Z0-9_\u4e00-\u9fa5]+?)\}\}/g;
 
                         let contentToDisplayInEditor = originalTemplateContent.replace(placeholderRegex, (match, placeholderName) => {
-                            // match: 整个匹配到的字符串，例如 {{合同编号}}
-                            // placeholderName: 捕获组1，即占位符的名称，例如 “合同编号”
-
-                            // 使用 contenteditable="true" 使其可在编辑器内直接编辑
-                            // 初始显示内容为空，利用 CSS ::before 来显示虚化提示（即 placeholderName）
-                            // data-placeholder-key 存储占位符的名称，供 CSS 和提交时提取使用
-                            return `<span class="contract-placeholder" data-placeholder-key="${placeholderName}" contenteditable="true"></span>`;
+                            return `<span class="contract-placeholder" data-placeholder-key="${placeholderName}" contenteditable="true">___________</span>`; // 11个下划线作为示例
                         });
 
-                        // 设置 TinyMCE 编辑器内容
                         if (contractEditor) {
                             contractEditor.setContent(contentToDisplayInEditor);
-                            contractEditor.save(); // 保存内容回 textarea
-                            // 确保 autoresize 在内容设置后重新计算高度
-                            contractEditor.execCommand('mceRepaint'); // 强制重新绘制编辑器以适应新内容
+                            contractEditor.save();
+                            contractEditor.execCommand('mceRepaint');
                         }
 
                     } catch (error) {
@@ -1096,56 +1122,37 @@
                 });
             }
 
-            /**
-             * 在表单提交前调用此函数。
-             * 它会从 TinyMCE 编辑器中提取所有带有 data-placeholder-key 的 span 元素的值，
-             * 并将这些键值对打包成 JSON 字符串，赋值给 placeholderValuesJson 隐藏字段。
-             * 注意：此函数不再修改 contractContent textarea 的内容，
-             * contractContent 将直接提交 TinyMCE 的原始 HTML 输出，后端需要适配解析。
-             */
             function extractAndPreparePlaceholderValues() {
                 if (!contractEditor) return;
 
-                const editorContent = contractEditor.getContent(); // 获取 TinyMCE 当前的 HTML 内容
+                const editorContent = contractEditor.getContent();
                 const placeholderValues = {};
 
-                // 创建一个临时的 DOM 元素来解析编辑器内容，方便查找 span
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = editorContent;
 
-                // 查找所有具有 .contract-placeholder 类和 data-placeholder-key 属性的可编辑 span
                 const placeholderSpans = tempDiv.querySelectorAll('.contract-placeholder[data-placeholder-key][contenteditable="true"]');
 
                 placeholderSpans.forEach(span => {
                     const key = span.dataset.placeholderKey;
-                    const value = span.textContent || ''; // 获取用户实际填写的值
+                    const value = span.textContent || '';
 
                     if (key) {
-                        // key 应该能唯一标识这个占位符。如果模板中有重复的 {{key}}，它们将共享同一个 key。
-                        // 如果这些占位符需要独立的值，那么模板设计需要确保 key 的唯一性。
-                        // 例如：{{合同编号_主}} 和 {{合同编号_附件}}
                         placeholderValues[key] = value;
                     }
                 });
 
-                // 将占位符值打包到隐藏字段中
                 document.getElementById('placeholderValuesJson').value = JSON.stringify(placeholderValues);
-
-                // contractContent textarea 的值由 TinyMCE 自动管理，此处无需额外操作
-                // prepareAttachmentsForSubmission(); // 附件处理逻辑保持不变
             }
 
-            // 辅助函数：转义正则表达式特殊字符
             function escapeRegExp(string) {
-                // 转义特殊字符，尤其是花括号 {} 和其他可能在文本中出现的 regex 元字符
                 return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             }
 
-            // 如果 Thymeleaf 预设了模板（例如在表单错误重新渲染时），则触发 change 事件
             if (templateSelect && templateSelect.value) {
                 templateSelect.dispatchEvent(new Event('change'));
             }
-            // --- 结束：模板选择和直接编辑占位符逻辑 ---
+            // --- 模板选择和直接编辑占位符逻辑结束 ---
 
             console.log("DEBUG: draft-contract.html 的内联脚本主要逻辑执行完毕。");
         });

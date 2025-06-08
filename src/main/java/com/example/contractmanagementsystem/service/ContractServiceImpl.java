@@ -176,6 +176,22 @@ public class ContractServiceImpl implements ContractService {
             throw new BusinessLogicException("Error processing attachment information: " + e.getMessage());
         }
 
+        // 新增：电子签名数据处理 - 甲方
+        if (request.getSignatureDataPartyA() != null && !request.getSignatureDataPartyA().isEmpty()) {
+            contract.setSignatureDataPartyA(request.getSignatureDataPartyA());
+            logger.info("Contract '{}' drafted with Party A signature data present.", contract.getContractName());
+        } else {
+            logger.info("Contract '{}' drafted without Party A signature data.", contract.getContractName());
+        }
+
+        // 新增：电子签名数据处理 - 乙方
+        if (request.getSignatureDataPartyB() != null && !request.getSignatureDataPartyB().isEmpty()) {
+            contract.setSignatureDataPartyB(request.getSignatureDataPartyB());
+            logger.info("Contract '{}' drafted with Party B signature data present.", contract.getContractName());
+        } else {
+            logger.info("Contract '{}' drafted without Party B signature data.", contract.getContractName());
+        }
+
 
         contract.setStatus(ContractStatus.PENDING_ASSIGNMENT);
 
@@ -188,6 +204,7 @@ public class ContractServiceImpl implements ContractService {
         auditLogService.logAction(username, "CONTRACT_DRAFTED_FOR_ASSIGNMENT", logDetails);
         return savedContract;
     }
+
 
     @Override
     @Transactional

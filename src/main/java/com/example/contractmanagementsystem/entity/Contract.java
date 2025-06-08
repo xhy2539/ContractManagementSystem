@@ -25,7 +25,9 @@ import java.time.LocalDateTime;
         @Index(name = "idx_drafter_id", columnList = "drafter_user_id")  // 为 drafter_user_id (外键) 添加索引
 })
 public class Contract {
-
+    @Lob // Added for signature data storage
+    @Column(name = "signature_data", columnDefinition = "LONGTEXT") // Use LONGTEXT for potentially large base64 strings
+    private String signatureData;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -61,6 +63,14 @@ public class Contract {
     @Lob
     @Column(name = "attachment_path", columnDefinition="TEXT")
     private String attachmentPath;
+
+    @Lob // 甲方签名数据
+    @Column(name = "signature_data_party_a", columnDefinition = "LONGTEXT")
+    private String signatureDataPartyA;
+
+    @Lob // 乙方签名数据
+    @Column(name = "signature_data_party_b", columnDefinition = "LONGTEXT")
+    private String signatureDataPartyB;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

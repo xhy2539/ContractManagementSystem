@@ -1,52 +1,78 @@
-
-
 package com.example.contractmanagementsystem.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Map; // 新增导入 Map
 
-@Data
 public class ContractDraftRequest {
 
-    // 合同基本信息
-    private Long templateId; // 合同模板ID，可选
+    // Getters and Setters
+    @Setter
+    @Getter
     @NotBlank(message = "合同名称不能为空")
-    @Size(max = 255, message = "合同名称不能超过255个字符")
     private String contractName;
 
-    @NotNull(message = "开始日期不能为空")
+    @Setter
+    @Getter
+    @NotNull(message = "必须选择一个客户")
+    private Long selectedCustomerId;
+
+    @Setter
+    @Getter
+    @NotNull(message = "开始时间不能为空")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate startDate;
 
-    @NotNull(message = "结束日期不能为空")
+    @Setter
+    @Getter
+    @NotNull(message = "结束时间不能为空")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate endDate;
 
-    // 客户信息
-    @NotNull(message = "请选择一个签约客户")
-    private Long selectedCustomerId;
+    @Setter
+    @Getter
+    private String contractContent; // 用于起草时的初始合同内容
 
-    // 合同内容 (直接是 TinyMCE 输出的HTML，包含<span>标签)
-    @NotBlank(message = "合同主要内容不能为空")
-    private String contractContent;
+    // 新增 updatedContent 的 Getter 和 Setter
+    // 新增字段：用于定稿时传递更新后的合同内容
+    @Getter
+    @Setter
+    private String updatedContent;
 
-    // 占位符具体值 (从前端解析的Map<String, String>，键是占位符名称，值是用户填写的)
-    // Spring会自动将前端传来的JSON字符串绑定到Map
+    // 用于存储附件文件名列表的JSON字符串 (在起草和定稿时都可能用到)
+    @Setter
+    @Getter
+    private List<String> attachmentServerFileNames = new ArrayList<>();
+
+    // 新增 templateId 的 Getter 和 Setter
+    // 新增字段：用于选择模板的ID (可选)
+    @Setter
+    @Getter
+    private Long templateId;
+
+    // 新增 placeholderValues 的 Getter 和 Setter
+    // 新增字段：用于传递占位符的具体值，键为占位符名称，值为其对应的内容
+    @Setter
+    @Getter
     private Map<String, String> placeholderValues;
 
-    // 附件文件名列表 (服务器上已保存的临时文件，需要移动到正式目录)
-    private List<String> attachmentServerFileNames;
+    @Setter
+    @Getter
+    private String signatureDataPartyA; // 甲方签名数据
+    @Setter
+    @Getter
+    private String signatureDataPartyB; // 乙方签名数据
+    @Setter
+    @Getter
+    private String signatureData;
 
-    // --- 新增：电子签名数据 ---
-    // Base64 编码的签名图片数据
-    private String signatureData; // 可以是 data:image/png;base64,... 格式的字符串
-    // --- 新增结束 ---
+
 
 }
