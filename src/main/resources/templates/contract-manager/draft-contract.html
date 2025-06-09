@@ -88,6 +88,16 @@
             border-left: 5px solid var(--bs-success);
             background-color: #e8f5e9;
         }
+        .file-list-item.upload-need_file {
+            border-left: 5px solid var(--bs-warning);
+            background-color: #fff3cd;
+            animation: pulse-warning 2s infinite;
+        }
+        @keyframes pulse-warning {
+            0% { background-color: #fff3cd; }
+            50% { background-color: #ffeaa7; }
+            100% { background-color: #fff3cd; }
+        }
 
         /* TinyMCE 内容中占位符的高亮样式 */
         .mce-content-body .contract-placeholder {
@@ -291,9 +301,18 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="attachmentFilesInput" class="form-label">上传合同附件 (可选, 可多选)</label>
-                        <input type="file" class="form-control form-control-sm" id="attachmentFilesInput" multiple>
-                        <div class="form-text mb-2">支持的格式：PDF, 图片 (JPEG, PNG), Word文档 (doc, docx)。可按住Ctrl/Shift选择多个文件。</div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                    <label for="attachmentFilesInput" class="form-label mb-0">上传合同附件 (可选, 可多选)</label>
+                    <button type="button" id="fileTypeHelpBtn" class="btn btn-outline-info btn-sm" onclick="showFileTypeHelp()">
+                        <i class="bi bi-question-circle me-1"></i>支持的文件类型
+                    </button>
+                </div>
+                <input type="file" class="form-control form-control-sm mt-2" id="attachmentFilesInput" multiple>
+                        <div class="form-text mb-2">
+                            <i class="bi bi-info-circle text-info me-1"></i>
+                            支持Office文档、PDF、图片、压缩包、多媒体等多种格式。普通文件最大10MB，压缩包/多媒体文件最大100MB。
+                            <br><small class="text-muted">可按住Ctrl/Shift选择多个文件，支持断点续传。</small>
+                        </div>
 
                         <div id="fileListContainer" class="mt-2">
                         </div>
@@ -417,6 +436,95 @@
     </div>
 </section>
 
+<!-- 直接嵌入文件类型帮助模态框 -->
+<div class="modal fade" id="fileTypeHelpModal" tabindex="-1" aria-labelledby="fileTypeHelpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="fileTypeHelpModalLabel">
+                    <i class="bi bi-info-circle-fill me-2"></i>支持的文件类型说明
+                </h5>
+                <button type="button" class="btn-close btn-close-white" onclick="hideFileTypeHelp()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary"><i class="bi bi-file-earmark-text"></i> 文档类型</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><span class="badge bg-secondary me-2">PDF</span>便携式文档格式</li>
+                            <li><span class="badge bg-secondary me-2">DOC/DOCX</span>Microsoft Word 文档</li>
+                            <li><span class="badge bg-secondary me-2">XLS/XLSX</span>Microsoft Excel 表格</li>
+                            <li><span class="badge bg-secondary me-2">PPT/PPTX</span>Microsoft PowerPoint 演示文稿</li>
+                            <li><span class="badge bg-secondary me-2">TXT</span>纯文本文件</li>
+                            <li><span class="badge bg-secondary me-2">RTF</span>富文本格式</li>
+                        </ul>
+
+                        <h6 class="text-success"><i class="bi bi-image"></i> 图片类型</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><span class="badge bg-success me-2">JPG/JPEG</span>常用照片格式</li>
+                            <li><span class="badge bg-success me-2">PNG</span>透明背景图片</li>
+                            <li><span class="badge bg-success me-2">GIF</span>动画图片</li>
+                            <li><span class="badge bg-success me-2">BMP</span>位图格式</li>
+                            <li><span class="badge bg-success me-2">WEBP</span>现代Web图片格式</li>
+                            <li><span class="badge bg-success me-2">SVG</span>矢量图形</li>
+                            <li><span class="badge bg-success me-2">TIFF</span>高质量图片</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="text-warning"><i class="bi bi-file-zip"></i> 压缩文件</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><span class="badge bg-warning text-dark me-2">ZIP</span>通用压缩格式</li>
+                            <li><span class="badge bg-warning text-dark me-2">RAR</span>WinRAR压缩格式</li>
+                            <li><span class="badge bg-warning text-dark me-2">7Z</span>7-Zip压缩格式</li>
+                            <li><span class="badge bg-warning text-dark me-2">TAR</span>Unix归档格式</li>
+                            <li><span class="badge bg-warning text-dark me-2">GZIP</span>GNU压缩格式</li>
+                        </ul>
+
+                        <h6 class="text-danger"><i class="bi bi-play-circle"></i> 多媒体文件</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><span class="badge bg-danger me-2">MP4</span>视频文件</li>
+                            <li><span class="badge bg-danger me-2">AVI</span>视频文件</li>
+                            <li><span class="badge bg-danger me-2">MP3</span>音频文件</li>
+                            <li><span class="badge bg-danger me-2">WAV</span>无损音频</li>
+                        </ul>
+
+                        <h6 class="text-info"><i class="bi bi-code-square"></i> 数据文件</h6>
+                        <ul class="list-unstyled">
+                            <li><span class="badge bg-info me-2">JSON</span>数据交换格式</li>
+                            <li><span class="badge bg-info me-2">XML</span>标记语言</li>
+                            <li><span class="badge bg-info me-2">CSV</span>逗号分隔值文件</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <h6 class="alert-heading"><i class="bi bi-info-circle"></i> 文件大小限制：</h6>
+                    <ul class="mb-0">
+                        <li><strong>普通文件</strong>：最大 10MB</li>
+                        <li><strong>压缩包/多媒体文件</strong>：最大 100MB (提高限制支持大型压缩包)</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-success mt-3">
+                    <h6 class="alert-heading"><i class="bi bi-check-circle"></i> 支持功能：</h6>
+                    <ul class="mb-0">
+                        <li>✅ 断点续传：网络中断后可继续上传</li>
+                        <li>✅ 自动重试：失败后智能重试机制</li>
+                        <li>✅ 在线预览：PDF、图片、文本、多媒体文件</li>
+                        <li>✅ 安全下载：所有文件类型均可下载</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideFileTypeHelp()">
+                    <i class="bi bi-x-circle me-1"></i>关闭
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <th:block layout:fragment="scripts">
     <script src="https://cdn.tiny.cloud/1/epd4u3q4czck41xhryufu73clhe4jzhzc0bxvnmw9t0z6ayk/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
@@ -475,6 +583,8 @@
                                 // 2. 从签名画布中获取签名数据
                                 prepareSignatureForSubmission('PartyA');
                                 prepareSignatureForSubmission('PartyB');
+                                // 3. 准备附件数据
+                                prepareAttachmentsForSubmission();
                             }
 
                             let isFormValid = form.checkValidity();
@@ -781,6 +891,10 @@
             let uploadedFilesData = [];
             let fileUploadQueue = [];
             let isUploading = false;
+            
+            // 持久化存储键名
+            const STORAGE_KEY = 'contract_draft_uploads';
+            const STORAGE_EXPIRY_HOURS = 24; // 24小时后过期
 
             if (attachmentFilesInput) {
                 attachmentFilesInput.addEventListener('change', handleFileSelection);
@@ -788,19 +902,111 @@
 
             function handleFileSelection(event) {
                 const files = event.target.files;
+                console.log(`用户选择了 ${files.length} 个文件`);
                 if (files.length === 0) return;
 
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
-                    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-                    const maxSize = 5 * 1024 * 1024;
+                    console.log(`处理文件 ${i+1}: ${file.name}, 类型: ${file.type}, 大小: ${(file.size/1024/1024).toFixed(2)}MB`);
+                    const allowedTypes = [
+                        // 📄 文档类型
+                        'application/pdf',                    // PDF文件
+                        'application/msword',                // Word 97-2003文档(.doc)
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Word 2007+文档(.docx)
+                        'application/vnd.ms-excel',          // Excel 97-2003(.xls)
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // Excel 2007+(.xlsx)
+                        'application/vnd.ms-powerpoint',     // PowerPoint 97-2003(.ppt)
+                        'application/vnd.openxmlformats-officedocument.presentationml.presentation', // PowerPoint 2007+(.pptx)
+                        'text/plain',                        // 文本文件(.txt)
+                        'application/rtf',                   // RTF富文本格式
+                        
+                        // 🖼️ 图片类型
+                        'image/jpeg',                        // JPEG图片
+                        'image/png',                         // PNG图片
+                        'image/gif',                         // GIF图片
+                        'image/bmp',                         // BMP图片
+                        'image/webp',                        // WebP图片
+                        'image/tiff',                        // TIFF图片
+                        'image/svg+xml',                     // SVG矢量图
+                        
+                        // 📦 压缩文件类型
+                        'application/zip',                   // ZIP压缩文件
+                        'application/x-zip-compressed',      // ZIP压缩文件(备用MIME)
+                        'application/x-rar-compressed',      // RAR压缩文件
+                        'application/vnd.rar',               // RAR压缩文件(新标准MIME)
+                        'application/x-rar',                 // RAR压缩文件(备用MIME)
+                        'application/x-7z-compressed',       // 7Z压缩文件
+                        'application/x-tar',                 // TAR归档文件
+                        'application/gzip',                  // GZIP压缩文件
+                        'application/x-gzip',                // GZIP压缩文件(备用MIME)
+                        
+                        // 🎵 多媒体类型
+                        'audio/mpeg',                        // MP3音频
+                        'audio/wav',                         // WAV音频
+                        'video/mp4',                         // MP4视频
+                        'video/avi',                         // AVI视频
+                        
+                        // 💻 其他常用格式
+                        'application/json',                  // JSON数据文件
+                        'text/csv',                          // CSV表格文件
+                        'application/xml',                   // XML文件
+                        'text/xml'                           // XML文件(备用MIME)
+                    ];
+                    // 根据文件类型设置不同的大小限制
+                    const getMaxSizeForFile = (fileType, fileName) => {
+                        // 通过文件扩展名判断是否为压缩包或多媒体文件
+                        const ext = fileName.toLowerCase();
+                        const isCompressedFile = ext.endsWith('.zip') || ext.endsWith('.rar') || ext.endsWith('.7z') || 
+                                                ext.endsWith('.tar') || ext.endsWith('.gz');
+                        const isMultimediaFile = ext.endsWith('.mp4') || ext.endsWith('.avi') || ext.endsWith('.mp3') || ext.endsWith('.wav');
+                        
+                        // 多媒体文件和压缩包允许更大的文件
+                        if (fileType.startsWith('video/') || 
+                            fileType.startsWith('audio/') ||
+                            fileType.includes('zip') || 
+                            fileType.includes('rar') || 
+                            fileType.includes('7z') ||
+                            fileType.includes('tar') ||
+                            fileType.includes('gzip') ||
+                            fileType.includes('compressed') || // 添加对compressed类型的支持
+                            isCompressedFile || 
+                            isMultimediaFile) {
+                            return 100 * 1024 * 1024; // 提高到100MB以支持大型压缩包
+                        }
+                        // 其他文件类型保持原限制
+                        return 10 * 1024 * 1024; // 10MB
+                    };
+                    
+                    const maxSize = getMaxSizeForFile(file.type, file.name);
 
-                    if (!allowedTypes.includes(file.type)) {
-                        showAlertOnMainPage(`文件 "${file.name}" 类型不被支持。只允许PDF, 图片, Word文档。`, 'danger');
+                    // 检查MIME类型或文件扩展名
+                    const fileName = file.name.toLowerCase();
+                    const isAllowedByMimeType = allowedTypes.includes(file.type);
+                    const isAllowedByExtension = 
+                        fileName.endsWith('.pdf') || fileName.endsWith('.doc') || fileName.endsWith('.docx') ||
+                        fileName.endsWith('.xls') || fileName.endsWith('.xlsx') || fileName.endsWith('.ppt') || fileName.endsWith('.pptx') ||
+                        fileName.endsWith('.txt') || fileName.endsWith('.rtf') ||
+                        fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.png') || 
+                        fileName.endsWith('.gif') || fileName.endsWith('.bmp') || fileName.endsWith('.webp') || 
+                        fileName.endsWith('.tiff') || fileName.endsWith('.svg') ||
+                        fileName.endsWith('.zip') || fileName.endsWith('.rar') || fileName.endsWith('.7z') || 
+                        fileName.endsWith('.tar') || fileName.endsWith('.gz') ||
+                        fileName.endsWith('.mp4') || fileName.endsWith('.avi') || fileName.endsWith('.mp3') || fileName.endsWith('.wav') ||
+                        fileName.endsWith('.json') || fileName.endsWith('.xml') || fileName.endsWith('.csv');
+
+                    if (!isAllowedByMimeType && !isAllowedByExtension) {
+                        console.warn(`文件 "${file.name}" 不被支持 - MIME类型: ${file.type}, 扩展名: ${fileName.split('.').pop()}`);
+                        showAlertOnMainPage(`文件 "${file.name}" 类型不被支持。当前支持：Office文档、PDF、图片、压缩包、多媒体文件等。<br><small>检测到的类型: ${file.type}</small>`, 'danger');
                         continue;
+                    } else if (!isAllowedByMimeType && isAllowedByExtension) {
+                        console.info(`文件 "${file.name}" 通过扩展名验证 - MIME类型未识别: ${file.type}`);
                     }
                     if (file.size > maxSize) {
-                        showAlertOnMainPage(`文件 "${file.name}" 大小超过5MB限制。`, 'danger');
+                        const sizeLimitMB = Math.round(maxSize / 1024 / 1024);
+                        const fileName = file.name.toLowerCase();
+                        const isLargeFile = maxSize > 10 * 1024 * 1024; // 判断是否使用了大文件限制
+                        const fileTypeName = isLargeFile ? '压缩包/多媒体文件' : '普通文件';
+                        showAlertOnMainPage(`文件 "${file.name}" 大小超过${fileTypeName}的${sizeLimitMB}MB限制。<br><small>当前文件大小: ${(file.size/1024/1024).toFixed(2)}MB</small>`, 'danger');
                         continue;
                     }
 
@@ -814,6 +1020,7 @@
                     uploadedFilesData.push(fileEntry);
                     addFileToUI(fileEntry);
                     fileUploadQueue.push(fileEntry);
+                    saveUploadState(); // 保存状态
                 }
                 attachmentFilesInput.value = '';
 
@@ -844,6 +1051,14 @@
                 removeBtn.addEventListener('click', () => removeFile(fileEntry.id));
                 fileActions.appendChild(removeBtn);
 
+                // 重试按钮（初始隐藏）
+                const retryBtn = document.createElement('button');
+                retryBtn.classList.add('btn', 'btn-sm', 'btn-warning', 'me-2');
+                retryBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> 重试';
+                retryBtn.style.display = 'none';
+                retryBtn.addEventListener('click', () => retryUpload(fileEntry.id));
+                fileActions.insertBefore(retryBtn, removeBtn);
+
                 listItem.appendChild(fileActions);
 
                 const progressBarContainer = document.createElement('div');
@@ -853,34 +1068,111 @@
                 progressBar.style.width = '0%';
                 progressBar.textContent = '0%';
                 progressBarContainer.appendChild(progressBar);
+                
+                // 添加分块进度信息
+                const chunkInfo = document.createElement('small');
+                chunkInfo.classList.add('chunk-info', 'text-muted', 'd-block');
+                chunkInfo.style.display = 'none';
+                progressBarContainer.appendChild(chunkInfo);
+                
                 listItem.appendChild(progressBarContainer);
 
                 fileListContainer.appendChild(listItem);
             }
 
-            function updateFileProgress(fileId, progress) {
+            function updateFileProgress(fileId, progress, chunkInfo = '') {
                 const progressBar = document.querySelector(`#file-item-${fileId} .file-progress-bar`);
+                const chunkInfoElement = document.querySelector(`#file-item-${fileId} .chunk-info`);
+                
                 if (progressBar) {
                     progressBar.style.width = `${progress}%`;
                     progressBar.textContent = `${Math.round(progress)}%`;
+                    
+                    // 根据进度改变进度条颜色
+                    if (progress >= 100) {
+                        progressBar.style.backgroundColor = '#198754'; // 成功绿色
+                    } else if (progress >= 50) {
+                        progressBar.style.backgroundColor = '#0d6efd'; // 蓝色
+                    } else {
+                        progressBar.style.backgroundColor = '#6c757d'; // 灰色
+                    }
+                }
+                
+                if (chunkInfoElement && chunkInfo) {
+                    chunkInfoElement.textContent = chunkInfo;
+                    chunkInfoElement.style.display = 'block';
+                } else if (chunkInfoElement) {
+                    chunkInfoElement.style.display = 'none';
                 }
             }
 
             function updateFileStatusUI(fileId, status, message = '') {
                 const listItem = document.getElementById(`file-item-${fileId}`);
                 if (listItem) {
-                    listItem.classList.remove('upload-pending', 'upload-uploading', 'upload-completed', 'upload-error');
+                    // 清除所有状态类
+                    listItem.classList.remove('upload-pending', 'upload-uploading', 'upload-completed', 'upload-error', 'upload-need_file');
                     listItem.classList.add(`upload-${status}`);
-                    const fileNameSpan = listItem.querySelector('.file-name');
-                    const fileSizeSpan = listItem.querySelector('.file-size');
-                    const statusSpan = document.createElement('span');
-                    statusSpan.classList.add('file-status', `text-${status === 'completed' ? 'success' : 'danger'}`);
-                    statusSpan.textContent = status === 'completed' ? ' (上传成功)' : ` (上传失败: ${message})`;
-                    if (fileNameSpan && !fileNameSpan.querySelector('.file-status')) {
-                        fileSizeSpan.parentNode.insertBefore(statusSpan, fileSizeSpan.nextSibling);
-                    } else if (fileNameSpan && fileNameSpan.querySelector('.file-status')) {
-                        fileNameSpan.querySelector('.file-status').textContent = status === 'completed' ? ' (上传成功)' : ` (上传失败: ${message})`;
+                    
+                    const fileInfo = listItem.querySelector('.file-info');
+                    const retryBtn = listItem.querySelector('.btn-warning');
+                    
+                    if (fileInfo) {
+                        // 先移除已存在的状态span
+                        const existingStatusSpan = fileInfo.querySelector('.file-status');
+                        if (existingStatusSpan) {
+                            existingStatusSpan.remove();
+                        }
+                        
+                        // 创建新的状态span
+                        const statusSpan = document.createElement('span');
+                        statusSpan.classList.add('file-status', 'd-block');
+                        
+                        if (status === 'completed') {
+                            statusSpan.classList.add('text-success');
+                            statusSpan.textContent = '(上传成功)';
+                            if (retryBtn) retryBtn.style.display = 'none';
+                        } else if (status === 'error') {
+                            statusSpan.classList.add('text-danger');
+                            statusSpan.textContent = `(上传失败: ${message})`;
+                            if (retryBtn) retryBtn.style.display = 'inline-block'; // 显示重试按钮
+                        } else if (status === 'uploading') {
+                            statusSpan.classList.add('text-info');
+                            statusSpan.textContent = message || '(上传中...)';
+                            if (retryBtn) retryBtn.style.display = 'none';
+                        } else if (status === 'paused') {
+                            statusSpan.classList.add('text-warning');
+                            statusSpan.textContent = `(已暂停: ${message})`;
+                            if (retryBtn) retryBtn.style.display = 'inline-block'; // 显示重试按钮
+                        } else if (status === 'need_file') {
+                            statusSpan.classList.add('text-warning');
+                            statusSpan.innerHTML = `⚠️ ${message}`;
+                            
+                            // 为需要选择文件的状态创建特殊的选择文件按钮
+                            if (retryBtn) {
+                                retryBtn.style.display = 'inline-block';
+                                retryBtn.textContent = '🔄 选择文件继续上传';
+                                retryBtn.classList.remove('btn-warning');
+                                retryBtn.classList.add('btn-primary');
+                                retryBtn.style.fontWeight = 'bold';
+                            }
+                        } else {
+                            statusSpan.classList.add('text-muted');
+                            statusSpan.textContent = '(等待上传)';
+                            if (retryBtn) {
+                                retryBtn.style.display = 'none';
+                                // 重置按钮样式（避免need_file状态的样式残留）
+                                retryBtn.textContent = '重试';
+                                retryBtn.classList.remove('btn-primary');
+                                retryBtn.classList.add('btn-warning');
+                                retryBtn.style.fontWeight = 'normal';
+                            }
+                        }
+                        
+                        // 添加到文件信息区域
+                        fileInfo.appendChild(statusSpan);
                     }
+                    
+                    // 隐藏进度条（如果上传完成）
                     if (status === 'completed') {
                         const progressBarContainer = listItem.querySelector('.file-progress');
                         if (progressBarContainer) progressBarContainer.style.display = 'none';
@@ -895,6 +1187,394 @@
                     listItem.remove();
                 }
                 prepareAttachmentsForSubmission();
+                saveUploadState(); // 保存状态
+            }
+
+            // 重试上传功能
+            async function retryUpload(fileId) {
+                const fileEntry = uploadedFilesData.find(file => file.id === fileId);
+                if (!fileEntry) {
+                    console.error(`未找到文件ID: ${fileId}`);
+                    return;
+                }
+
+                // 如果是虚拟文件（从localStorage恢复的），直接弹出文件选择
+                if (fileEntry.file.size === 0 || (fileEntry.file.size > 0 && typeof fileEntry.file.stream === 'undefined')) {
+                    console.log(`检测到虚拟文件 "${fileEntry.file.name}"，直接开始文件选择流程`);
+                    showFileSelectionDialog(fileEntry, true); // 使用自动续传模式
+                    return;
+                }
+
+                // 重置状态
+                fileEntry.status = 'pending';
+                fileEntry.progress = 0;
+                updateFileProgress(fileId, 0);
+                updateFileStatusUI(fileId, 'uploading', '重新开始上传...');
+
+                // 显示进度条
+                const listItem = document.getElementById(`file-item-${fileId}`);
+                if (listItem) {
+                    const progressBarContainer = listItem.querySelector('.file-progress');
+                    if (progressBarContainer) progressBarContainer.style.display = 'block';
+                }
+
+                try {
+                    if (fileEntry.uploadId) {
+                        // 如果有上传ID，尝试断点续传
+                        try {
+                            await uploadFileWithResume(fileEntry, fileEntry.uploadId);
+                        } catch (error) {
+                            if (error.message === 'RESTART_UPLOAD') {
+                                // 需要重新开始上传
+                                console.log('重新开始上传流程...');
+                                await uploadFile(fileEntry);
+                                return;
+                            } else if (error.message === 'NEED_REAL_FILE') {
+                                // 需要重新选择文件，直接开始文件选择流程
+                                console.log('检测到虚拟文件对象，直接开始文件选择流程');
+                                showFileSelectionDialog(fileEntry, true); // 使用自动续传模式
+                                return;
+                            } else {
+                                throw error; // 其他错误继续抛出
+                            }
+                        }
+                    } else {
+                        // 否则重新开始上传
+                        await uploadFile(fileEntry);
+                        return; // uploadFile 会处理完整流程
+                    }
+
+                    // 3. 完成上传
+                    const finalizeResponse = await fetch(`/api/attachments/finalize/${fileEntry.uploadId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `originalFileName=${encodeURIComponent(fileEntry.file.name)}`
+                    });
+
+                    if (!finalizeResponse.ok) {
+                        throw new Error('完成上传失败');
+                    }
+
+                    const finalizeResult = await finalizeResponse.json();
+                    
+                    fileEntry.status = 'completed';
+                    fileEntry.progress = 100;
+                    fileEntry.serverFileName = finalizeResult.fileName;
+                    updateFileProgress(fileEntry.id, 100);
+                    updateFileStatusUI(fileEntry.id, 'completed');
+                    saveUploadState(); // 保存状态
+                    showAlertOnMainPage(`文件 "${fileEntry.file.name}" 重试上传成功。`, 'success', 3000);
+                    
+                } catch (error) {
+                    console.error('重试上传失败:', error);
+                    fileEntry.status = 'error';
+                    updateFileStatusUI(fileEntry.id, 'error', `重试失败: ${error.message}`);
+                    saveUploadState(); // 保存状态
+                    showAlertOnMainPage(`文件 "${fileEntry.file.name}" 重试上传失败: ${error.message}`, 'danger');
+                }
+            }
+
+            // 网络状态监测
+            function setupNetworkStatusMonitoring() {
+                window.addEventListener('online', () => {
+                    console.log('网络已恢复');
+                    showAlertOnMainPage('网络连接已恢复，您可以继续上传文件。', 'info', 5000);
+                    
+                    // 检查是否有失败的上传，提示用户重试
+                    const failedUploads = uploadedFilesData.filter(file => file.status === 'error');
+                    if (failedUploads.length > 0) {
+                        showAlertOnMainPage(`发现 ${failedUploads.length} 个失败的上传，您可以点击"重试"按钮继续上传。`, 'warning', 8000);
+                    }
+                });
+
+                window.addEventListener('offline', () => {
+                    console.log('网络已断开');
+                    showAlertOnMainPage('网络连接已断开，上传可能会失败。请检查网络连接。', 'warning', 8000);
+                });
+            }
+
+            // 启动网络状态监测
+            setupNetworkStatusMonitoring();
+            
+            // 页面加载时恢复未完成的上传
+            restoreUploadState();
+            
+            // 页面卸载时清理过期状态
+            window.addEventListener('beforeunload', clearExpiredUploads);
+            
+            // 表单提交成功后清除上传状态
+            window.clearUploadStateOnSuccess = function() {
+                localStorage.removeItem(STORAGE_KEY);
+                console.log('表单提交成功，已清除上传状态');
+            };
+
+            // 已移除自动批量续传相关代码，改为手动点击按钮选择文件
+
+            // 显示文件选择对话框
+            function showFileSelectionDialog(fileEntry, isAutoResume = false) {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '*/*';
+                
+                if (isAutoResume) {
+                    // 自动续传模式下，提供更好的用户提示
+                    showAlertOnMainPage(`请选择文件 "${fileEntry.file.name}" 以继续断点续传`, 'warning', 8000);
+                }
+                
+                input.onchange = function(e) {
+                    const selectedFile = e.target.files[0];
+                    if (selectedFile) {
+                        // 验证文件名和大小是否匹配
+                        if (selectedFile.name === fileEntry.file.name && selectedFile.size === fileEntry.file.size) {
+                            // 替换文件对象
+                            console.log(`文件重新选择成功: ${selectedFile.name}, 大小: ${selectedFile.size} bytes`);
+                            fileEntry.file = selectedFile;
+                            
+                            // 验证新文件对象的切片功能
+                            try {
+                                const testChunk = selectedFile.slice(0, Math.min(1024, selectedFile.size));
+                                console.log(`新文件切片测试成功，测试分块大小: ${testChunk.size} bytes`);
+                            } catch (sliceError) {
+                                console.error('新文件切片测试失败:', sliceError);
+                                alert('选择的文件无法正常读取，请重新选择。');
+                                return;
+                            }
+                            
+                            updateFileStatusUI(fileEntry.id, 'uploading', '文件已选择，开始断点续传...');
+                            
+                            // 立即开始上传
+                            setTimeout(() => {
+                                retryUpload(fileEntry.id);
+                            }, 300);
+                        } else {
+                            const proceed = confirm(`选择的文件与原文件不匹配：\n原文件: ${fileEntry.file.name} (${(fileEntry.file.size/1024/1024).toFixed(2)}MB)\n新文件: ${selectedFile.name} (${(selectedFile.size/1024/1024).toFixed(2)}MB)\n\n是否仍要使用新文件？`);
+                            if (proceed) {
+                                // 更新文件信息
+                                fileEntry.file = selectedFile;
+                                fileEntry.uploadId = null; // 清除旧的uploadId
+                                fileEntry.progress = 0;
+                                
+                                // 更新UI显示
+                                const fileInfo = document.querySelector(`#file-item-${fileEntry.id} .file-info`);
+                                if (fileInfo) {
+                                    fileInfo.innerHTML = `
+                                        <span class="file-name" title="${selectedFile.name}">${selectedFile.name}</span>
+                                        <span class="file-size">${(selectedFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                                    `;
+                                }
+                                
+                                updateFileStatusUI(fileEntry.id, 'pending', '新文件已选择，准备上传');
+                                
+                                // 立即开始上传
+                                setTimeout(() => {
+                                    retryUpload(fileEntry.id);
+                                }, 500);
+                            }
+                        }
+                    }
+                };
+                input.click();
+            }
+
+            // 简单的模态框控制函数
+            window.showFileTypeHelp = function() {
+                console.log('显示文件类型帮助');
+                const modal = document.getElementById('fileTypeHelpModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    modal.classList.add('show');
+                    modal.setAttribute('aria-hidden', 'false');
+                    document.body.classList.add('modal-open');
+                    
+                    // 添加遮罩层
+                    const backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    backdrop.id = 'simple-backdrop';
+                    backdrop.onclick = function() { hideFileTypeHelp(); };
+                    document.body.appendChild(backdrop);
+                }
+            };
+            
+            window.hideFileTypeHelp = function() {
+                console.log('隐藏文件类型帮助');
+                const modal = document.getElementById('fileTypeHelpModal');
+                const backdrop = document.getElementById('simple-backdrop');
+                
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.classList.remove('show');
+                    modal.setAttribute('aria-hidden', 'true');
+                    document.body.classList.remove('modal-open');
+                }
+                
+                if (backdrop) {
+                    backdrop.remove();
+                }
+            };
+
+            // 持久化上传状态到localStorage
+            function saveUploadState() {
+                try {
+                    const uploadState = {
+                        timestamp: Date.now(),
+                        files: uploadedFilesData.map(file => ({
+                            id: file.id,
+                            name: file.file.name,
+                            size: file.file.size,
+                            type: file.file.type,
+                            status: file.status,
+                            progress: file.progress,
+                            uploadId: file.uploadId,
+                            serverFileName: file.serverFileName,
+                            lastModified: file.file.lastModified // 用于验证文件一致性
+                        }))
+                    };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadState));
+                    console.log('上传状态已保存');
+                } catch (error) {
+                    console.warn('保存上传状态失败:', error);
+                }
+            }
+
+            // 从localStorage恢复上传状态
+            function restoreUploadState() {
+                try {
+                    const savedState = localStorage.getItem(STORAGE_KEY);
+                    if (!savedState) return;
+
+                    const uploadState = JSON.parse(savedState);
+                    const now = Date.now();
+                    const expiryTime = STORAGE_EXPIRY_HOURS * 60 * 60 * 1000;
+
+                    // 检查是否过期
+                    if (now - uploadState.timestamp > expiryTime) {
+                        console.log('保存的上传状态已过期，清除');
+                        localStorage.removeItem(STORAGE_KEY);
+                        return;
+                    }
+
+                    if (uploadState.files && uploadState.files.length > 0) {
+                        console.log(`发现 ${uploadState.files.length} 个未完成的上传`);
+                        showUploadRestorationDialog(uploadState.files);
+                    }
+                } catch (error) {
+                    console.warn('恢复上传状态失败:', error);
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+            }
+
+            // 显示上传恢复对话框（简化版）
+            function showUploadRestorationDialog(savedFiles) {
+                const uncompletedFiles = savedFiles.filter(file => file.status !== 'completed');
+                if (uncompletedFiles.length === 0) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return;
+                }
+
+                console.log(`自动恢复 ${uncompletedFiles.length} 个未完成的上传`);
+                
+                // 自动恢复，不再询问用户
+                restoreUncompletedUploads(savedFiles);
+                
+                // 显示更清晰的提示信息
+                const fileList = uncompletedFiles.map(f => `• ${f.name} (${(f.size/1024/1024).toFixed(2)}MB)`).join('\n');
+                showAlertOnMainPage(
+                    `🔄 检测到 ${uncompletedFiles.length} 个未完成的上传：\n${fileList}\n\n👆 请点击文件旁的 "选择文件继续上传" 按钮来恢复断点续传`, 
+                    'warning', 
+                    15000
+                );
+            }
+
+            // 恢复未完成的上传
+            async function restoreUncompletedUploads(savedFiles) {
+                for (const savedFile of savedFiles) {
+                    if (savedFile.status === 'completed') {
+                        // 直接恢复已完成的文件
+                        const fileEntry = {
+                            id: savedFile.id,
+                            file: {
+                                name: savedFile.name,
+                                size: savedFile.size,
+                                type: savedFile.type,
+                                lastModified: savedFile.lastModified
+                            },
+                            status: savedFile.status,
+                            progress: savedFile.progress,
+                            uploadId: savedFile.uploadId,
+                            serverFileName: savedFile.serverFileName
+                        };
+                        uploadedFilesData.push(fileEntry);
+                        addFileToUI(fileEntry);
+                        updateFileStatusUI(fileEntry.id, 'completed');
+                    } else {
+                        // 为未完成的文件创建虚拟文件对象
+                        const virtualFile = createVirtualFile(savedFile);
+                        if (virtualFile) {
+                            const fileEntry = {
+                                id: savedFile.id,
+                                file: virtualFile,
+                                status: 'paused', // 设置为暂停状态
+                                progress: savedFile.progress,
+                                uploadId: savedFile.uploadId,
+                                serverFileName: savedFile.serverFileName
+                            };
+                            uploadedFilesData.push(fileEntry);
+                            addFileToUI(fileEntry);
+                            updateFileStatusUI(fileEntry.id, 'need_file', '需要重新选择文件继续断点续传');
+                        }
+                    }
+                }
+                
+                const uncompletedCount = savedFiles.filter(f => f.status !== 'completed').length;
+                if (uncompletedCount > 0) {
+                    showAlertOnMainPage(`已恢复 ${savedFiles.length} 个文件，其中 ${uncompletedCount} 个需要继续上传。点击"重试"按钮继续。`, 'info', 8000);
+                }
+                
+                saveUploadState(); // 更新状态
+            }
+
+            // 创建虚拟文件对象（用于恢复）
+            function createVirtualFile(savedFile) {
+                try {
+                    // 创建一个虚拟的File对象用于显示
+                    const blob = new Blob([''], { type: savedFile.type });
+                    const file = new File([blob], savedFile.name, {
+                        type: savedFile.type,
+                        lastModified: savedFile.lastModified
+                    });
+                    
+                    // 由于无法恢复实际文件内容，我们需要在重试时提示用户重新选择文件
+                    Object.defineProperty(file, 'size', {
+                        value: savedFile.size,
+                        writable: false
+                    });
+                    
+                    return file;
+                } catch (error) {
+                    console.error('创建虚拟文件失败:', error);
+                    return null;
+                }
+            }
+
+            // 清除过期的上传状态
+            function clearExpiredUploads() {
+                const savedState = localStorage.getItem(STORAGE_KEY);
+                if (savedState) {
+                    try {
+                        const uploadState = JSON.parse(savedState);
+                        const now = Date.now();
+                        const expiryTime = STORAGE_EXPIRY_HOURS * 60 * 60 * 1000;
+                        
+                        if (now - uploadState.timestamp > expiryTime) {
+                            localStorage.removeItem(STORAGE_KEY);
+                            console.log('已清除过期的上传状态');
+                        }
+                    } catch (error) {
+                        localStorage.removeItem(STORAGE_KEY);
+                    }
+                }
             }
 
             async function processFileUploadQueue() {
@@ -910,35 +1590,287 @@
                 isUploading = false;
             }
 
+            // 断点续传核心函数
+            async function uploadFileWithResume(fileEntry, uploadId) {
+                const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
+                const totalChunks = Math.ceil(fileEntry.file.size / CHUNK_SIZE);
+                
+                console.log(`DEBUG: 开始断点续传 - 文件: ${fileEntry.file.name}, 总大小: ${fileEntry.file.size} bytes, 总分块: ${totalChunks}`);
+                
+                // 检查文件对象是否为虚拟文件（从localStorage恢复的）
+                if (typeof fileEntry.file.stream === 'undefined' || typeof fileEntry.file.slice !== 'function') {
+                    console.warn('检测到虚拟文件对象，无法进行切片操作');
+                    throw new Error('NEED_REAL_FILE'); // 特殊错误码，表示需要重新选择文件
+                }
+                
+                // 测试文件切片功能
+                try {
+                    const testChunk = fileEntry.file.slice(0, Math.min(1024, fileEntry.file.size));
+                    if (testChunk.size === 0 && fileEntry.file.size > 0) {
+                        console.warn('文件切片测试失败，无法读取文件内容');
+                        throw new Error('NEED_REAL_FILE');
+                    }
+                    console.log(`文件切片测试成功，测试分块大小: ${testChunk.size} bytes`);
+                } catch (sliceError) {
+                    console.warn('文件切片测试出错:', sliceError);
+                    throw new Error('NEED_REAL_FILE');
+                }
+                
+                // 1. 查询服务器已上传状态
+                let uploadedChunks = new Set();
+                let serverTotalChunks = 0;
+                let serverFileSize = 0;
+                
+                try {
+                    const statusResponse = await fetch(`/api/attachments/status/${uploadId}`);
+                    if (statusResponse.ok) {
+                        const status = await statusResponse.json();
+                        uploadedChunks = new Set(status.uploadedChunks || []);
+                        serverTotalChunks = status.totalChunks || 0;
+                        serverFileSize = status.totalSize || 0;
+                        
+                        console.log(`服务器状态: 文件大小=${serverFileSize}, 总分块=${serverTotalChunks}, 已上传=${uploadedChunks.size}个分块`);
+                        console.log(`当前文件: 文件大小=${fileEntry.file.size}, 计算分块=${totalChunks}`);
+                        
+                        // 验证文件一致性
+                        if (serverFileSize !== fileEntry.file.size) {
+                            console.error(`文件大小不一致! 服务器: ${serverFileSize}, 当前: ${fileEntry.file.size}`);
+                            throw new Error(`文件不一致：服务器记录大小 ${serverFileSize} bytes，当前文件大小 ${fileEntry.file.size} bytes`);
+                        }
+                        
+                        // 验证分块数一致性（0表示新上传会话，是正常的）
+                        if (serverTotalChunks > 0 && serverTotalChunks !== totalChunks) {
+                            console.error(`分块数不一致! 服务器: ${serverTotalChunks}, 当前: ${totalChunks}`);
+                            throw new Error(`分块数不一致：服务器记录 ${serverTotalChunks} 块，当前计算 ${totalChunks} 块`);
+                        } else if (serverTotalChunks === 0) {
+                            console.log(`新上传会话，服务器totalChunks为0是正常的`);
+                        }
+                        
+                        console.log(`文件 "${fileEntry.file.name}" 断点续传: 已上传 ${uploadedChunks.size}/${totalChunks} 分块`);
+                        
+                        // 更新UI显示已有进度
+                        if (uploadedChunks.size > 0) {
+                            const existingProgress = Math.round((uploadedChunks.size / totalChunks) * 90);
+                            fileEntry.progress = existingProgress;
+                            updateFileProgress(fileEntry.id, existingProgress);
+                            updateFileStatusUI(fileEntry.id, 'uploading', `继续上传 (${uploadedChunks.size}/${totalChunks} 已完成)`);
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`查询上传状态失败，将从头开始: ${error.message}`);
+                    if (error.message.includes('不一致')) {
+                        // 文件不一致，提供重新开始选项
+                        const restart = confirm(`检测到文件与服务器记录不一致：\n${error.message}\n\n是否清理服务器状态并重新开始上传？\n\n点击"确定"重新开始，点击"取消"停止上传。`);
+                        if (restart) {
+                            console.log('用户选择重新开始上传，清理服务器状态...');
+                            try {
+                                // 尝试清理服务器状态（删除uploadId记录）
+                                const cleanupResponse = await fetch(`/api/attachments/cleanup/${uploadId}`, { method: 'DELETE' });
+                                if (cleanupResponse.ok) {
+                                    console.log('服务器状态已成功清理');
+                                } else {
+                                    console.warn('清理服务器状态失败，但将继续重新开始上传');
+                                }
+                            } catch (cleanupError) {
+                                console.warn('清理服务器状态时出错，但将继续重新开始上传:', cleanupError);
+                            }
+                            
+                            // 无论清理是否成功，都清理本地状态并重新开始
+                            console.log('清理本地状态，准备重新开始上传');
+                            fileEntry.uploadId = null;
+                            saveUploadState();
+                            throw new Error('RESTART_UPLOAD'); // 特殊错误码，表示需要重新开始
+                        } else {
+                            throw new Error('用户取消上传');
+                        }
+                    }
+                }
+                
+                // 2. 只上传缺失的分块
+                for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber++) {
+                    if (uploadedChunks.has(chunkNumber)) {
+                        console.log(`跳过已上传的分块: ${chunkNumber + 1}/${totalChunks}`);
+                        continue; // 跳过已上传的分块
+                    }
+                    
+                    // 计算当前分块的大小进行验证
+                    const start = chunkNumber * CHUNK_SIZE;
+                    const end = Math.min(start + CHUNK_SIZE, fileEntry.file.size);
+                    const expectedChunkSize = end - start;
+                    
+                    console.log(`DEBUG: 准备上传分块 ${chunkNumber + 1}/${totalChunks}, 预期大小: ${expectedChunkSize} bytes (${start}-${end})`);
+                    
+                    if (expectedChunkSize <= 0) {
+                        console.error(`分块 ${chunkNumber + 1} 计算出错误的大小: ${expectedChunkSize}`);
+                        throw new Error(`分块 ${chunkNumber + 1} 大小计算错误: ${expectedChunkSize} bytes`);
+                    }
+                    
+                    const success = await uploadChunkWithRetry(fileEntry, uploadId, chunkNumber, totalChunks, CHUNK_SIZE);
+                    if (!success) {
+                        throw new Error(`分块 ${chunkNumber + 1} 多次重试后仍然失败`);
+                    }
+                    
+                    // 更新进度和分块信息
+                    const uploadedCount = chunkNumber + 1;
+                    const progress = Math.round((uploadedCount / totalChunks) * 90);
+                    fileEntry.progress = progress;
+                    const chunkInfo = `分块 ${uploadedCount}/${totalChunks} 已上传`;
+                    updateFileProgress(fileEntry.id, progress, chunkInfo);
+                    
+                    // 每5个分块保存一次状态（减少存储频率）
+                    if (uploadedCount % 5 === 0 || uploadedCount === totalChunks) {
+                        saveUploadState();
+                    }
+                }
+            }
+
+            // 支持重试的分块上传函数
+            async function uploadChunkWithRetry(fileEntry, uploadId, chunkNumber, totalChunks, chunkSize, maxRetries = 3) {
+                const start = chunkNumber * chunkSize;
+                const end = Math.min(start + chunkSize, fileEntry.file.size);
+                const chunk = fileEntry.file.slice(start, end);
+
+                // 验证分块大小
+                if (chunk.size === 0) {
+                    console.error(`分块 ${chunkNumber + 1} 切片结果为空! start=${start}, end=${end}, fileSize=${fileEntry.file.size}`);
+                    throw new Error(`分块 ${chunkNumber + 1} 切片失败：结果为空`);
+                }
+
+                for (let attempt = 0; attempt < maxRetries; attempt++) {
+                    try {
+                        const chunkFormData = new FormData();
+                        chunkFormData.append('file', chunk);
+                        chunkFormData.append('chunkNumber', chunkNumber);
+                        chunkFormData.append('totalChunks', totalChunks);
+
+                        console.log(`DEBUG: 实际上传分块 ${chunkNumber + 1}/${totalChunks}, 大小: ${chunk.size} bytes, 范围: ${start}-${end}, uploadId: ${uploadId}`);
+
+                        const chunkResponse = await fetch('/api/attachments/upload-chunk', {
+                            method: 'POST',
+                            headers: {
+                                'X-Upload-Id': uploadId
+                            },
+                            body: chunkFormData
+                        });
+
+                        if (chunkResponse.ok) {
+                            console.log(`分块 ${chunkNumber + 1}/${totalChunks} 上传成功 ${attempt > 0 ? `(重试 ${attempt} 次后)` : ''}`);
+                            return true; // 成功
+                        } else {
+                            // 获取详细的错误信息
+                            let errorDetails = `HTTP ${chunkResponse.status}: ${chunkResponse.statusText}`;
+                            try {
+                                const errorText = await chunkResponse.text();
+                                if (errorText) {
+                                    errorDetails += ` - ${errorText}`;
+                                }
+                            } catch (e) {
+                                console.warn('无法获取详细错误信息:', e);
+                            }
+                            throw new Error(errorDetails);
+                        }
+                    } catch (error) {
+                        console.warn(`分块 ${chunkNumber + 1} 上传失败 (尝试 ${attempt + 1}/${maxRetries}): ${error.message}`);
+                        
+                        if (attempt === maxRetries - 1) {
+                            // 最后一次尝试失败
+                            updateFileStatusUI(fileEntry.id, 'error', `分块 ${chunkNumber + 1} 重试 ${maxRetries} 次后失败`);
+                            return false;
+                        }
+                        
+                        // 指数退避策略
+                        const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // 最大10秒
+                        console.log(`${delay}ms 后重试分块 ${chunkNumber + 1}...`);
+                        updateFileStatusUI(fileEntry.id, 'uploading', `分块 ${chunkNumber + 1} 重试中... (${attempt + 1}/${maxRetries})`);
+                        await sleep(delay);
+                    }
+                }
+                return false;
+            }
+
+            // 工具函数：延时
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
             async function uploadFile(fileEntry) {
                 fileEntry.status = 'uploading';
-                const formData = new FormData();
-                formData.append('file', fileEntry.file);
+                updateFileStatusUI(fileEntry.id, 'uploading');
 
                 try {
-                    const response = await fetch('/attachments/upload', {
+                    // 1. 初始化上传
+                    const initResponse = await fetch('/api/attachments/initiate', {
                         method: 'POST',
-                        body: formData,
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            fileName: fileEntry.file.name,
+                            totalSize: fileEntry.file.size
+                        })
                     });
 
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || '文件上传失败');
+                    if (!initResponse.ok) {
+                        throw new Error('初始化上传失败');
                     }
 
-                    const result = await response.json();
+                    const initResult = await initResponse.json();
+                    const uploadId = initResult.uploadId;
+                    const serverFileName = initResult.serverFileName;
+                    
+                    // 保存上传ID供断点续传使用
+                    fileEntry.uploadId = uploadId;
+                    fileEntry.serverFileName = serverFileName;
+                    saveUploadState(); // 保存状态
+
+                    // 2. 智能分块上传 (支持断点续传)
+                    await uploadFileWithResume(fileEntry, uploadId);
+
+                    // 3. 完成上传
+                    const finalizeResponse = await fetch(`/api/attachments/finalize/${uploadId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `originalFileName=${encodeURIComponent(fileEntry.file.name)}`
+                    });
+
+                    if (!finalizeResponse.ok) {
+                        throw new Error('完成上传失败');
+                    }
+
+                    const finalizeResult = await finalizeResponse.json();
+                    
                     fileEntry.status = 'completed';
                     fileEntry.progress = 100;
-                    fileEntry.serverFileName = result.fileName;
+                    fileEntry.serverFileName = finalizeResult.fileName;
                     updateFileProgress(fileEntry.id, 100);
                     updateFileStatusUI(fileEntry.id, 'completed');
+                    saveUploadState(); // 保存状态
                     showAlertOnMainPage(`文件 "${fileEntry.file.name}" 上传成功。`, 'success', 3000);
                 } catch (error) {
+                    if (error.message === 'NEED_REAL_FILE') {
+                        // 需要重新选择文件
+                        console.log('上传过程中检测到虚拟文件对象，需要重新选择文件');
+                        fileEntry.status = 'pending';
+                        updateFileStatusUI(fileEntry.id, 'pending', '需要重新选择文件');
+                        saveUploadState();
+                        
+                        const confirmed = confirm(`文件 "${fileEntry.file.name}" 需要重新选择才能继续上传。\n\n点击确定来选择文件，或取消删除此项。`);
+                        if (confirmed) {
+                            showFileSelectionDialog(fileEntry);
+                        } else {
+                            removeFile(fileEntry.id);
+                        }
+                        return;
+                    }
+                    
                     console.error('文件上传错误:', error);
                     fileEntry.status = 'error';
                     fileEntry.progress = 0;
                     updateFileProgress(fileEntry.id, 0);
                     updateFileStatusUI(fileEntry.id, 'error', error.message);
+                    saveUploadState(); // 保存状态
                     showAlertOnMainPage(`文件 "${fileEntry.file.name}" 上传失败: ${error.message}`, 'danger');
                 }
             }
@@ -946,15 +1878,24 @@
             function prepareAttachmentsForSubmission() {
                 if (hiddenAttachmentInputsContainer) {
                     hiddenAttachmentInputsContainer.innerHTML = '';
-                    uploadedFilesData.forEach(fileEntry => {
-                        if (fileEntry.status === 'completed' && fileEntry.serverFileName) {
-                            const hiddenInput = document.createElement('input');
-                            hiddenInput.type = 'hidden';
-                            hiddenInput.name = 'attachmentServerFileNames';
-                            hiddenInput.value = fileEntry.serverFileName;
-                            hiddenAttachmentInputsContainer.appendChild(hiddenInput);
-                        }
+                    const completedFiles = uploadedFilesData.filter(fileEntry => 
+                        fileEntry.status === 'completed' && fileEntry.serverFileName
+                    );
+                    
+                    console.log(`准备附件提交: 发现 ${completedFiles.length} 个已完成的文件`, completedFiles);
+                    
+                    completedFiles.forEach(fileEntry => {
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'attachmentServerFileNames';
+                        hiddenInput.value = fileEntry.serverFileName;
+                        hiddenAttachmentInputsContainer.appendChild(hiddenInput);
+                        console.log(`添加附件到表单: ${fileEntry.serverFileName}`);
                     });
+                    
+                    console.log(`附件容器内容:`, hiddenAttachmentInputsContainer.innerHTML);
+                } else {
+                    console.error('未找到隐藏附件输入容器');
                 }
             }
 

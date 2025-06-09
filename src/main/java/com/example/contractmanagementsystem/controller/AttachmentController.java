@@ -75,25 +75,37 @@ public class AttachmentController {
             Authentication authentication) {
         try {
             if (authentication == null || !authentication.isAuthenticated()) {
+                logger.warn("未认证用户尝试上传分块 (uploadId: {})", uploadId);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("用户未认证");
             }
             String username = authentication.getName();
             if (username == null) {
+                logger.error("无法获取认证用户名 (uploadId: {})", uploadId);
                 throw new UsernameNotFoundException("无法获取当前认证的用户名。");
             }
 
             if (fileChunk.isEmpty()) {
+                logger.warn("用户 '{}' 上传空分块 (uploadId: {}, 分块: {})", username, uploadId, chunkNumber);
                 return ResponseEntity.badRequest().body("上传的分块不能为空");
             }
 
+            logger.info("用户 '{}' 开始上传分块: uploadId={}, 分块={}/{}, 大小={} bytes", 
+                        username, uploadId, chunkNumber + 1, totalChunks, fileChunk.getSize());
+
             attachmentService.uploadChunk(uploadId, chunkNumber, totalChunks, fileChunk, username);
+            
+            logger.info("用户 '{}' 分块上传成功: uploadId={}, 分块={}/{}", 
+                        username, uploadId, chunkNumber + 1, totalChunks);
+            
             return ResponseEntity.ok("分块 " + (chunkNumber + 1) + "/" + totalChunks + " 上传成功。");
 
         } catch (IOException e) {
-            logger.error("上传分块 {} 失败 (uploadId: {}, 用户: {}): {}", chunkNumber, uploadId, authentication.getName(), e.getMessage(), e);
+            logger.error("用户 '{}' 上传分块 {} 失败 (uploadId: {}): {}", 
+                        authentication != null ? authentication.getName() : "未知", chunkNumber, uploadId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("分块上传失败: " + e.getMessage());
         } catch (Exception e) {
-            logger.error("上传分块 {} 时发生错误 (uploadId: {}, 用户: {}): {}", chunkNumber, uploadId, authentication.getName(), e.getMessage(), e);
+            logger.error("用户 '{}' 上传分块 {} 时发生错误 (uploadId: {}): {}", 
+                        authentication != null ? authentication.getName() : "未知", chunkNumber, uploadId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
@@ -129,6 +141,32 @@ public class AttachmentController {
         }
     }
 
+    @DeleteMapping("/cleanup/{uploadId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> cleanupUpload(
+            @PathVariable String uploadId,
+            Authentication authentication) {
+        try {
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            String username = authentication.getName();
+            if (username == null) {
+                throw new UsernameNotFoundException("无法获取当前认证的用户名。");
+            }
+
+            attachmentService.cleanupUpload(uploadId, username);
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "上传会话已清理。");
+            response.put("uploadId", uploadId);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            logger.error("清理上传会话 {} (用户: {}) 时发生错误: {}", uploadId, authentication.getName(), e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "清理失败: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/download/{filename:.+}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Resource> downloadAttachment(@PathVariable String filename, Authentication authentication) {
@@ -156,12 +194,23 @@ public class AttachmentController {
 
             // 定义可以在浏览器中直接预览的文件扩展名
             if (lowerCaseFilename.endsWith(".pdf") ||
+                    // 图片文件
                     lowerCaseFilename.endsWith(".jpg") ||
                     lowerCaseFilename.endsWith(".jpeg") ||
                     lowerCaseFilename.endsWith(".png") ||
                     lowerCaseFilename.endsWith(".gif") ||
                     lowerCaseFilename.endsWith(".bmp") ||
-                    lowerCaseFilename.endsWith(".txt")) {
+                    lowerCaseFilename.endsWith(".webp") ||
+                    lowerCaseFilename.endsWith(".svg") ||
+                    // 文本文件
+                    lowerCaseFilename.endsWith(".txt") ||
+                    lowerCaseFilename.endsWith(".json") ||
+                    lowerCaseFilename.endsWith(".xml") ||
+                    lowerCaseFilename.endsWith(".csv") ||
+                    // 多媒体文件
+                    lowerCaseFilename.endsWith(".mp4") ||
+                    lowerCaseFilename.endsWith(".mp3") ||
+                    lowerCaseFilename.endsWith(".wav")) {
                 dispositionType = "inline"; // "inline" 表示建议浏览器内联显示（预览）
             } else {
                 dispositionType = "attachment"; // "attachment" 表示强制下载

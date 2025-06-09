@@ -657,13 +657,17 @@ public class ContractController {
             model.addAttribute("contractProcesses", contractProcesses);
 
             List<String> attachmentPaths = new ArrayList<>();
+            logger.info("合同详情页面 - 合同ID: {}, 原始附件路径: {}", contractId, contract.getAttachmentPath());
             if (contract.getAttachmentPath() != null && !contract.getAttachmentPath().trim().isEmpty()) {
                 try {
                     attachmentPaths = objectMapper.readValue(contract.getAttachmentPath(), new TypeReference<List<String>>() {});
+                    logger.info("合同详情页面 - 解析后的附件列表: {}", attachmentPaths);
                 } catch (JsonProcessingException e) {
                     logger.error("解析附件路径失败，合同ID {}: {}", contractId, e.getMessage());
                     model.addAttribute("errorMessage", "附件信息解析失败。");
                 }
+            } else {
+                logger.info("合同详情页面 - 附件路径为空或null");
             }
             model.addAttribute("attachmentPaths", attachmentPaths);
 

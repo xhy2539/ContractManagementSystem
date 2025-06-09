@@ -181,6 +181,7 @@ public class ContractServiceImpl implements ContractService {
 
         // 统一附件路径存储
         try {
+            logger.info("收到的附件文件名列表: {}", request.getAttachmentServerFileNames());
             String attachmentsJson = objectMapper.writeValueAsString(request.getAttachmentServerFileNames());
             contract.setAttachmentPath(attachmentsJson);
             logger.info("Contract '{}' drafted with attachment path: {}", contract.getContractName(), attachmentsJson);

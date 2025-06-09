@@ -96,6 +96,48 @@
             border-left: 5px solid var(--bs-success);
             background-color: #e8f5e9;
         }
+        .file-list-item.upload-need_file {
+            border-left: 5px solid var(--bs-warning);
+            background-color: #fff3cd;
+            animation: pulse-warning 2s infinite;
+        }
+        @keyframes pulse-warning {
+            0% { background-color: #fff3cd; }
+            50% { background-color: #ffeaa7; }
+            100% { background-color: #fff3cd; }
+        }
+        
+        /* 预览功能的样式增强 */
+        .modal-dialog-centered {
+            max-width: 90vw;
+        }
+        .modal-body img {
+            max-width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+            border-radius: 0.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .modal-body video, .modal-body audio {
+            max-width: 100%;
+            border-radius: 0.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .preview-loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: #6c757d;
+        }
+        .preview-error {
+            background-color: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 0.25rem;
+            padding: 2rem;
+            text-align: center;
+            color: #6c757d;
+        }
     </style>
 </head>
 
@@ -300,12 +342,38 @@
 
             // --- 全部的JS逻辑，确保没有任何省略 ---
 
+            // 等待DOM完全加载
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('DOM 已完全加载');
+            });
+
             const initialAttachmentsJsonString = /*[[${initialAttachmentsJson}]]*/ '[]';
-            const attachmentFilesInput = document.getElementById('newAttachment');
-            const fileListContainer = document.getElementById('fileListContainerFinalize');
-            const hiddenAttachmentInputsContainer = document.getElementById('hiddenAttachmentInputsContainerFinalize');
-            const mainForm = document.getElementById('finalizeForm');
-            const submitBtn = document.getElementById('submitFinalizeBtn');
+            
+            // 延迟获取DOM元素，确保页面已加载
+            function getDOMElements() {
+                return {
+                    attachmentFilesInput: document.getElementById('newAttachment'),
+                    fileListContainer: document.getElementById('fileListContainerFinalize'),
+                    hiddenAttachmentInputsContainer: document.getElementById('hiddenAttachmentInputsContainerFinalize'),
+                    mainForm: document.getElementById('finalizeForm'),
+                    submitBtn: document.getElementById('submitFinalizeBtn')
+                };
+            }
+            
+            const elements = getDOMElements();
+            const attachmentFilesInput = elements.attachmentFilesInput;
+            const fileListContainer = elements.fileListContainer;
+            const hiddenAttachmentInputsContainer = elements.hiddenAttachmentInputsContainer;
+            const mainForm = elements.mainForm;
+            const submitBtn = elements.submitBtn;
+            
+            // 调试信息
+            console.log('DOM元素检查:');
+            console.log('attachmentFilesInput:', attachmentFilesInput);
+            console.log('fileListContainer:', fileListContainer);
+            console.log('hiddenAttachmentInputsContainer:', hiddenAttachmentInputsContainer);
+            console.log('mainForm:', mainForm);
+            console.log('submitBtn:', submitBtn);
             const CHUNK_SIZE = 1024 * 1024 * 2;
             let uploadedFilesData = [];
 
@@ -378,6 +446,12 @@
             // ===== 附件初始化、上传、预览、删除的所有JS函数 =====
             // ===================================================================
 
+            // ===== 上传相关的全局变量 =====
+            let fileUploadQueue = [];
+            let isUploading = false;
+            const STORAGE_KEY = 'contractFinalize_uploadState';
+            const STORAGE_EXPIRY_HOURS = 24;
+
             // --- 关键的初始化代码，之前被我遗漏 ---
             let initialServerFileNames = [];
             if (initialAttachmentsJsonString && initialAttachmentsJsonString !== '[]' && initialAttachmentsJsonString !== 'null') {
@@ -391,14 +465,21 @@
             initialServerFileNames.forEach(serverFileName => {
                 const existingFileEntry = {
                     id: `existing-${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}-${Date.now()}`,
-                    fileObject: null, originalName: serverFileName, size: null, status: 'completed',
-                    progress: 100, uploadId: null, serverFileName: serverFileName,
-                    clientFileId: `clientFile_existing_${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}`,
-                    errorMessage: null, uiElement: null, totalChunks: 1, uploadedChunksCount: 1,
-                    confirmedUploadedChunks: new Set([0]), xhr: null, isExisting: true
+                    file: null, // 改为file字段以与起草合同保持一致
+                    status: 'completed',
+                    progress: 100, 
+                    uploadId: null, 
+                    serverFileName: serverFileName,
+                    isExisting: true
                 };
                 uploadedFilesData.push(existingFileEntry);
-                addFileToUI(existingFileEntry);
+                
+                // 检查fileListContainer是否存在后再调用addFileToUI
+                if (fileListContainer) {
+                    addFileToUI(existingFileEntry);
+                } else {
+                    console.error('fileListContainer不存在，无法添加现有文件到UI:', serverFileName);
+                }
             });
             prepareAttachmentsForSubmission();
             // --- 初始化代码结束 ---
@@ -409,17 +490,30 @@
             }
 
             function addFileToUI(fileEntry) {
-                const safeFileEntryId = CSS.escape(fileEntry.id);
-                const fileSizeFormatted = fileEntry.size ? formatFileSize(fileEntry.size) : ' (已存在)';
+                // 检查fileListContainer是否存在
+                if (!fileListContainer) {
+                    console.error('fileListContainer未找到，无法添加文件到UI');
+                    return;
+                }
+                
+                // 使用更安全的ID生成方式，避免特殊字符
+                const safeFileEntryId = fileEntry.id.replace(/[^a-zA-Z0-9-_]/g, '_');
+                const fileName = fileEntry.file ? fileEntry.file.name : (fileEntry.serverFileName || 'Unknown File');
+                const fileSize = fileEntry.file ? fileEntry.file.size : 0;
+                const fileSizeFormatted = fileSize ? formatFileSize(fileSize) : ' (已存在)';
                 const initialProgress = fileEntry.status === 'completed' ? 100 : (fileEntry.progress || 0);
                 const initialStatusMessage = fileEntry.status === 'completed' ? '已上传' : '等待上传...';
                 const progressBarDisplay = (fileEntry.status === 'completed' && fileEntry.isExisting) || fileEntry.status === 'completed' ? 'none' : 'block';
                 const previewButtonDisplay = fileEntry.status === 'completed' ? 'inline-block' : 'none';
 
+                const retryButtonDisplay = (fileEntry.status === 'error' || fileEntry.status === 'need_file') ? 'inline-block' : 'none';
+                const retryButtonText = fileEntry.status === 'need_file' ? '🔄 选择文件继续上传' : '重试';
+                const retryButtonClass = fileEntry.status === 'need_file' ? 'btn-primary' : 'btn-warning';
+
                 const fileItemHTML = `
-                <div class="file-list-item ${fileEntry.status === 'completed' ? 'upload-success' : ''}" id="${safeFileEntryId}">
+                <div class="file-list-item ${fileEntry.status === 'completed' ? 'upload-success' : ''}" id="file-item-${safeFileEntryId}">
                     <div class="file-info">
-                        <span class="file-name" title="${fileEntry.originalName}">${fileEntry.originalName}</span>
+                        <span class="file-name" title="${fileName}">${fileName}</span>
                         <span class="file-size">${fileSizeFormatted}</span>
                         <div class="file-progress mt-1" style="display: ${progressBarDisplay};">
                             <div class="file-progress-bar" style="width: ${initialProgress}%;">${initialProgress}%</div>
@@ -427,8 +521,11 @@
                         <small class="file-status d-block mt-1 ${fileEntry.status === 'completed' ? 'text-success' : 'text-muted'}">${initialStatusMessage}</small>
                     </div>
                     <div class="file-actions">
-                        <button type="button" class="btn btn-sm btn-outline-info preview-btn" style="display: ${previewButtonDisplay};" title="预览">
+                        <button type="button" class="btn btn-sm btn-outline-info preview-btn" style="display: ${previewButtonDisplay};" title="预览文件 - 支持图片、PDF、文本、音视频等格式">
                             <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm ${retryButtonClass} retry-btn" style="display: ${retryButtonDisplay};" title="重试上传">
+                            ${retryButtonText}
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-danger delete-btn" title="删除">
                             <i class="bi bi-trash"></i>
@@ -437,7 +534,12 @@
                 </div>`;
 
                 fileListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
-                fileEntry.uiElement = fileListContainer.querySelector(`#${safeFileEntryId}`);
+                fileEntry.uiElement = fileListContainer.querySelector(`#file-item-${safeFileEntryId}`);
+
+                if (!fileEntry.uiElement) {
+                    console.error(`无法找到文件UI元素: #file-item-${safeFileEntryId}`);
+                    return;
+                }
 
                 fileEntry.uiElement.querySelector('.delete-btn').addEventListener('click', () => handleDeleteFile(fileEntry.id));
                 fileEntry.uiElement.querySelector('.preview-btn').addEventListener('click', () => {
@@ -445,29 +547,243 @@
                         handlePreviewFile(fileEntry.serverFileName);
                     }
                 });
+                
+                const retryBtn = fileEntry.uiElement.querySelector('.retry-btn');
+                if (retryBtn) {
+                    retryBtn.addEventListener('click', () => retryUpload(fileEntry.id));
+                }
             }
 
             function handlePreviewFile(serverFileName) {
                 if (!serverFileName) return;
-                const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
+                
                 const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
-
-                if (isPreviewable) {
-                    window.open(downloadUrl, '_blank');
-                } else {
-                    const userAgreedToDownload = confirm(
-                        `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击“确定”将尝试下载该文件。`
-                    );
-
-                    if (userAgreedToDownload) {
-                        const link = document.createElement('a');
-                        link.href = downloadUrl;
-                        link.setAttribute('download', serverFileName);
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+                const fileExtension = serverFileName.toLowerCase().split('.').pop();
+                
+                // 定义各种文件类型的预览支持
+                const previewableInBrowser = {
+                    // 图片文件 - 浏览器原生支持
+                    images: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'],
+                    // PDF文件 - 浏览器原生支持
+                    pdf: ['pdf'],
+                    // 文本文件 - 浏览器原生支持
+                    text: ['txt', 'csv', 'log', 'md', 'json', 'xml', 'html', 'css', 'js'],
+                    // 音频文件 - 浏览器原生支持
+                    audio: ['mp3', 'wav', 'ogg', 'aac', 'm4a'],
+                    // 视频文件 - 浏览器原生支持
+                    video: ['mp4', 'webm', 'ogg', 'mov']
+                };
+                
+                // 需要下载的文件类型
+                const downloadOnly = {
+                    office: ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'],
+                    archives: ['zip', 'rar', '7z', 'tar', 'gz'],
+                    others: ['exe', 'msi', 'dmg', 'deb', 'rpm']
+                };
+                
+                // 检查文件类型
+                let canPreview = false;
+                let fileCategory = '';
+                
+                for (const [category, extensions] of Object.entries(previewableInBrowser)) {
+                    if (extensions.includes(fileExtension)) {
+                        canPreview = true;
+                        fileCategory = category;
+                        break;
                     }
                 }
+                
+                if (canPreview) {
+                    // 浏览器支持预览的文件直接打开
+                    if (fileCategory === 'images') {
+                        // 图片文件 - 创建更好的预览体验
+                        openImagePreview(downloadUrl, serverFileName);
+                    } else if (fileCategory === 'pdf') {
+                        // PDF文件 - 提供选择：在线预览或下载
+                        const userChoice = confirm(
+                            `PDF文件 "${serverFileName}" 预览选项：\n\n` +
+                            `点击"确定"在新窗口预览PDF\n` +
+                            `点击"取消"下载到本地查看`
+                        );
+                        
+                        if (userChoice) {
+                            window.open(downloadUrl, '_blank');
+                        } else {
+                            downloadFile(downloadUrl, serverFileName);
+                        }
+                    } else if (fileCategory === 'text') {
+                        // 文本文件 - 直接在新窗口打开
+                        window.open(downloadUrl, '_blank');
+                    } else if (fileCategory === 'audio' || fileCategory === 'video') {
+                        // 音视频文件 - 创建媒体预览
+                        openMediaPreview(downloadUrl, serverFileName, fileCategory);
+                    }
+                } else {
+                    // 不支持预览的文件，提示用户下载
+                    let downloadReason = '';
+                    
+                    if (downloadOnly.office.includes(fileExtension)) {
+                        downloadReason = 'Office文档需要使用相应的办公软件打开';
+                    } else if (downloadOnly.archives.includes(fileExtension)) {
+                        downloadReason = '压缩包文件需要解压缩软件打开';
+                    } else {
+                        downloadReason = '此文件类型不支持在浏览器中直接预览';
+                    }
+                    
+                    const userConfirmed = confirm(
+                        `文件 "${serverFileName}" ${downloadReason}。\n\n点击"确定"下载文件到本地查看，点击"取消"关闭此对话框。`
+                    );
+
+                    if (userConfirmed) {
+                        downloadFile(downloadUrl, serverFileName);
+                    }
+                }
+            }
+            
+            // 图片预览功能
+            function openImagePreview(imageUrl, fileName) {
+                const modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">图片预览: ${fileName}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                                                         <div class="modal-body text-center">
+                                 <div class="preview-loading" id="imageLoading">
+                                     <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                     正在加载图片...
+                                 </div>
+                                 <img src="${imageUrl}" class="img-fluid" style="max-height: 70vh; display: none;" alt="${fileName}" 
+                                      onload="this.style.display='block'; document.getElementById('imageLoading').style.display='none';"
+                                      onerror="this.onerror=null; this.style.display='none'; document.getElementById('imageLoading').style.display='none'; this.nextElementSibling.style.display='block';">
+                                 <div class="alert alert-warning mt-3" style="display: none;">
+                                     <i class="bi bi-exclamation-triangle"></i> 图片加载失败，请尝试下载后查看
+                                 </div>
+                             </div>
+                            <div class="modal-footer">
+                                <small class="text-muted me-auto">快捷键: ESC-关闭, D-下载</small>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                                <button type="button" class="btn btn-primary" onclick="downloadFile('${imageUrl}', '${fileName}')">
+                                    <i class="bi bi-download"></i> 下载
+                                </button>
+                                <button type="button" class="btn btn-info" onclick="window.open('${imageUrl}', '_blank')">
+                                    <i class="bi bi-box-arrow-up-right"></i> 新窗口打开
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                const bootstrapModal = new bootstrap.Modal(modal);
+                bootstrapModal.show();
+                
+                // 模态框关闭后移除DOM元素
+                modal.addEventListener('hidden.bs.modal', () => {
+                    document.body.removeChild(modal);
+                });
+                
+                // 添加键盘快捷键支持
+                modal.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        bootstrapModal.hide();
+                    } else if (e.key === 'd' || e.key === 'D') {
+                        downloadFile(imageUrl, fileName);
+                    }
+                });
+            }
+            
+            // 媒体文件（音频/视频）预览功能
+            function openMediaPreview(mediaUrl, fileName, mediaType) {
+                const isVideo = mediaType === 'video';
+                const mediaTag = isVideo ? 'video' : 'audio';
+                const mediaControls = isVideo ? 'controls width="100%" height="400"' : 'controls width="100%"';
+                
+                const modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-${isVideo ? 'camera-video' : 'music-note'}"></i> 
+                                    ${isVideo ? '视频' : '音频'}预览: ${fileName}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                                                         <div class="modal-body text-center">
+                                 <div class="preview-loading" id="mediaLoading">
+                                     <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                     正在加载${isVideo ? '视频' : '音频'}...
+                                 </div>
+                                 <${mediaTag} ${mediaControls} preload="metadata" style="display: none;"
+                                         onloadedmetadata="this.style.display='block'; document.getElementById('mediaLoading').style.display='none';"
+                                         onerror="this.onerror=null; this.style.display='none'; document.getElementById('mediaLoading').style.display='none'; this.nextElementSibling.style.display='block';">
+                                     <source src="${mediaUrl}" type="${mediaType}/${fileName.split('.').pop()}">
+                                     您的浏览器不支持${isVideo ? '视频' : '音频'}播放。
+                                 </${mediaTag}>
+                                 <div class="alert alert-warning mt-3" style="display: none;">
+                                     <i class="bi bi-exclamation-triangle"></i> ${isVideo ? '视频' : '音频'}加载失败，请尝试下载后查看
+                                 </div>
+                             </div>
+                                                         <div class="modal-footer">
+                                <small class="text-muted me-auto">快捷键: ESC-关闭, D-下载, 空格-播放/暂停</small>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                                <button type="button" class="btn btn-primary" onclick="downloadFile('${mediaUrl}', '${fileName}')">
+                                    <i class="bi bi-download"></i> 下载
+                                </button>
+                                <button type="button" class="btn btn-info" onclick="window.open('${mediaUrl}', '_blank')">
+                                    <i class="bi bi-box-arrow-up-right"></i> 新窗口打开
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                const bootstrapModal = new bootstrap.Modal(modal);
+                bootstrapModal.show();
+                
+                // 模态框关闭后移除DOM元素
+                modal.addEventListener('hidden.bs.modal', () => {
+                    document.body.removeChild(modal);
+                });
+                
+                // 添加键盘快捷键支持
+                modal.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        bootstrapModal.hide();
+                    } else if (e.key === 'd' || e.key === 'D') {
+                        downloadFile(mediaUrl, fileName);
+                    } else if (e.key === ' ') {
+                        // 空格键暂停/播放媒体
+                        e.preventDefault();
+                        const mediaElement = modal.querySelector('video, audio');
+                        if (mediaElement) {
+                            if (mediaElement.paused) {
+                                mediaElement.play();
+                            } else {
+                                mediaElement.pause();
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 通用下载功能
+            function downloadFile(fileUrl, fileName) {
+                const link = document.createElement('a');
+                link.href = fileUrl;
+                link.setAttribute('download', fileName);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // 显示下载提示
+                showAlert(`文件 "${fileName}" 开始下载，请查看浏览器下载进度。`, 'info', 3000);
             }
 
             function prepareAttachmentsForSubmission() {
@@ -501,9 +817,9 @@
                         if (!response.ok) {
                             throw new Error(`服务器删除失败`);
                         }
-                        showAlert(`附件 "${fileEntry.originalName}" 已成功从服务器删除。`, 'info');
+                        showAlert(`附件 "${fileEntry.file ? fileEntry.file.name : fileEntry.serverFileName}" 已成功从服务器删除。`, 'info');
                     } catch (error) {
-                        showAlert(`删除服务器附件 "${fileEntry.originalName}" 失败: ${error.message}`, 'warning');
+                        showAlert(`删除服务器附件 "${fileEntry.file ? fileEntry.file.name : fileEntry.serverFileName}" 失败: ${error.message}`, 'warning');
                     }
                 }
 
@@ -521,13 +837,769 @@
 
             function handleFileSelection(event) {
                 const files = event.target.files;
-                if (files.length > 0) {
-                    for(let i=0; i<files.length; i++) {
-                        // This is where the complex chunk upload logic would be triggered for each file
+                console.log(`用户选择了 ${files.length} 个文件`);
+                if (files.length === 0) return;
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileName = file.name.toLowerCase();
+                    
+                    // 文件类型验证（使用与起草合同相同的逻辑）
+                    const allowedMimeTypes = [
+                        // Office 文档
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+                        'application/msword', // .doc
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+                        'application/vnd.ms-excel', // .xls
+                        'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+                        'application/vnd.ms-powerpoint', // .ppt
+                        // PDF
+                        'application/pdf',
+                        // 图片
+                        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'image/webp',
+                        // 压缩包和多媒体（大文件）
+                        'application/zip', 'application/x-zip-compressed', 'application/x-rar-compressed', 'application/x-7z-compressed',
+                        'video/mp4', 'video/avi', 'video/mkv', 'video/mov', 'video/wmv',
+                        'audio/mp3', 'audio/wav', 'audio/flac', 'audio/aac',
+                        // 文本文件
+                        'text/plain', 'text/csv',
+                        // 其他常见类型
+                        'application/octet-stream' // 通用二进制文件
+                    ];
+                    
+                    const allowedExtensions = [
+                        'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf',
+                        'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp',
+                        'zip', 'rar', '7z', 'tar', 'gz',
+                        'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv',
+                        'mp3', 'wav', 'flac', 'aac', 'ogg',
+                        'txt', 'csv'
+                    ];
+
+                    const isAllowedByMimeType = allowedMimeTypes.includes(file.type);
+                    const fileExtension = fileName.split('.').pop();
+                    const isAllowedByExtension = allowedExtensions.includes(fileExtension);
+
+                    // 根据文件类型确定大小限制
+                    let maxSize;
+                    if (['zip', 'rar', '7z', 'tar', 'gz', 'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'mp3', 'wav', 'flac', 'aac', 'ogg'].includes(fileExtension)) {
+                        maxSize = 200 * 1024 * 1024; // 200MB for multimedia/compressed files
+                    } else {
+                        maxSize = 50 * 1024 * 1024; // 50MB for documents/images
                     }
-                    showAlert(`已选择 ${files.length} 个新文件准备上传。`, 'info');
+                    
+                    if (!isAllowedByMimeType && !isAllowedByExtension) {
+                        console.warn(`文件 "${file.name}" 不被支持 - MIME类型: ${file.type}, 扩展名: ${fileName.split('.').pop()}`);
+                        showAlert(`文件 "${file.name}" 类型不被支持。当前支持：Office文档、PDF、图片、压缩包、多媒体文件等。<br><small>检测到的类型: ${file.type}</small>`, 'danger');
+                        continue;
+                    } else if (!isAllowedByMimeType && isAllowedByExtension) {
+                        console.info(`文件 "${file.name}" 通过扩展名验证 - MIME类型未识别: ${file.type}`);
+                    }
+                    if (file.size > maxSize) {
+                        const sizeLimitMB = Math.round(maxSize / 1024 / 1024);
+                        const fileName = file.name.toLowerCase();
+                        const isLargeFile = maxSize > 10 * 1024 * 1024; // 判断是否使用了大文件限制
+                        const fileTypeName = isLargeFile ? '压缩包/多媒体文件' : '普通文件';
+                        showAlert(`文件 "${file.name}" 大小超过${fileTypeName}的${sizeLimitMB}MB限制。<br><small>当前文件大小: ${(file.size/1024/1024).toFixed(2)}MB</small>`, 'danger');
+                        continue;
+                    }
+
+                    const fileEntry = {
+                        id: Date.now() + '-' + i,
+                        file: file,
+                        status: 'pending',
+                        progress: 0,
+                        serverFileName: null
+                    };
+                    uploadedFilesData.push(fileEntry);
+                    addFileToUI(fileEntry);
+                    fileUploadQueue.push(fileEntry);
+                    saveUploadState(); // 保存状态
+                }
+                attachmentFilesInput.value = '';
+                
+                // 开始处理上传队列
+                processFileUploadQueue();
+            }
+
+             // ===== 核心上传队列处理 =====
+             async function processFileUploadQueue() {
+                 if (isUploading) return;
+                 isUploading = true;
+
+                 while (fileUploadQueue.length > 0) {
+                     const fileEntry = fileUploadQueue.shift();
+                     if (fileEntry.status === 'pending') {
+                         await uploadFile(fileEntry);
+                     }
+                 }
+                 isUploading = false;
+             }
+
+             // ===== 主上传函数 =====
+             async function uploadFile(fileEntry) {
+                 try {
+                     updateFileStatusUI(fileEntry.id, 'uploading', '初始化上传...');
+                     
+                     // 1. 初始化上传
+                     const initResponse = await fetch('/api/attachments/initiate', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({
+                             fileName: fileEntry.file.name,
+                             totalSize: fileEntry.file.size
+                         })
+                     });
+
+                     if (!initResponse.ok) {
+                         throw new Error('初始化上传失败');
+                     }
+
+                     const initResult = await initResponse.json();
+                     const uploadId = initResult.uploadId;
+                     const serverFileName = initResult.serverFileName;
+                     
+                     // 保存上传ID供断点续传使用
+                     fileEntry.uploadId = uploadId;
+                     fileEntry.serverFileName = serverFileName;
+                     saveUploadState(); // 保存状态
+
+                     // 2. 智能分块上传 (支持断点续传)
+                     await uploadFileWithResume(fileEntry, uploadId);
+
+                     // 3. 完成上传
+                     const finalizeResponse = await fetch(`/api/attachments/finalize/${uploadId}`, {
+                         method: 'POST',
+                         headers: {
+                             'Content-Type': 'application/x-www-form-urlencoded'
+                         },
+                         body: `originalFileName=${encodeURIComponent(fileEntry.file.name)}`
+                     });
+
+                     if (!finalizeResponse.ok) {
+                         throw new Error('完成上传失败');
+                     }
+
+                     const finalizeResult = await finalizeResponse.json();
+                     
+                     fileEntry.status = 'completed';
+                     fileEntry.progress = 100;
+                     fileEntry.serverFileName = finalizeResult.fileName;
+                     updateFileProgress(fileEntry.id, 100);
+                     updateFileStatusUI(fileEntry.id, 'completed');
+                     saveUploadState(); // 保存状态
+                     showAlert(`文件 "${fileEntry.file.name}" 上传成功。`, 'success', 3000);
+                     
+                 } catch (error) {
+                     if (error.message === 'NEED_REAL_FILE') {
+                         // 需要重新选择文件
+                         console.log('上传过程中检测到虚拟文件对象，需要重新选择文件');
+                         fileEntry.status = 'pending';
+                         updateFileStatusUI(fileEntry.id, 'pending', '需要重新选择文件');
+                         saveUploadState();
+                         
+                         const confirmed = confirm(`文件 "${fileEntry.file.name}" 需要重新选择才能继续上传。\n\n点击确定来选择文件，或取消删除此项。`);
+                         if (confirmed) {
+                             showFileSelectionDialog(fileEntry);
+                         } else {
+                             removeFile(fileEntry.id);
+                         }
+                         return;
+                     }
+                     
+                     console.error('文件上传错误:', error);
+                     fileEntry.status = 'error';
+                     fileEntry.progress = 0;
+                     updateFileProgress(fileEntry.id, 0);
+                     updateFileStatusUI(fileEntry.id, 'error', error.message);
+                     saveUploadState(); // 保存状态
+                     showAlert(`文件 "${fileEntry.file.name}" 上传失败: ${error.message}`, 'danger');
+                 }
+             }
+
+             // 断点续传核心函数
+             async function uploadFileWithResume(fileEntry, uploadId) {
+                 const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
+                 const totalChunks = Math.ceil(fileEntry.file.size / CHUNK_SIZE);
+                 
+                 console.log(`DEBUG: 开始断点续传 - 文件: ${fileEntry.file.name}, 总大小: ${fileEntry.file.size} bytes, 总分块: ${totalChunks}`);
+                 
+                 // 检查文件对象是否为虚拟文件（从localStorage恢复的）
+                 if (typeof fileEntry.file.stream === 'undefined' || typeof fileEntry.file.slice !== 'function') {
+                     console.warn('检测到虚拟文件对象，无法进行切片操作');
+                     throw new Error('NEED_REAL_FILE'); // 特殊错误码，表示需要重新选择文件
+                 }
+                 
+                 // 测试文件切片功能
+                 try {
+                     const testChunk = fileEntry.file.slice(0, Math.min(1024, fileEntry.file.size));
+                     if (testChunk.size === 0 && fileEntry.file.size > 0) {
+                         console.warn('文件切片测试失败，无法读取文件内容');
+                         throw new Error('NEED_REAL_FILE');
+                     }
+                     console.log(`文件切片测试成功，测试分块大小: ${testChunk.size} bytes`);
+                 } catch (sliceError) {
+                     console.warn('文件切片测试出错:', sliceError);
+                     throw new Error('NEED_REAL_FILE');
+                 }
+                 
+                 // 1. 查询服务器已上传状态
+                 let uploadedChunks = new Set();
+                 let serverTotalChunks = 0;
+                 let serverFileSize = 0;
+                 
+                 try {
+                     const statusResponse = await fetch(`/api/attachments/status/${uploadId}`);
+                     if (statusResponse.ok) {
+                         const status = await statusResponse.json();
+                         uploadedChunks = new Set(status.uploadedChunks || []);
+                         serverTotalChunks = status.totalChunks || 0;
+                         serverFileSize = status.totalSize || 0;
+                         
+                         console.log(`服务器状态: 文件大小=${serverFileSize}, 总分块=${serverTotalChunks}, 已上传=${uploadedChunks.size}个分块`);
+                         console.log(`当前文件: 文件大小=${fileEntry.file.size}, 计算分块=${totalChunks}`);
+                         
+                         // 验证文件一致性
+                         if (serverFileSize !== fileEntry.file.size) {
+                             console.error(`文件大小不一致! 服务器: ${serverFileSize}, 当前: ${fileEntry.file.size}`);
+                             throw new Error(`文件不一致：服务器记录大小 ${serverFileSize} bytes，当前文件大小 ${fileEntry.file.size} bytes`);
+                         }
+                         
+                         console.log(`文件 "${fileEntry.file.name}" 断点续传: 已上传 ${uploadedChunks.size}/${totalChunks} 分块`);
+                         
+                         // 更新UI显示已有进度
+                         if (uploadedChunks.size > 0) {
+                             const existingProgress = Math.round((uploadedChunks.size / totalChunks) * 90);
+                             fileEntry.progress = existingProgress;
+                             updateFileProgress(fileEntry.id, existingProgress);
+                             updateFileStatusUI(fileEntry.id, 'uploading', `继续上传 (${uploadedChunks.size}/${totalChunks} 已完成)`);
+                         }
+                     }
+                 } catch (error) {
+                     console.warn(`查询上传状态失败，将从头开始: ${error.message}`);
+                 }
+                 
+                 // 2. 只上传缺失的分块
+                 for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber++) {
+                     if (uploadedChunks.has(chunkNumber)) {
+                         console.log(`跳过已上传的分块: ${chunkNumber + 1}/${totalChunks}`);
+                         continue; // 跳过已上传的分块
+                     }
+                     
+                     const success = await uploadChunkWithRetry(fileEntry, uploadId, chunkNumber, totalChunks, CHUNK_SIZE);
+                     if (!success) {
+                         throw new Error(`分块 ${chunkNumber + 1} 多次重试后仍然失败`);
+                     }
+                     
+                     // 更新进度和分块信息
+                     const uploadedCount = chunkNumber + 1;
+                     const progress = Math.round((uploadedCount / totalChunks) * 90);
+                     fileEntry.progress = progress;
+                     const chunkInfo = `分块 ${uploadedCount}/${totalChunks} 已上传`;
+                     updateFileProgress(fileEntry.id, progress, chunkInfo);
+                     
+                     // 每5个分块保存一次状态（减少存储频率）
+                     if (uploadedCount % 5 === 0 || uploadedCount === totalChunks) {
+                         saveUploadState();
+                     }
+                 }
+             }
+
+             // 支持重试的分块上传函数
+             async function uploadChunkWithRetry(fileEntry, uploadId, chunkNumber, totalChunks, chunkSize, maxRetries = 3) {
+                 const start = chunkNumber * chunkSize;
+                 const end = Math.min(start + chunkSize, fileEntry.file.size);
+                 const chunk = fileEntry.file.slice(start, end);
+
+                 // 验证分块大小
+                 if (chunk.size === 0) {
+                     console.error(`分块 ${chunkNumber + 1} 切片结果为空! start=${start}, end=${end}, fileSize=${fileEntry.file.size}`);
+                     throw new Error(`分块 ${chunkNumber + 1} 切片失败：结果为空`);
+                 }
+
+                 for (let attempt = 0; attempt < maxRetries; attempt++) {
+                     try {
+                         const chunkFormData = new FormData();
+                         chunkFormData.append('file', chunk);
+                         chunkFormData.append('chunkNumber', chunkNumber);
+                         chunkFormData.append('totalChunks', totalChunks);
+
+                         console.log(`DEBUG: 实际上传分块 ${chunkNumber + 1}/${totalChunks}, 大小: ${chunk.size} bytes, 范围: ${start}-${end}, uploadId: ${uploadId}`);
+
+                         const chunkResponse = await fetch('/api/attachments/upload-chunk', {
+                             method: 'POST',
+                             headers: {
+                                 'X-Upload-Id': uploadId
+                             },
+                             body: chunkFormData
+                         });
+
+                         if (chunkResponse.ok) {
+                             console.log(`分块 ${chunkNumber + 1}/${totalChunks} 上传成功 ${attempt > 0 ? `(重试 ${attempt} 次后)` : ''}`);
+                             return true; // 成功
+                         } else {
+                             // 获取详细的错误信息
+                             let errorDetails = `HTTP ${chunkResponse.status}: ${chunkResponse.statusText}`;
+                             try {
+                                 const errorText = await chunkResponse.text();
+                                 if (errorText) {
+                                     errorDetails += ` - ${errorText}`;
+                                 }
+                             } catch (e) {
+                                 console.warn('无法获取详细错误信息:', e);
+                             }
+                             throw new Error(errorDetails);
+                         }
+                     } catch (error) {
+                         console.warn(`分块 ${chunkNumber + 1} 上传失败 (尝试 ${attempt + 1}/${maxRetries}): ${error.message}`);
+                         
+                         if (attempt === maxRetries - 1) {
+                             // 最后一次尝试失败
+                             updateFileStatusUI(fileEntry.id, 'error', `分块 ${chunkNumber + 1} 重试 ${maxRetries} 次后失败`);
+                             return false;
+                         }
+                         
+                         // 指数退避策略
+                         const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // 最大10秒
+                         console.log(`${delay}ms 后重试分块 ${chunkNumber + 1}...`);
+                         updateFileStatusUI(fileEntry.id, 'uploading', `分块 ${chunkNumber + 1} 重试中... (${attempt + 1}/${maxRetries})`);
+                         await sleep(delay);
+                     }
+                 }
+                 return false;
+             }
+
+             // 辅助函数：延时
+             function sleep(ms) {
+                 return new Promise(resolve => setTimeout(resolve, ms));
+             }
+
+            // UI更新函数
+            function updateFileProgress(fileId, progress, info = '') {
+                const safeFileId = fileId.replace(/[^a-zA-Z0-9-_]/g, '_');
+                const listItem = document.getElementById(`file-item-${safeFileId}`);
+                console.log(`DEBUG: 更新进度 - fileId: ${fileId}, safeFileId: ${safeFileId}, 元素: ${listItem ? '找到' : '未找到'}, 进度: ${progress}%`);
+                
+                if (listItem) {
+                    const progressBar = listItem.querySelector('.file-progress-bar');
+                    console.log(`DEBUG: 进度条元素: ${progressBar ? '找到' : '未找到'}`);
+                    if (progressBar) {
+                        progressBar.style.width = `${progress}%`;
+                        progressBar.textContent = `${progress}%`;
+                        console.log(`DEBUG: 进度条已更新为 ${progress}%`);
+                    }
+                    
+                    if (info) {
+                        const statusElement = listItem.querySelector('.file-status');
+                        if (statusElement) {
+                            statusElement.textContent = info;
+                        }
+                    }
+                } else {
+                    console.error(`无法找到文件UI元素: #file-item-${safeFileId}`);
                 }
             }
+
+            function updateFileStatusUI(fileId, status, message = '') {
+                const safeFileId = fileId.replace(/[^a-zA-Z0-9-_]/g, '_');
+                const listItem = document.getElementById(`file-item-${safeFileId}`);
+                if (listItem) {
+                    // 清除所有状态类
+                    listItem.classList.remove('upload-pending', 'upload-uploading', 'upload-completed', 'upload-error');
+                    listItem.classList.add(`upload-${status}`);
+                    
+                    const statusSpan = listItem.querySelector('.file-status');
+                    const progressBarContainer = listItem.querySelector('.file-progress');
+                    const previewBtn = listItem.querySelector('.preview-btn');
+                    const retryBtn = listItem.querySelector('.retry-btn');
+                    
+                    if (statusSpan) {
+                        if (status === 'completed') {
+                            statusSpan.classList.remove('text-muted', 'text-info', 'text-danger', 'text-warning');
+                            statusSpan.classList.add('text-success');
+                            statusSpan.textContent = '(上传成功)';
+                            if (progressBarContainer) progressBarContainer.style.display = 'none';
+                            if (previewBtn) previewBtn.style.display = 'inline-block';
+                            if (retryBtn) retryBtn.style.display = 'none';
+                        } else if (status === 'error') {
+                            statusSpan.classList.remove('text-muted', 'text-info', 'text-success', 'text-warning');
+                            statusSpan.classList.add('text-danger');
+                            statusSpan.textContent = `(上传失败: ${message})`;
+                            if (retryBtn) {
+                                retryBtn.style.display = 'inline-block';
+                                retryBtn.textContent = '重试';
+                                retryBtn.classList.remove('btn-primary');
+                                retryBtn.classList.add('btn-warning');
+                                retryBtn.style.fontWeight = 'normal';
+                            }
+                        } else if (status === 'uploading') {
+                            statusSpan.classList.remove('text-muted', 'text-success', 'text-danger', 'text-warning');
+                            statusSpan.classList.add('text-info');
+                            statusSpan.textContent = message || '(上传中...)';
+                            if (progressBarContainer) progressBarContainer.style.display = 'block';
+                            if (retryBtn) retryBtn.style.display = 'none';
+                        } else if (status === 'pending') {
+                            statusSpan.classList.remove('text-info', 'text-success', 'text-danger', 'text-warning');
+                            statusSpan.classList.add('text-muted');
+                            statusSpan.textContent = message || '(需要重新选择文件)';
+                            if (retryBtn) {
+                                retryBtn.style.display = 'inline-block';
+                                retryBtn.textContent = '🔄 选择文件继续上传';
+                                retryBtn.classList.remove('btn-warning');
+                                retryBtn.classList.add('btn-primary');
+                                retryBtn.style.fontWeight = 'bold';
+                            }
+                        } else {
+                            statusSpan.classList.add('text-muted');
+                            statusSpan.textContent = '(等待上传)';
+                            if (retryBtn) {
+                                retryBtn.style.display = 'none';
+                                // 重置按钮样式（避免need_file状态的样式残留）
+                                retryBtn.textContent = '重试';
+                                retryBtn.classList.remove('btn-primary');
+                                retryBtn.classList.add('btn-warning');
+                                retryBtn.style.fontWeight = 'normal';
+                            }
+                        }
+                        
+                        
+                    }
+                    
+                    // 隐藏进度条（如果上传完成）
+                    if (status === 'completed') {
+                        const progressBarContainer = listItem.querySelector('.file-progress');
+                        if (progressBarContainer) progressBarContainer.style.display = 'none';
+                    }
+                }
+            }
+
+            // 持久化上传状态到localStorage
+            function saveUploadState() {
+                try {
+                    const uploadState = {
+                        timestamp: Date.now(),
+                        files: uploadedFilesData.filter(file => !file.isExisting).map(file => ({
+                            id: file.id,
+                            name: file.file.name,
+                            size: file.file.size,
+                            type: file.file.type,
+                            status: file.status,
+                            progress: file.progress,
+                            uploadId: file.uploadId,
+                            serverFileName: file.serverFileName,
+                            lastModified: file.file.lastModified // 用于验证文件一致性
+                        }))
+                    };
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadState));
+                    console.log('定稿页面上传状态已保存');
+                } catch (error) {
+                    console.warn('保存上传状态失败:', error);
+                }
+            }
+
+            // 从localStorage恢复上传状态
+            function restoreUploadState() {
+                try {
+                    const savedState = localStorage.getItem(STORAGE_KEY);
+                    if (!savedState) return;
+
+                    const uploadState = JSON.parse(savedState);
+                    const now = Date.now();
+                    const expiryTime = STORAGE_EXPIRY_HOURS * 60 * 60 * 1000;
+
+                    // 检查是否过期
+                    if (now - uploadState.timestamp > expiryTime) {
+                        console.log('保存的上传状态已过期，清除');
+                        localStorage.removeItem(STORAGE_KEY);
+                        return;
+                    }
+
+                    const filesToRestore = uploadState.files.filter(file => file.status !== 'completed');
+
+                    if (filesToRestore.length > 0) {
+                        console.log(`发现 ${filesToRestore.length} 个未完成的上传，准备恢复`);
+                        const fileList = filesToRestore.map(f => `• ${f.name} (${(f.size/1024/1024).toFixed(2)}MB)`).join('\n');
+                        showAlert(
+                            `检测到 ${filesToRestore.length} 个未完成的定稿附件上传：\n${fileList}\n\n文件已恢复到界面，请点击相应的重试按钮选择文件继续上传。`, 
+                            'warning', 
+                            15000
+                        );
+
+                        filesToRestore.forEach(savedFile => {
+                            const virtualFile = createVirtualFile(savedFile);
+                            if (virtualFile) {
+                                const fileEntry = {
+                                    id: savedFile.id,
+                                    file: virtualFile,
+                                    status: savedFile.status,
+                                    progress: savedFile.progress || 0,
+                                    uploadId: savedFile.uploadId,
+                                    serverFileName: savedFile.serverFileName
+                                };
+
+                                uploadedFilesData.push(fileEntry);
+                                addFileToUI(fileEntry);
+                                updateFileStatusUI(fileEntry.id, 'pending', '需要重新选择文件继续上传');
+                            }
+                        });
+
+                        prepareAttachmentsForSubmission();
+                    }
+                } catch (error) {
+                    console.error('恢复上传状态失败:', error);
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+            }
+
+
+
+            // 重试上传功能
+            async function retryUpload(fileId) {
+                const fileEntry = uploadedFilesData.find(file => file.id === fileId);
+                if (!fileEntry) {
+                    console.error(`未找到文件ID: ${fileId}`);
+                    return;
+                }
+
+                // 如果是虚拟文件（从localStorage恢复的），直接弹出文件选择
+                if (fileEntry.file.size === 0 || (fileEntry.file.size > 0 && typeof fileEntry.file.stream === 'undefined')) {
+                    console.log(`检测到虚拟文件 "${fileEntry.file.name}"，直接开始文件选择流程`);
+                    showFileSelectionDialog(fileEntry, true); // 使用自动续传模式
+                    return;
+                }
+
+                // 重置状态
+                fileEntry.status = 'pending';
+                fileEntry.progress = 0;
+                updateFileProgress(fileEntry.id, 0);
+                updateFileStatusUI(fileEntry.id, 'uploading', '重新开始上传...');
+
+                // 显示进度条
+                const safeFileId = fileId.replace(/[^a-zA-Z0-9-_]/g, '_');
+                const listItem = document.getElementById(`file-item-${safeFileId}`);
+                if (listItem) {
+                    const progressBarContainer = listItem.querySelector('.file-progress');
+                    if (progressBarContainer) progressBarContainer.style.display = 'block';
+                }
+
+                try {
+                    if (fileEntry.uploadId) {
+                        // 如果有上传ID，尝试断点续传
+                        try {
+                            await uploadFileWithResume(fileEntry, fileEntry.uploadId);
+                        } catch (error) {
+                            if (error.message === 'RESTART_UPLOAD') {
+                                // 需要重新开始上传
+                                console.log('重新开始上传流程...');
+                                await uploadFile(fileEntry);
+                                return;
+                            } else if (error.message === 'NEED_REAL_FILE') {
+                                // 需要重新选择文件，直接开始文件选择流程
+                                console.log('检测到虚拟文件对象，直接开始文件选择流程');
+                                showFileSelectionDialog(fileEntry, true); // 使用自动续传模式
+                                return;
+                            } else {
+                                throw error; // 其他错误继续抛出
+                            }
+                        }
+                    } else {
+                        // 否则重新开始上传
+                        await uploadFile(fileEntry);
+                        return; // uploadFile 会处理完整流程
+                    }
+
+                    // 3. 完成上传
+                    const finalizeResponse = await fetch(`/api/attachments/finalize/${fileEntry.uploadId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `originalFileName=${encodeURIComponent(fileEntry.file.name)}`
+                    });
+
+                    if (!finalizeResponse.ok) {
+                        throw new Error('完成上传失败');
+                    }
+
+                    const finalizeResult = await finalizeResponse.json();
+                    
+                    fileEntry.status = 'completed';
+                    fileEntry.progress = 100;
+                    fileEntry.serverFileName = finalizeResult.fileName;
+                    updateFileProgress(fileEntry.id, 100);
+                    updateFileStatusUI(fileEntry.id, 'completed');
+                    saveUploadState(); // 保存状态
+                    showAlert(`文件 "${fileEntry.file.name}" 重试上传成功。`, 'success', 3000);
+                    
+                } catch (error) {
+                    console.error('重试上传失败:', error);
+                    fileEntry.status = 'error';
+                    updateFileStatusUI(fileEntry.id, 'error', `重试失败: ${error.message}`);
+                    saveUploadState(); // 保存状态
+                    showAlert(`文件 "${fileEntry.file.name}" 重试上传失败: ${error.message}`, 'danger');
+                }
+            }
+
+            // 显示文件选择对话框
+            function showFileSelectionDialog(fileEntry, isAutoResume = false) {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '*/*';
+                
+                if (isAutoResume) {
+                    // 自动续传模式下，提供更好的用户提示
+                    showAlert(`请选择文件 "${fileEntry.file.name}" 以继续断点续传`, 'warning', 8000);
+                }
+                
+                input.onchange = function(e) {
+                    const selectedFile = e.target.files[0];
+                    if (selectedFile) {
+                        // 验证文件名和大小是否匹配
+                        if (selectedFile.name === fileEntry.file.name && selectedFile.size === fileEntry.file.size) {
+                            // 替换文件对象
+                            console.log(`文件重新选择成功: ${selectedFile.name}, 大小: ${selectedFile.size} bytes`);
+                            fileEntry.file = selectedFile;
+                            
+                            // 验证新文件对象的切片功能
+                            try {
+                                const testChunk = selectedFile.slice(0, Math.min(1024, selectedFile.size));
+                                console.log(`新文件切片测试成功，测试分块大小: ${testChunk.size} bytes`);
+                            } catch (sliceError) {
+                                console.error('新文件切片测试失败:', sliceError);
+                                alert('选择的文件无法正常读取，请重新选择。');
+                                return;
+                            }
+                            
+                            updateFileStatusUI(fileEntry.id, 'uploading', '文件已选择，开始断点续传...');
+                            
+                            // 立即开始上传
+                            setTimeout(() => {
+                                retryUpload(fileEntry.id);
+                            }, 300);
+                        } else {
+                            const proceed = confirm(`选择的文件与原文件不匹配：\n原文件: ${fileEntry.file.name} (${(fileEntry.file.size/1024/1024).toFixed(2)}MB)\n新文件: ${selectedFile.name} (${(selectedFile.size/1024/1024).toFixed(2)}MB)\n\n是否仍要使用新文件？`);
+                            if (proceed) {
+                                // 更新文件信息
+                                fileEntry.file = selectedFile;
+                                fileEntry.uploadId = null; // 清除旧的uploadId
+                                fileEntry.progress = 0;
+                                
+                                // 更新UI显示
+                                const safeEntryId = fileEntry.id.replace(/[^a-zA-Z0-9-_]/g, '_');
+                                const fileInfo = document.querySelector(`#file-item-${safeEntryId} .file-info`);
+                                if (fileInfo) {
+                                    fileInfo.innerHTML = `
+                                        <span class="file-name" title="${selectedFile.name}">${selectedFile.name}</span>
+                                        <span class="file-size">${(selectedFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                                    `;
+                                }
+                                
+                                updateFileStatusUI(fileEntry.id, 'pending', '新文件已选择，准备上传');
+                                
+                                // 立即开始上传
+                                setTimeout(() => {
+                                    retryUpload(fileEntry.id);
+                                }, 500);
+                            }
+                        }
+                    }
+                };
+                input.click();
+            }
+
+            function removeFile(fileId) {
+                uploadedFilesData = uploadedFilesData.filter(file => file.id !== fileId);
+                const safeFileId = fileId.replace(/[^a-zA-Z0-9-_]/g, '_');
+                const listItem = document.getElementById(`file-item-${safeFileId}`);
+                if (listItem) {
+                    listItem.remove();
+                }
+                prepareAttachmentsForSubmission();
+                saveUploadState(); // 保存状态
+            }
+
+             // 创建虚拟文件对象（用于恢复）
+            function createVirtualFile(savedFile) {
+                try {
+                    // 创建一个虚拟的File对象用于显示
+                    const blob = new Blob([''], { type: savedFile.type });
+                    const file = new File([blob], savedFile.name, {
+                        type: savedFile.type,
+                        lastModified: savedFile.lastModified
+                    });
+                    
+                    // 由于无法恢复实际文件内容，我们需要在重试时提示用户重新选择文件
+                    Object.defineProperty(file, 'size', {
+                        value: savedFile.size,
+                        writable: false
+                    });
+                    
+                    return file;
+                } catch (error) {
+                    console.error('创建虚拟文件失败:', error);
+                    return null;
+                }
+            }
+
+            // 清除过期的上传状态
+            function clearExpiredUploads() {
+                const savedState = localStorage.getItem(STORAGE_KEY);
+                if (savedState) {
+                    try {
+                        const uploadState = JSON.parse(savedState);
+                        const now = Date.now();
+                        const expiryTime = STORAGE_EXPIRY_HOURS * 60 * 60 * 1000;
+                        
+                        if (now - uploadState.timestamp > expiryTime) {
+                            localStorage.removeItem(STORAGE_KEY);
+                            console.log('已清除过期的上传状态');
+                        }
+                    } catch (error) {
+                        localStorage.removeItem(STORAGE_KEY);
+                    }
+                }
+            }
+
+            // 网络状态监测
+            function setupNetworkStatusMonitoring() {
+                window.addEventListener('online', () => {
+                    console.log('网络已恢复');
+                    showAlert('网络连接已恢复，您可以继续上传文件。', 'info', 5000);
+                    
+                    // 检查是否有失败的上传，提示用户重试
+                    const failedUploads = uploadedFilesData.filter(file => file.status === 'error');
+                    if (failedUploads.length > 0) {
+                        showAlert(`发现 ${failedUploads.length} 个失败的上传，您可以点击"重试"按钮继续上传。`, 'warning', 8000);
+                    }
+                });
+
+                window.addEventListener('offline', () => {
+                    console.log('网络已断开');
+                    showAlert('网络连接已断开，上传可能会失败。请检查网络连接。', 'warning', 8000);
+                });
+            }
+
+            // 启动网络状态监测
+            setupNetworkStatusMonitoring();
+            
+            // 页面加载时恢复未完成的上传
+            restoreUploadState();
+            
+            // 页面卸载时清理过期状态
+            window.addEventListener('beforeunload', clearExpiredUploads);
+
+             // 表单提交成功后清除上传状态
+             window.clearFinalizeUploadStateOnSuccess = function() {
+                 localStorage.removeItem(STORAGE_KEY);
+                 console.log('定稿页面表单提交成功，已清除上传状态');
+             };
+             
+             // 调试用：清除上传状态
+             window.debugClearUploadState = function() {
+                 localStorage.removeItem(STORAGE_KEY);
+                 console.log('手动清除上传状态完成');
+                 location.reload();
+             };
 
         });
         /*]]>*/
