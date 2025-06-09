@@ -245,6 +245,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (exportButton) {
         exportButton.addEventListener('click', () => {
+            // 显示导出按钮loading状态
+            const originalButtonText = exportButton.innerHTML;
+            exportButton.disabled = true;
+            exportButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>导出中...';
+
             let exportUrl = '/api/system/audit-logs/export';
             const params = [];
 
@@ -269,7 +274,42 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             console.log("Exporting with URL: ", exportUrl);
-            window.location.href = exportUrl; // 触发浏览器下载
+
+            // 使用fetch方式下载文件，避免页面跳转和loading状态问题
+            fetch(exportUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`导出失败: ${response.status} ${response.statusText}`);
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    // 创建下载链接
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    
+                    // 从响应头或默认设置文件名
+                    const now = new Date();
+                    const timestamp = now.toISOString().replace(/[:.-]/g, '').slice(0, 14);
+                    a.download = `audit-logs-export-${timestamp}.csv`;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    console.log('文件下载成功');
+                })
+                .catch(error => {
+                    console.error('导出失败:', error);
+                    alert(`导出失败: ${error.message}`);
+                })
+                .finally(() => {
+                    // 恢复按钮状态
+                    exportButton.disabled = false;
+                    exportButton.innerHTML = originalButtonText;
+                });
         });
     }
 

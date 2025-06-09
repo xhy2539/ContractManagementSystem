@@ -132,7 +132,7 @@
                 <form id="adminExtendForm" class="needs-validation" novalidate>
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title" id="adminExtendModalLabel">管理员直接延期合同</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close btn-close-white" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="adminExtendContractId">
@@ -149,7 +149,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-secondary">取消</button>
                         <button type="submit" class="btn btn-primary">确认延期</button>
                     </div>
                 </form>
@@ -163,7 +163,7 @@
                 <form id="operatorRequestExtendForm" class="needs-validation" novalidate>
                     <div class="modal-header bg-warning text-dark">
                         <h5 class="modal-title" id="operatorRequestExtendModalLabel">请求延期合同</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="operatorRequestContractId">
@@ -185,7 +185,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-secondary">取消</button>
                         <button type="submit" class="btn btn-warning">提交延期请求</button>
                     </div>
                 </form>
@@ -197,6 +197,8 @@
 
 <th:block layout:fragment="scripts">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap模态框修复脚本 -->
+    <script th:src="@{/js/extend-modal-fix.js}"></script>
     <script th:inline="javascript">
         // 状态中文名称映射
         const statusLabels = {
@@ -766,14 +768,14 @@
                 document.getElementById('contractNumber').value = contractNumberParam;
             }
 
-            // 处理状态参数，特别是来自“流程中”链接的逗号分隔值
+            // 处理状态参数，特别是来自"流程中"链接的逗号分隔值
             const contractStatusSelect = document.getElementById('contractStatus');
             if (statusParam) {
                 // 如果是单个状态，直接设置
                 if (!statusParam.includes(',')) {
                     contractStatusSelect.value = statusParam;
                 } else {
-                    // 如果是多个状态（例如来自“流程中”链接），将下拉框设置为“全部状态”
+                    // 如果是多个状态（例如来自"流程中"链接），将下拉框设置为"全部状态"
                     // 因为单个下拉框无法同时显示多个选中值。
                     contractStatusSelect.value = "";
                 }

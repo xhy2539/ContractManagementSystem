@@ -101,7 +101,7 @@
         <form id="templateForm">
           <div class="modal-header">
             <h5 class="modal-title" id="templateFormModalLabel">模板信息</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <input type="hidden" id="templateId" name="id">
@@ -138,6 +138,7 @@
 <th:block layout:fragment="scripts">
   <script src="https://cdn.tiny.cloud/1/epd4u3q4czck41xhryufu73clhe4jzhzc0bxvnmw9t0z6ayk/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
   <script th:src="@{/js/utils.js}"></script>
+  <script th:src="@{/js/simple-admin-modal-fix.js}"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       // --- DOM Element References ---
