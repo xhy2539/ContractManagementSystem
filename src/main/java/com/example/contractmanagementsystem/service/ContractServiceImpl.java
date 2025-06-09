@@ -897,7 +897,7 @@ public class ContractServiceImpl implements ContractService {
                 emailService.sendHtmlMessage(
                         customer.getEmail(), //
                         "【合同生效通知】关于您与" + "您的公司名称" + "的合同：" + contract.getContractName(), //
-                        "customer-notification-email", // 使用新的客户通知模板
+                        "email/customer-notification-email", // 使用正确的模板路径
                         context //
                 );
                 logger.info("已向客户 {} ({}) 发送合同生效通知邮件。", customer.getCustomerName(), customer.getEmail()); //
