@@ -183,7 +183,6 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', function () {
         const attachmentContainer = document.getElementById('attachmentListContainer');
@@ -212,20 +211,21 @@
             }
         }
 
-        // --- ENHANCED handlePreviewFile FUNCTION ---
         function handlePreviewFile(serverFileName) {
-            if (!serverFileName) return;
-            const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
-            const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+            if (!serverFileName) {
+                alert('预览失败：文件名为空');
+                return;
+            }
 
-            if (isPreviewable) {
+            const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+            const fileExtension = serverFileName.toLowerCase().split('.').pop();
+            const previewableExtensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt', 'csv'];
+
+            if (previewableExtensions.includes(fileExtension)) {
                 window.open(downloadUrl, '_blank');
             } else {
-                const userAgreedToDownload = confirm(
-                    `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击“确定”将尝试下载该文件。`
-                );
-
-                if (userAgreedToDownload) {
+                const userConfirmed = confirm(`文件 ${serverFileName} 可能不支持在浏览器中直接预览。点击"确定"下载文件，点击"取消"关闭此对话框。`);
+                if (userConfirmed) {
                     const link = document.createElement('a');
                     link.href = downloadUrl;
                     link.setAttribute('download', serverFileName);
@@ -236,21 +236,19 @@
             }
         }
 
-        try {
-            if (attachmentsJson && attachmentsJson !== '[]') {
-                const attachmentFiles = JSON.parse(attachmentsJson);
-                if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
-                    attachmentContainer.innerHTML = '';
-                    attachmentFiles.forEach(fileName => addExistingFileToUI(fileName));
-                } else {
-                    attachmentContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+        if (attachmentsJson && typeof attachmentsJson === 'string') {
+            try {
+                const files = JSON.parse(attachmentsJson);
+                if (Array.isArray(files)) {
+                    files.forEach(file => {
+                        if (file && file.trim() !== '') {
+                            addExistingFileToUI(file.trim());
+                        }
+                    });
                 }
-            } else {
-                attachmentContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+            } catch (error) {
+                console.error('解析附件JSON时出错:', error);
             }
-        } catch (e) {
-            console.error('解析附件JSON失败:', e, "JSON string was:", attachmentsJson);
-            attachmentContainer.innerHTML = '<p class="text-danger small">加载附件列表失败。</p>';
         }
     });
 </script>
