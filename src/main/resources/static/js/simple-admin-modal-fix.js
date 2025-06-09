@@ -999,52 +999,7 @@ console.log("🚀 通用模态框管理器启动");
     window.showModal = showModal;
     window.hideModal = hideModal;
     
-    // 客户选择相关全局函数
-    window.selectCustomer = function(customerId, customerName, contactPerson, contactPhone, address) {
-        console.log('🔧 选择客户:', { customerId, customerName, contactPerson, contactPhone, address });
-        
-        // 查找各种可能的字段结构
-        const fields = [
-            // draft-contract.html 结构
-            { id: 'customerId', value: customerId },
-            { id: 'customerName', value: customerName },
-            { id: 'contactPerson', value: contactPerson },
-            { id: 'contactPhone', value: contactPhone },
-            { id: 'address', value: address },
-            
-            // 其他页面可能的结构
-            { id: 'contractCustomerId', value: customerId },
-            { id: 'contractCustomerName', value: customerName },
-            { id: 'selectedCustomerName', value: customerName }
-        ];
-        
-        // 填充字段数据
-        fields.forEach(({ id, value }) => {
-            const field = document.getElementById(id);
-            if (field && value !== null && value !== undefined) {
-                field.value = value;
-                
-                // 清除验证状态
-                field.classList.remove('is-invalid');
-                const feedback = field.parentElement.querySelector('.invalid-feedback');
-                if (feedback) feedback.textContent = '';
-                
-                // 触发change事件
-                const changeEvent = new Event('change', { bubbles: true });
-                field.dispatchEvent(changeEvent);
-                
-                console.log(`✅ 填充字段 ${id}: ${value}`);
-            }
-        });
-        
-        // 关闭客户选择模态框
-        const customerSelectModal = document.getElementById('customerSelectModal');
-        if (customerSelectModal) {
-            hideModal(customerSelectModal);
-        }
-        
-        console.log('✅ 客户选择完成');
-    };
+    // 客户选择相关全局函数 - 这个函数被重复定义了，需要移除以避免冲突
     
     // 附件预览全局函数
     window.handlePreviewFile = handlePreviewFile;
@@ -1057,4 +1012,34 @@ console.log("🚀 通用模态框管理器启动");
     
 })();
 
-console.log("✅ 通用模态框管理器脚本已加载"); 
+console.log("✅ 通用模态框管理器脚本已加载");
+
+// 添加页面就绪后的元素检查
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', checkCustomerElements);
+} else {
+    checkCustomerElements();
+}
+
+function checkCustomerElements() {
+    console.log('🔍 检查客户选择相关的DOM元素:');
+    const elementsToCheck = [
+        'selectedCustomerId',
+        'selectedCustomerInfoPlaceholder', 
+        'selectedCustomerDetailsCard',
+        'selectedCustomerNameText',
+        'selectedCustomerNumberText',
+        'selectedCustomerPhoneText',
+        'selectedCustomerEmailText',
+        'selectedCustomerAddressText'
+    ];
+    
+    elementsToCheck.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            console.log(`✅ 找到元素: ${id}`);
+        } else {
+            console.error(`❌ 找不到元素: ${id}`);
+        }
+    });
+} 
