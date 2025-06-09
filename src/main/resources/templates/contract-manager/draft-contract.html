@@ -341,10 +341,10 @@
                 <div class="modal-body">
                     <div class="d-flex justify-content-between mb-3">
                         <div class="input-group input-group-sm flex-grow-1 me-2">
-                            <input type="text" id="modalCustomerSearchInput" class="form-control" placeholder="输入客户名称或编号搜索...">
+                            <input type="text" id="customerSearchKeyword" class="form-control" placeholder="输入客户名称或编号搜索...">
                             <button type="button" class="btn btn-sm btn-primary" id="modalSearchCustomerBtn"><i class="bi bi-search"></i></button>
                         </div>
-                        <button type="button" class="btn btn-success btn-sm" id="modalAddNewCustomerBtn">
+                        <button type="button" class="btn btn-success btn-sm modalAddNewCustomerBtn" id="modalAddNewCustomerBtn">
                             <i class="bi bi-plus-circle me-1"></i> 添加新客户
                         </button>
                     </div>
@@ -360,7 +360,7 @@
                                 <th scope="col" class="text-center">操作</th>
                             </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="customerSelectTableBody">
                             </tbody>
                         </table>
                     </div>
@@ -369,8 +369,8 @@
                             <span class="visually-hidden">加载中...</span>
                         </div>
                     </div>
-                    <nav aria-label="客户分页" class="mt-3">
-                        <ul class="pagination pagination-sm justify-content-center" id="customerModalPagination">
+                    <nav aria-label="客户分页" class="mt-3" id="customerSelectPagination">
+                        <ul class="pagination pagination-sm justify-content-center">
                         </ul>
                     </nav>
                 </div>
