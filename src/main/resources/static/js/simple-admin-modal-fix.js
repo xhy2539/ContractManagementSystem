@@ -521,10 +521,35 @@ console.log("🚀 通用模态框管理器启动");
     }
     
     function loadCustomerData(page, keyword) {
+        console.log('🚀 开始加载客户数据 - 页面:', page, '关键词:', keyword);
+        
+        // 确保全局变量已初始化
+        if (!window.customerSelectGlobals) {
+            console.warn('⚠️ 全局变量未初始化，使用默认值');
+            window.customerSelectGlobals = {
+                CUSTOMER_PAGE_SIZE: 5,
+                currentCustomerPage: 0,
+                customerSearchKeyword: '',
+                isInitialized: false
+            };
+        }
+        
         // 修复API路径，使用正确的后端端点
         const url = `/customers/api/search?page=${page}&size=${window.customerSelectGlobals.CUSTOMER_PAGE_SIZE}&keyword=${encodeURIComponent(keyword || '')}`;
         
         console.log('🌐 请求客户数据 URL:', url);
+        console.log('📊 请求参数:', { page, size: window.customerSelectGlobals.CUSTOMER_PAGE_SIZE, keyword });
+        
+        // 显示加载指示器
+        const tableBody = document.querySelector('#customerSelectTableBody');
+        if (tableBody) {
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center">
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                正在加载客户数据...
+            </td></tr>`;
+        }
         
         fetch(url)
             .then(response => {
@@ -536,6 +561,14 @@ console.log("🚀 通用模态框管理器启动");
             })
             .then(data => {
                 console.log('✅ 客户数据加载成功:', data);
+                console.log('📋 客户数据结构检查:', {
+                    totalElements: data.totalElements,
+                    totalPages: data.totalPages,
+                    number: data.number,
+                    size: data.size,
+                    contentLength: data.content ? data.content.length : 0,
+                    firstCustomer: data.content && data.content.length > 0 ? data.content[0] : null
+                });
                 renderCustomerTable(data.content);
                 renderCustomerPagination(data);
             })
@@ -543,8 +576,8 @@ console.log("🚀 通用模态框管理器启动");
                 console.error('❌ 加载客户数据失败:', error);
                 const tableBody = document.querySelector('#customerSelectTableBody');
                 if (tableBody) {
-                    tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">
-                        加载客户数据失败: ${error.message}
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>加载客户数据失败: ${error.message}
                         <br><small class="text-muted">请检查网络连接或联系管理员</small>
                     </td></tr>`;
                 }
@@ -553,22 +586,28 @@ console.log("🚀 通用模态框管理器启动");
     
     function renderCustomerTable(customers) {
         const tableBody = document.querySelector('#customerSelectTableBody');
-        if (!tableBody) return;
-        
-        if (!customers || customers.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">暂无客户数据</td></tr>';
+        if (!tableBody) {
+            console.error('❌ 找不到客户表格体元素');
             return;
         }
         
+        if (!customers || customers.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">暂无客户数据</td></tr>';
+            return;
+        }
+        
+        console.log('📊 渲染客户表格，数据量:', customers.length);
+        
         const rows = customers.map(customer => `
             <tr>
+                <td>${customer.customerNumber || 'N/A'}</td>
                 <td>${customer.customerName || ''}</td>
-                <td>${customer.contactPerson || ''}</td>
-                <td>${customer.contactPhone || ''}</td>
-                <td>
+                <td>${customer.phoneNumber || ''}</td>
+                <td>${customer.email || ''}</td>
+                <td class="text-center">
                     <button type="button" class="btn btn-primary btn-sm" 
-                            onclick="selectCustomer(${customer.customerId}, '${customer.customerName}', '${customer.contactPerson}', '${customer.contactPhone}', '${customer.address || ''}')">
-                        选择
+                            onclick="selectCustomer(${customer.id}, '${escapeHtml(customer.customerName || '')}', '${escapeHtml(customer.customerNumber || '')}', '${escapeHtml(customer.phoneNumber || '')}', '${escapeHtml(customer.email || '')}', '${escapeHtml(customer.address || '')}')">
+                        <i class="bi bi-check-circle me-1"></i>选择
                     </button>
                 </td>
             </tr>
@@ -576,6 +615,68 @@ console.log("🚀 通用模态框管理器启动");
         
         tableBody.innerHTML = rows;
     }
+
+    // 辅助函数：转义HTML
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // 选择客户函数 - 全局函数，供HTML onclick调用
+    window.selectCustomer = function(customerId, customerName, customerNumber, phoneNumber, email, address) {
+        console.log('🎯 选择客户:', { customerId, customerName, customerNumber, phoneNumber, email, address });
+        
+        // 填充隐藏的客户ID字段
+        const customerIdField = document.getElementById('selectedCustomerId');
+        if (customerIdField) {
+            customerIdField.value = customerId;
+        }
+        
+        // 更新客户信息显示
+        const placeholderDiv = document.getElementById('selectedCustomerInfoPlaceholder');
+        if (placeholderDiv) {
+            placeholderDiv.innerHTML = `
+                <span class="text-success">
+                    <i class="bi bi-check-circle-fill me-1"></i>
+                    <strong>${customerName}</strong> (${customerNumber})
+                </span>
+            `;
+            placeholderDiv.classList.remove('is-invalid-placeholder');
+        }
+        
+        // 更新详细信息卡片
+        const detailsCard = document.getElementById('selectedCustomerDetailsCard');
+        const nameText = document.getElementById('selectedCustomerNameText');
+        const numberText = document.getElementById('selectedCustomerNumberText');
+        const phoneText = document.getElementById('selectedCustomerPhoneText');
+        const emailText = document.getElementById('selectedCustomerEmailText');
+        const addressText = document.getElementById('selectedCustomerAddressText');
+        
+        if (nameText) nameText.textContent = customerName || '';
+        if (numberText) numberText.textContent = customerNumber || '';
+        if (phoneText) phoneText.textContent = phoneNumber || '';
+        if (emailText) emailText.textContent = email || '';
+        if (addressText) addressText.textContent = address || '';
+        
+        if (detailsCard) {
+            detailsCard.style.display = 'block';
+        }
+        
+        // 清除验证错误
+        const feedback = document.getElementById('selectedCustomerIdClientFeedback');
+        if (feedback) {
+            feedback.style.display = 'none';
+        }
+        
+        // 关闭模态框
+        const modal = document.getElementById('customerSelectModal');
+        if (modal) {
+            hideModal(modal);
+            console.log('✅ 客户选择完成，模态框已关闭');
+        }
+    };
     
     function renderCustomerPagination(pageData) {
         const paginationContainer = document.querySelector('#customerSelectPagination');
