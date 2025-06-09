@@ -148,7 +148,7 @@
 <div layout:fragment="content">
     <div class="container main-container">
         <div class="d-flex justify-content-end mb-3">
-            <button class="btn btn-primary add-customer-btn" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                                <button class="btn btn-primary add-customer-btn" id="addCustomerBtn">
                 <i class="bi bi-plus-circle"></i> 添加新客户
             </button>
         </div>
@@ -212,8 +212,7 @@
                         <td th:text="${customer.address}">深圳市南山区科技园</td>
                         <td th:text="${#temporals.format(customer.createdAt, 'yyyy-MM-dd HH:mm')}">2023-06-15 10:30</td>
                         <td class="actions-cell text-end">
-                            <button class="btn btn-sm btn-outline-primary btn-action"
-                                    data-bs-toggle="modal" data-bs-target="#editCustomerModal"
+                            <button class="btn btn-sm btn-outline-primary btn-action edit-customer-btn"
                                     th:attr="data-id=${customer.id},
                                                  data-number=${customer.customerNumber},
                                                  data-name=${customer.customerName},
@@ -270,7 +269,7 @@
         </div>
     </div>
 
-    <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="customerFormModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -384,8 +383,7 @@
 </div>
 
 <th:block layout:fragment="scripts">
-    <!-- 客户管理模态框修复脚本 - 采用和系统管理模块一样的处理方法 -->
-    <script th:src="@{/js/simple-admin-modal-fix.js}"></script>
+    <!-- 客户管理模态框由 layout.html 中的通用模态框管理器处理 -->
     
     <script>
         // 原有客户页面的JavaScript逻辑（仅保留非模态框相关功能）

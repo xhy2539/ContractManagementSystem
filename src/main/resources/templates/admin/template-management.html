@@ -34,7 +34,7 @@
   <div class="container-fluid mt-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h1><i class="bi bi-file-earmark-text-fill"></i> 合同模板管理</h1>
-      <button type="button" id="addTemplateBtn" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#templateFormModal"
+      <button type="button" id="addTemplateBtn" class="btn btn-primary"
               sec:authorize="hasAuthority('TEMP_CREATE')">
         <i class="bi bi-plus-circle"></i> 添加模板
       </button>
@@ -141,7 +141,7 @@
 <th:block layout:fragment="scripts">
   <script src="https://cdn.tiny.cloud/1/epd4u3q4czck41xhryufu73clhe4jzhzc0bxvnmw9t0z6ayk/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
   <script th:src="@{/js/utils.js}"></script>
-  <script th:src="@{/js/simple-admin-modal-fix.js}"></script>
+  <!-- 模态框由 layout.html 中的通用模态框管理器处理 -->
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       // --- DOM Element References ---

@@ -207,7 +207,6 @@
                             th:if="${!#lists.isEmpty(item.attachmentFileNames)}"
                             th:data-attachments="${item.attachmentFileNamesAsJson}"
                             th:data-contract-name="${item.contractProcess.contract.contractName}"
-                            data-bs-toggle="modal"
                             data-bs-target="#attachmentListModal">
                         附件
                     </button>
@@ -257,8 +256,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- 客户管理和附件模态框修复脚本 - 采用和系统管理模块一样的处理方法 -->
-<script th:src="@{/js/simple-admin-modal-fix.js}"></script>
+<!-- 模态框由 layout.html 中的通用模态框管理器处理 -->
 
 <script th:inline="javascript">
 document.addEventListener('DOMContentLoaded', function () {
