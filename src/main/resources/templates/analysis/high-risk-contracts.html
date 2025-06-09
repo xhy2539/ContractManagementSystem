@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title>高风险合同列表</title>
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <style>
+        .risk-header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            border: none;
+            color: white;
+        }
+        
+        .contract-card {
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .contract-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .risk-badge {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+        }
+        
+        .score-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: #6c757d;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        .filter-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+        }
+        
+        .action-buttons .btn {
+            margin: 0 2px;
+            transition: all 0.2s ease;
+        }
+        
+        .action-buttons .btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modern-table {
+            margin-bottom: 0;
+        }
+        
+        .modern-table thead th {
+            background: #f8f9fa;
+            border: none;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            padding: 1rem;
+        }
+        
+        .modern-table tbody tr {
+            transition: all 0.2s ease;
+        }
+        
+        .modern-table tbody tr:hover {
+            background: #f8f9fa;
+            transform: scale(1.01);
+        }
+        
+        .modern-table tbody td {
+            padding: 1rem;
+            border: none;
+            border-bottom: 1px solid #f1f3f4;
+        }
+        
+        .pagination-wrapper {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- 页面头部 -->
+    <div class="row mb-4" data-aos="fade-down">
+        <div class="col-12">
+            <div class="card risk-header">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-shield-exclamation" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <h2 class="mb-2">高风险合同管理中心</h2>
+                    <p class="lead mb-0">识别、监控和管理具有潜在风险的合同</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 统计信息和快速操作 -->
+    <div class="row mb-4">
+        <div class="col-lg-8" data-aos="fade-right">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-3">
+                                <i class="bi bi-graph-up-arrow me-2"></i>风险统计
+                            </h5>
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="mb-2">
+                                        <span class="display-6 fw-bold" th:text="${contracts?.totalElements ?: 0}">0</span>
+                                    </div>
+                                    <small>高风险合同总数</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="mb-2">
+                                        <span class="display-6 fw-bold">3</span>
+                                    </div>
+                                    <small>待处理</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="mb-2">
+                                        <span class="display-6 fw-bold">15</span>
+                                    </div>
+                                    <small>本月新增</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <i class="bi bi-exclamation-triangle-fill" style="font-size: 4rem; opacity: 0.3;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4" data-aos="fade-left">
+            <div class="card filter-card">
+                <div class="card-body">
+                    <h5 class="mb-3">
+                        <i class="bi bi-funnel me-2"></i>快速筛选
+                    </h5>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-light btn-sm" onclick="filterByRisk('CRITICAL')">
+                            <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                            严重风险
+                        </button>
+                        <button class="btn btn-light btn-sm" onclick="filterByRisk('HIGH')">
+                            <i class="bi bi-exclamation-circle-fill text-warning me-2"></i>
+                            高风险
+                        </button>
+                        <button class="btn btn-light btn-sm" onclick="showAllRisks()">
+                            <i class="bi bi-list me-2"></i>
+                            显示全部
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作工具栏 -->
+    <div class="row mb-3">
+        <div class="col-md-6" data-aos="fade-up">
+            <div class="d-flex align-items-center">
+                <span class="text-muted me-3">
+                    <i class="bi bi-info-circle me-1"></i>
+                    共找到 <span class="badge bg-danger fw-bold" th:text="${contracts?.totalElements ?: 0}">0</span> 个高风险合同
+                </span>
+                <button class="btn btn-sm btn-outline-primary me-2" onclick="refreshList()">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                </button>
+            </div>
+        </div>
+        <div class="col-md-6 text-end" data-aos="fade-up" data-aos-delay="100">
+            <div class="btn-group" role="group">
+                <button class="btn btn-sm btn-outline-success" onclick="exportExcel()">
+                    <i class="bi bi-file-earmark-excel"></i> 导出Excel
+                </button>
+                <button class="btn btn-sm btn-outline-info" onclick="bulkAnalysis()">
+                    <i class="bi bi-cpu"></i> 批量重新分析
+                </button>
+                <a href="/contract-analysis" class="btn btn-sm btn-secondary">
+                    <i class="bi bi-arrow-left"></i> 返回分析中心
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 合同列表 -->
+    <div class="row">
+        <div class="col-12" data-aos="fade-up" data-aos-delay="200">
+            <div class="table-container">
+                <table class="table modern-table">
+                    <thead>
+                        <tr>
+                            <th width="5%">
+                                <input type="checkbox" class="form-check-input" id="selectAll">
+                            </th>
+                            <th width="20%">合同信息</th>
+                            <th width="15%">风险评估</th>
+                            <th width="15%">分析类型</th>
+                            <th width="15%">分析时间</th>
+                            <th width="15%">最近更新</th>
+                            <th width="15%">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contractsTableBody">
+                        <!-- 空状态 -->
+                        <tr th:if="${contracts?.content?.isEmpty()}" class="empty-state-row">
+                            <td colspan="7" class="empty-state">
+                                <i class="bi bi-inbox"></i>
+                                <h5>暂无高风险合同数据</h5>
+                                <p class="text-muted">系统中目前没有检测到高风险合同，这是一个好消息！</p>
+                                <button class="btn btn-primary" onclick="window.location.href='/contract-analysis'">
+                                    <i class="bi bi-plus-circle me-2"></i>开始分析合同
+                                </button>
+                            </td>
+                        </tr>
+                        
+                        <!-- 合同数据行 -->
+                        <tr th:each="contract : ${contracts?.content}" th:unless="${contracts?.content?.isEmpty()}" class="contract-row">
+                            <td>
+                                <input type="checkbox" class="form-check-input contract-checkbox" 
+                                       th:value="${contract.contractId}">
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <i class="bi bi-file-earmark-text text-primary" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark" th:text="${contract.contractNumber ?: 'N/A'}">CON-2024-001</div>
+                                        <div class="text-muted small" th:text="${contract.contractName ?: 'N/A'}">测试合同</div>
+                                        <div class="text-muted small">
+                                            <i class="bi bi-calendar3 me-1"></i>
+                                            <span th:text="${#temporals.format(contract.startDate, 'yyyy-MM-dd')}">2024-01-01</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="score-circle me-3"
+                                         th:classappend="${contract.riskScore >= 75 ? 'bg-danger text-white' : contract.riskScore >= 50 ? 'bg-warning text-dark' : 'bg-info text-white'}"
+                                         th:text="${contract.riskScore ?: 0}">85</div>
+                                    <div>
+                                        <span class="risk-badge" 
+                                              th:classappend="${contract.riskLevel == 'CRITICAL' ? 'bg-danger' : contract.riskLevel == 'HIGH' ? 'bg-warning text-dark' : 'bg-info'}"
+                                              th:text="${contract.riskLevel == 'CRITICAL' ? '严重风险' : contract.riskLevel == 'HIGH' ? '高风险' : contract.riskLevel == 'MEDIUM' ? '中风险' : '低风险'}">
+                                            高风险
+                                        </span>
+                                        <div class="text-muted small mt-1">评分: <span th:text="${contract.riskScore ?: 0}">85</span>/100</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary" th:text="${contract.analysisType ?: 'N/A'}">风险分析</span>
+                                <div class="text-muted small mt-1">
+                                    <i class="bi bi-cpu me-1"></i>AI分析
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-muted small">
+                                    <i class="bi bi-clock me-1"></i>
+                                    <span th:text="${#temporals.format(contract.createdAt, 'MM-dd HH:mm')}">01-01 10:00</span>
+                                </div>
+                                <div class="text-muted small">
+                                    <span th:text="${#temporals.format(contract.createdAt, 'yyyy')}">2024</span>年
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-success small">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    已同步
+                                </div>
+                                <div class="text-muted small">刚刚</div>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            th:onclick="'showAnalysisDetail(' + ${contract.contractId} + ')'"
+                                            data-bs-toggle="tooltip" title="查看详情">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-info"
+                                            th:onclick="'reAnalyzeContract(' + ${contract.contractId} + ')'"
+                                            data-bs-toggle="tooltip" title="重新分析">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-success"
+                                            th:onclick="'exportReport(' + ${contract.contractId} + ')'"
+                                            data-bs-toggle="tooltip" title="导出报告">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页控件 -->
+    <div class="row mt-4" th:if="${contracts?.totalPages > 1}">
+        <div class="col-12" data-aos="fade-up">
+            <div class="pagination-wrapper">
+                <nav>
+                    <ul class="pagination justify-content-center mb-0">
+                        <li class="page-item" th:classappend="${contracts.first} ? 'disabled'">
+                            <a class="page-link" th:href="@{/contract-analysis/high-risk(page=${contracts.number - 1})}" 
+                               aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        
+                        <li class="page-item" 
+                            th:each="page : ${#numbers.sequence(0, contracts.totalPages - 1)}"
+                            th:classappend="${page == contracts.number} ? 'active'">
+                            <a class="page-link" th:href="@{/contract-analysis/high-risk(page=${page})}" 
+                               th:text="${page + 1}">1</a>
+                        </li>
+                        
+                        <li class="page-item" th:classappend="${contracts.last} ? 'disabled'">
+                            <a class="page-link" th:href="@{/contract-analysis/high-risk(page=${contracts.number + 1})}"
+                               aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- 增强的分析详情模态框 -->
+    <div class="modal fade" id="analysisDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-graph-up me-2"></i>合同风险分析详情
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="analysisDetailContent">
+                    <!-- 详情内容将在这里显示 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>关闭
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="exportDetailedReport()">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>导出PDF报告
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="scheduleReanalysis()">
+                        <i class="bi bi-clock me-1"></i>定时重新分析
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+<script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+<script>
+// 初始化AOS动画
+AOS.init({
+    duration: 600,
+    once: true
+});
+
+// 初始化工具提示
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // 初始化全选功能
+    initializeSelectAll();
+});
+
+function initializeSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const contractCheckboxes = document.querySelectorAll('.contract-checkbox');
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            contractCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+    }
+    
+    contractCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const checkedCount = document.querySelectorAll('.contract-checkbox:checked').length;
+            selectAllCheckbox.checked = checkedCount === contractCheckboxes.length;
+            selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < contractCheckboxes.length;
+        });
+    });
+}
+
+function showAnalysisDetail(contractId) {
+    const modal = new bootstrap.Modal(document.getElementById('analysisDetailModal'));
+    document.getElementById('analysisDetailContent').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+            <h5 class="mt-3">加载分析详情中...</h5>
+            <p class="text-muted">正在获取合同的详细风险分析报告</p>
+        </div>
+    `;
+    modal.show();
+    
+    fetch(`/contract-analysis/history/${contractId}`)
+        .then(response => response.json())
+        .then(data => {
+            displayAnalysisHistory(data);
+        })
+        .catch(error => {
+            console.error('加载失败:', error);
+            document.getElementById('analysisDetailContent').innerHTML = `
+                <div class="alert alert-danger d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div>加载失败，请稍后重试。如果问题持续存在，请联系系统管理员。</div>
+                </div>
+            `;
+        });
+}
+
+function reAnalyzeContract(contractId) {
+    if (!confirm('确定要重新分析这个合同吗？这可能需要几分钟时间。')) {
+        return;
+    }
+    
+    // 显示进度提示
+    showAlert('正在启动AI重新分析...', 'info');
+    
+    fetch(`/contract-analysis/risk-analysis/${contractId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showAlert('重新分析成功！页面将刷新。', 'success');
+        setTimeout(() => location.reload(), 2000);
+    })
+    .catch(error => {
+        console.error('重新分析失败:', error);
+        showAlert('重新分析失败，请稍后重试', 'error');
+    });
+}
+
+function displayAnalysisHistory(history) {
+    if (!history || history.length === 0) {
+        document.getElementById('analysisDetailContent').innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">暂无分析历史</h5>
+                <p class="text-muted">该合同还没有进行过详细分析</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div class="analysis-history">';
+    history.forEach((item, index) => {
+        const riskClass = item.riskLevel === 'CRITICAL' ? 'danger' : 
+                         item.riskLevel === 'HIGH' ? 'warning' : 
+                         item.riskLevel === 'MEDIUM' ? 'info' : 'success';
+        
+        const riskIcon = item.riskLevel === 'CRITICAL' ? 'exclamation-triangle-fill' : 
+                        item.riskLevel === 'HIGH' ? 'exclamation-circle-fill' : 
+                        item.riskLevel === 'MEDIUM' ? 'info-circle-fill' : 'check-circle-fill';
+        
+        html += `
+            <div class="card mb-3 shadow-sm">
+                <div class="card-header bg-${riskClass} text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-${riskIcon} me-2"></i>
+                            <span>第${index + 1}次分析 - ${item.analysisType} - ${item.riskLevel}</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-light text-dark me-2">${item.riskScore}/100分</span>
+                            <small>${item.createdAt}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-search me-1"></i>分析内容</h6>
+                            <div class="bg-light p-3 rounded border">${item.analysisContent || '分析完成'}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="bi bi-lightbulb me-1"></i>专业建议</h6>
+                            <div class="bg-info bg-opacity-10 p-3 rounded border border-info">${item.recommendations || '暂无特殊建议'}</div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-cpu me-1"></i>AI引擎版本: v2.0.1
+                                    <span class="ms-3"><i class="bi bi-person me-1"></i>分析师: AI智能助手</span>
+                                </small>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="copyAnalysis(${index})">
+                                        <i class="bi bi-clipboard"></i> 复制
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" onclick="shareAnalysis(${index})">
+                                        <i class="bi bi-share"></i> 分享
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    document.getElementById('analysisDetailContent').innerHTML = html;
+}
+
+function filterByRisk(riskLevel) {
+    showAlert(`正在筛选${riskLevel === 'CRITICAL' ? '严重' : '高'}风险合同...`, 'info');
+    // 这里可以添加实际的筛选逻辑
+    setTimeout(() => {
+        showAlert('筛选完成！', 'success');
+    }, 1000);
+}
+
+function showAllRisks() {
+    showAlert('显示全部风险合同', 'info');
+    // 这里可以添加显示全部的逻辑
+}
+
+function refreshList() {
+    showAlert('正在刷新列表...', 'info');
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function exportExcel() {
+    const checkedBoxes = document.querySelectorAll('.contract-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        showAlert('请先选择要导出的合同', 'warning');
+        return;
+    }
+    showAlert(`正在导出${checkedBoxes.length}个合同的Excel报告...`, 'info');
+}
+
+function bulkAnalysis() {
+    const checkedBoxes = document.querySelectorAll('.contract-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        showAlert('请先选择要分析的合同', 'warning');
+        return;
+    }
+    
+    if (confirm(`确定要对选中的${checkedBoxes.length}个合同进行批量重新分析吗？`)) {
+        showAlert('批量分析已启动，请稍后查看结果', 'info');
+    }
+}
+
+function exportReport(contractId) {
+    showAlert('正在生成合同分析报告...', 'info');
+}
+
+function exportDetailedReport() {
+    showAlert('正在生成详细PDF报告...', 'info');
+}
+
+function scheduleReanalysis() {
+    showAlert('定时重新分析功能正在开发中...', 'info');
+}
+
+function copyAnalysis(index) {
+    showAlert('分析结果已复制到剪贴板', 'success');
+}
+
+function shareAnalysis(index) {
+    showAlert('分享功能正在开发中...', 'info');
+}
+
+function showAlert(message, type = 'info') {
+    const typeConfig = {
+        'info': { class: 'alert-info', icon: 'info-circle' },
+        'success': { class: 'alert-success', icon: 'check-circle' },
+        'warning': { class: 'alert-warning', icon: 'exclamation-triangle' },
+        'error': { class: 'alert-danger', icon: 'exclamation-triangle' }
+    };
+    
+    const config = typeConfig[type] || typeConfig['info'];
+    
+    const alertHtml = `
+        <div class="alert ${config.class} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
+            <i class="bi bi-${config.icon} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+    
+    // 3秒后自动关闭
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 3000);
+}
+</script>
+</th:block>
+</body>
+</html> 

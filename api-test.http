@@ -1,0 +1,49 @@
+### 智能分析模块API测试
+### 注意：需要先登录获取session，或者使用Postman等工具
+
+# 基础URL
+@baseUrl = http://localhost:8080
+
+### 1. 测试风险分析API
+POST {{baseUrl}}/contract-analysis/risk-analysis/1
+Content-Type: application/json
+
+### 2. 测试条款检查API  
+POST {{baseUrl}}/contract-analysis/clause-check/1
+Content-Type: application/json
+
+### 3. 测试合规检查API
+POST {{baseUrl}}/contract-analysis/compliance-check/1
+Content-Type: application/json
+
+### 4. 测试全面分析API
+POST {{baseUrl}}/contract-analysis/full-analysis/1
+Content-Type: application/json
+
+### 5. 测试版本比对API
+GET {{baseUrl}}/contract-analysis/version-compare/1?fromVersion=1&toVersion=2
+
+### 6. 测试分析历史API
+GET {{baseUrl}}/contract-analysis/history/1
+
+### 7. 测试风险统计API
+GET {{baseUrl}}/contract-analysis/statistics
+
+### 8. 测试高风险合同API
+GET {{baseUrl}}/contract-analysis/high-risk?page=0&size=10
+
+### 9. 测试批量分析API
+POST {{baseUrl}}/contract-analysis/batch/RISK_ANALYSIS
+Content-Type: application/json
+
+[1, 2]
+
+### 10. 测试创建提醒API
+POST {{baseUrl}}/contract-analysis/reminders/expiration/1?daysBefore=30
+Content-Type: application/json
+
+### 11. 测试获取用户提醒API
+GET {{baseUrl}}/contract-analysis/reminders/user/1
+
+### 12. 测试提醒统计API
+GET {{baseUrl}}/contract-analysis/reminders/unread-count/1 

@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title>合同智能分析</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <style>
+        /* 自定义样式 */
+        .gradient-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+        
+        .stat-card {
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            animation: countUp 1s ease-out;
+        }
+        
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .feature-card {
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            height: 100%;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-analysis {
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-weight: 500;
+        }
+        
+        .btn-analysis:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+        }
+        
+        .pulse-ring {
+            border: 3px solid transparent;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .quick-action-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+        }
+        
+        .analysis-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+        }
+        
+        .progress-container {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .tooltip-info {
+            cursor: help;
+        }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+    <!-- 页面头部 -->
+    <div class="row mb-4" data-aos="fade-down">
+        <div class="col-12">
+            <div class="card gradient-card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-robot feature-icon"></i>
+                    <h2 class="mb-3">智能合同分析平台</h2>
+                    <p class="lead mb-0">基于人工智能的合同风险识别与合规性检查系统</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 风险统计卡片 -->
+    <div class="row mb-4">
+        <div class="col-12 mb-3">
+            <h4 class="text-dark">
+                <i class="bi bi-bar-chart-fill me-2"></i>风险统计概览
+                <span class="badge bg-secondary ms-2 tooltip-info" 
+                      data-bs-toggle="tooltip" 
+                      data-bs-placement="top" 
+                      title="显示系统中所有合同的风险等级分布">实时数据</span>
+            </h4>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3" data-aos="fade-up" data-aos-delay="100">
+            <div class="card stat-card text-center border-danger">
+                <div class="card-body">
+                    <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3rem;"></i>
+                    <h5 class="card-title text-danger mt-3">严重风险</h5>
+                    <div class="stat-number text-danger" th:text="${riskStats?.get('CRITICAL') ?: 0}">0</div>
+                    <small class="text-muted">需要立即处理</small>
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar bg-danger" role="progressbar" 
+                             th:style="'width: ' + ${(riskStats?.get('CRITICAL') ?: 0) * 10} + '%'"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3" data-aos="fade-up" data-aos-delay="200">
+            <div class="card stat-card text-center border-warning">
+                <div class="card-body">
+                    <i class="bi bi-exclamation-circle-fill text-warning" style="font-size: 3rem;"></i>
+                    <h5 class="card-title text-warning mt-3">高风险</h5>
+                    <div class="stat-number text-warning" th:text="${riskStats?.get('HIGH') ?: 0}">0</div>
+                    <small class="text-muted">建议优先审查</small>
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar bg-warning" role="progressbar" 
+                             th:style="'width: ' + ${(riskStats?.get('HIGH') ?: 0) * 8} + '%'"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3" data-aos="fade-up" data-aos-delay="300">
+            <div class="card stat-card text-center border-info">
+                <div class="card-body">
+                    <i class="bi bi-info-circle-fill text-info" style="font-size: 3rem;"></i>
+                    <h5 class="card-title text-info mt-3">中风险</h5>
+                    <div class="stat-number text-info" th:text="${riskStats?.get('MEDIUM') ?: 0}">0</div>
+                    <small class="text-muted">定期监控</small>
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar bg-info" role="progressbar" 
+                             th:style="'width: ' + ${(riskStats?.get('MEDIUM') ?: 0) * 6} + '%'"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3" data-aos="fade-up" data-aos-delay="400">
+            <div class="card stat-card text-center border-success">
+                <div class="card-body">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                    <h5 class="card-title text-success mt-3">低风险</h5>
+                    <div class="stat-number text-success" th:text="${riskStats?.get('LOW') ?: 0}">0</div>
+                    <small class="text-muted">状态良好</small>
+                    <div class="progress mt-2" style="height: 4px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             th:style="'width: ' + ${(riskStats?.get('LOW') ?: 0) * 4} + '%'"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据可视化 -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mb-3" data-aos="fade-right">
+            <div class="card feature-card">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart-fill me-2"></i>风险分布图表
+                        <button class="btn btn-sm btn-outline-primary float-end" onclick="refreshChart()">
+                            <i class="bi bi-arrow-clockwise"></i> 刷新
+                        </button>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="riskChart"></canvas>
+                        <div id="chartLoading" class="loading-overlay d-none">
+                            <div class="text-center">
+                                <div class="pulse-ring"></div>
+                                <p class="mt-2 text-muted">更新数据中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 mb-3" data-aos="fade-left">
+            <div class="card feature-card">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>系统状态</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">AI引擎状态</small>
+                            <span class="badge bg-success">运行中</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" style="width: 95%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">数据库连接</small>
+                            <span class="badge bg-success">正常</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">今日分析任务</small>
+                            <span class="badge bg-info">24/30</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-info" style="width: 80%"></div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    <div class="text-center">
+                        <small class="text-muted">
+                            <i class="bi bi-clock me-1"></i>
+                            最后更新: <span id="lastUpdate">刚刚</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 功能操作区域 -->
+    <div class="row">
+        <!-- 智能分析功能 -->
+        <div class="col-lg-6 mb-4" data-aos="zoom-in" data-aos-delay="100">
+            <div class="card analysis-card feature-card">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="text-white mb-0">
+                        <i class="bi bi-cpu-fill me-2"></i>智能分析工具
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <button class="btn btn-light btn-analysis w-100 shadow-sm" onclick="showAnalysisModal('risk')">
+                                <i class="bi bi-shield-exclamation text-danger me-2"></i>
+                                <strong>风险识别分析</strong>
+                                <small class="d-block text-muted">AI智能识别合同潜在风险点</small>
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-light btn-analysis w-100 shadow-sm" onclick="showAnalysisModal('clause')">
+                                <i class="bi bi-list-check text-warning me-2"></i>
+                                <strong>关键条款检查</strong>
+                                <small class="d-block text-muted">检查重要条款的完整性和合理性</small>
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-light btn-analysis w-100 shadow-sm" onclick="showAnalysisModal('compliance')">
+                                <i class="bi bi-check2-square text-info me-2"></i>
+                                <strong>合规性检查</strong>
+                                <small class="d-block text-muted">确保合同符合相关法律法规</small>
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <a href="/contract-analysis/high-risk" class="btn btn-warning btn-analysis w-100 shadow-sm">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>高风险合同管理</strong>
+                                <small class="d-block">查看和管理高风险合同</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <div class="col-lg-6 mb-4" data-aos="zoom-in" data-aos-delay="200">
+            <div class="card quick-action-card feature-card">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="text-white mb-0">
+                        <i class="bi bi-lightning-charge-fill me-2"></i>快速分析
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="quickAnalysisForm" onsubmit="performQuickAnalysis(event)">
+                        <div class="mb-3">
+                            <label for="contractSelect" class="form-label text-white">
+                                <i class="bi bi-file-earmark-text me-1"></i>选择合同
+                            </label>
+                            <select class="form-select" id="contractSelect" required>
+                                <option value="">请选择要分析的合同</option>
+                                <option value="1">销售合同 - CON-2024-001</option>
+                                <option value="2">服务合同 - CON-2024-002</option>
+                                <option value="3">采购合同 - CON-2024-003</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="analysisType" class="form-label text-white">
+                                <i class="bi bi-gear me-1"></i>分析类型
+                            </label>
+                            <select class="form-select" id="analysisType" required>
+                                <option value="">请选择分析类型</option>
+                                <option value="RISK_ANALYSIS">🛡️ 风险分析</option>
+                                <option value="CLAUSE_CHECK">📋 条款检查</option>
+                                <option value="COMPLIANCE_CHECK">✅ 合规检查</option>
+                                <option value="FULL">🔍 全面分析</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-white">
+                                <i class="bi bi-sliders me-1"></i>高级选项
+                            </label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="detailedReport" checked>
+                                <label class="form-check-label text-white" for="detailedReport">
+                                    生成详细报告
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="emailNotification">
+                                <label class="form-check-label text-white" for="emailNotification">
+                                    完成后邮件通知
+                                </label>
+                            </div>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-light btn-analysis shadow">
+                                <i class="bi bi-play-circle-fill me-2"></i>
+                                <strong>开始智能分析</strong>
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="progress-container d-none" id="analysisProgress">
+                        <div class="d-flex justify-content-between text-white mb-2">
+                            <span>分析进度</span>
+                            <span id="progressText">0%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 id="progressBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最近分析记录 -->
+    <div class="row">
+        <div class="col-12" data-aos="fade-up">
+            <div class="card feature-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>最近分析记录
+                        <span class="badge bg-primary ms-2">实时</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>合同名称</th>
+                                    <th>分析类型</th>
+                                    <th>风险等级</th>
+                                    <th>风险评分</th>
+                                    <th>分析时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentAnalysisTable">
+                                <tr class="text-center text-muted">
+                                    <td colspan="6">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        暂无分析记录
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 增强的分析结果模态框 -->
+    <div class="modal fade" id="analysisResultModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-graph-up me-2"></i>智能分析结果
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="analysisResultContent">
+                    <!-- 分析结果将在这里显示 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>关闭
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="exportReport()">
+                        <i class="bi bi-download me-1"></i>导出报告
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block layout:fragment="scripts">
+<script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+<script>
+// 初始化AOS动画
+AOS.init({
+    duration: 800,
+    once: true
+});
+
+// 初始化图表
+let riskChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeChart();
+    initializeTooltips();
+    loadRecentAnalysis();
+    updateLastUpdateTime();
+    
+    // 每30秒更新一次时间
+    setInterval(updateLastUpdateTime, 30000);
+});
+
+function initializeChart() {
+    const ctx = document.getElementById('riskChart').getContext('2d');
+    const criticalCount = /*[[${riskStats?.get('CRITICAL') ?: 0}]]*/ 0;
+    const highCount = /*[[${riskStats?.get('HIGH') ?: 0}]]*/ 0;
+    const mediumCount = /*[[${riskStats?.get('MEDIUM') ?: 0}]]*/ 0;
+    const lowCount = /*[[${riskStats?.get('LOW') ?: 0}]]*/ 0;
+    
+    riskChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['严重风险', '高风险', '中风险', '低风险'],
+            datasets: [{
+                data: [criticalCount, highCount, mediumCount, lowCount],
+                backgroundColor: [
+                    '#dc3545',
+                    '#ffc107', 
+                    '#17a2b8',
+                    '#28a745'
+                ],
+                borderWidth: 0,
+                hoverBorderWidth: 2,
+                hoverBorderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((context.raw / total) * 100).toFixed(1) : 0;
+                            return context.label + ': ' + context.raw + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            },
+            animation: {
+                animateScale: true,
+                animateRotate: true
+            }
+        }
+    });
+}
+
+function initializeTooltips() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+}
+
+function refreshChart() {
+    document.getElementById('chartLoading').classList.remove('d-none');
+    
+    fetch('/contract-analysis/risk-statistics')
+        .then(response => response.json())
+        .then(data => {
+            setTimeout(() => {
+                riskChart.data.datasets[0].data = [
+                    data.CRITICAL || 0,
+                    data.HIGH || 0,
+                    data.MEDIUM || 0,
+                    data.LOW || 0
+                ];
+                riskChart.update('active');
+                document.getElementById('chartLoading').classList.add('d-none');
+                
+                // 更新统计卡片
+                updateStatCards(data);
+            }, 1000);
+        })
+        .catch(error => {
+            console.error('更新图表失败:', error);
+            document.getElementById('chartLoading').classList.add('d-none');
+        });
+}
+
+function updateStatCards(data) {
+    document.querySelector('[th\\:text="${riskStats?.get(\'CRITICAL\') ?: 0}"]').textContent = data.CRITICAL || 0;
+    document.querySelector('[th\\:text="${riskStats?.get(\'HIGH\') ?: 0}"]').textContent = data.HIGH || 0;
+    document.querySelector('[th\\:text="${riskStats?.get(\'MEDIUM\') ?: 0}"]').textContent = data.MEDIUM || 0;
+    document.querySelector('[th\\:text="${riskStats?.get(\'LOW\') ?: 0}"]').textContent = data.LOW || 0;
+}
+
+function loadRecentAnalysis() {
+    // 模拟加载最近分析记录
+    const mockData = [
+        {
+            contractName: '销售合同-2024001',
+            analysisType: '风险分析',
+            riskLevel: 'HIGH',
+            riskScore: 75,
+            analysisTime: '2024-01-15 14:30'
+        },
+        {
+            contractName: '服务协议-2024002', 
+            analysisType: '合规检查',
+            riskLevel: 'MEDIUM',
+            riskScore: 45,
+            analysisTime: '2024-01-15 12:15'
+        }
+    ];
+    
+    const tbody = document.getElementById('recentAnalysisTable');
+    if (mockData.length > 0) {
+        tbody.innerHTML = mockData.map(item => `
+            <tr>
+                <td><strong>${item.contractName}</strong></td>
+                <td><span class="badge bg-info">${item.analysisType}</span></td>
+                <td>
+                    <span class="badge ${getRiskBadgeClass(item.riskLevel)}">
+                        ${getRiskLevelText(item.riskLevel)}
+                    </span>
+                </td>
+                <td>
+                    <span class="fw-bold ${getRiskScoreClass(item.riskScore)}">${item.riskScore}/100</span>
+                </td>
+                <td><small class="text-muted">${item.analysisTime}</small></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewAnalysisDetail('${item.contractName}')">
+                        <i class="bi bi-eye"></i> 查看
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+}
+
+function getRiskBadgeClass(riskLevel) {
+    const classes = {
+        'CRITICAL': 'bg-danger',
+        'HIGH': 'bg-warning text-dark',
+        'MEDIUM': 'bg-info',
+        'LOW': 'bg-success'
+    };
+    return classes[riskLevel] || 'bg-secondary';
+}
+
+function getRiskLevelText(riskLevel) {
+    const texts = {
+        'CRITICAL': '严重风险',
+        'HIGH': '高风险', 
+        'MEDIUM': '中风险',
+        'LOW': '低风险'
+    };
+    return texts[riskLevel] || '未知';
+}
+
+function getRiskScoreClass(score) {
+    if (score >= 75) return 'text-danger';
+    if (score >= 50) return 'text-warning';
+    if (score >= 25) return 'text-info';
+    return 'text-success';
+}
+
+function updateLastUpdateTime() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    document.getElementById('lastUpdate').textContent = timeStr;
+}
+
+function showAnalysisModal(type) {
+    const contractId = document.getElementById('contractSelect').value;
+    if (!contractId) {
+        showAlert('请先选择一个合同', 'warning');
+        return;
+    }
+    
+    // 显示增强的加载界面
+    const modal = new bootstrap.Modal(document.getElementById('analysisResultModal'));
+    document.getElementById('analysisResultContent').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">分析中...</span>
+            </div>
+            <h5 class="mt-3">AI引擎正在分析中...</h5>
+            <p class="text-muted">正在使用人工智能技术深度分析合同内容</p>
+            <div class="progress mx-auto" style="width: 300px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     style="width: 100%"></div>
+            </div>
+        </div>
+    `;
+    modal.show();
+    
+    // 调用对应的分析API
+    const apiUrl = `/contract-analysis/${type === 'risk' ? 'risk-analysis' : type === 'clause' ? 'clause-check' : 'compliance-check'}/${contractId}`;
+    
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        displayAnalysisResult(data);
+    })
+    .catch(error => {
+        console.error('分析失败:', error);
+        document.getElementById('analysisResultContent').innerHTML = `
+            <div class="alert alert-danger d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <div>分析失败，请稍后重试。如果问题持续存在，请联系系统管理员。</div>
+            </div>
+        `;
+    });
+}
+
+function performQuickAnalysis(event) {
+    event.preventDefault();
+    
+    const contractId = document.getElementById('contractSelect').value;
+    const analysisType = document.getElementById('analysisType').value;
+    
+    if (!contractId || !analysisType) {
+        showAlert('请选择合同和分析类型', 'warning');
+        return;
+    }
+    
+    // 显示进度条
+    showAnalysisProgress();
+    
+    // 模拟分析进度
+    simulateAnalysisProgress();
+    
+    // 显示加载提示
+    const modal = new bootstrap.Modal(document.getElementById('analysisResultModal'));
+    document.getElementById('analysisResultContent').innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+            <h5 class="mt-3">正在执行${getAnalysisTypeText(analysisType)}...</h5>
+            <p class="text-muted">AI引擎正在深度分析合同内容，请稍候</p>
+        </div>
+    `;
+    modal.show();
+    
+    // 调用API
+    let apiUrl;
+    switch(analysisType) {
+        case 'RISK_ANALYSIS':
+            apiUrl = `/contract-analysis/risk-analysis/${contractId}`;
+            break;
+        case 'CLAUSE_CHECK':
+            apiUrl = `/contract-analysis/clause-check/${contractId}`;
+            break;
+        case 'COMPLIANCE_CHECK':
+            apiUrl = `/contract-analysis/compliance-check/${contractId}`;
+            break;
+        case 'FULL':
+            apiUrl = `/contract-analysis/full-analysis/${contractId}`;
+            break;
+    }
+    
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideAnalysisProgress();
+        displayAnalysisResult(data);
+    })
+    .catch(error => {
+        console.error('分析失败:', error);
+        hideAnalysisProgress();
+        document.getElementById('analysisResultContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                分析失败，请稍后重试
+            </div>
+        `;
+    });
+}
+
+function showAnalysisProgress() {
+    document.getElementById('analysisProgress').classList.remove('d-none');
+}
+
+function hideAnalysisProgress() {
+    document.getElementById('analysisProgress').classList.add('d-none');
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = '0%';
+}
+
+function simulateAnalysisProgress() {
+    let progress = 0;
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
+    const interval = setInterval(() => {
+        progress += Math.random() * 20;
+        if (progress > 95) progress = 95;
+        
+        progressBar.style.width = progress + '%';
+        progressText.textContent = Math.round(progress) + '%';
+        
+        if (progress >= 95) {
+            clearInterval(interval);
+        }
+    }, 500);
+}
+
+function getAnalysisTypeText(type) {
+    const texts = {
+        'RISK_ANALYSIS': '风险分析',
+        'CLAUSE_CHECK': '条款检查',
+        'COMPLIANCE_CHECK': '合规检查',
+        'FULL': '全面分析'
+    };
+    return texts[type] || '分析';
+}
+
+function displayAnalysisResult(data) {
+    let html = '<div class="analysis-result">';
+    
+    if (Array.isArray(data)) {
+        // 全面分析结果
+        html += '<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>全面分析已完成，以下是详细结果：</div>';
+        data.forEach((result, index) => {
+            html += formatSingleResult(result, index + 1);
+        });
+    } else {
+        // 单个分析结果
+        html += formatSingleResult(data);
+    }
+    
+    html += '</div>';
+    document.getElementById('analysisResultContent').innerHTML = html;
+}
+
+function formatSingleResult(result, index = null) {
+    const riskClass = result.riskLevel === 'CRITICAL' ? 'danger' : 
+                     result.riskLevel === 'HIGH' ? 'warning' : 
+                     result.riskLevel === 'MEDIUM' ? 'info' : 'success';
+    
+    const riskIcon = result.riskLevel === 'CRITICAL' ? 'exclamation-triangle-fill' : 
+                    result.riskLevel === 'HIGH' ? 'exclamation-circle-fill' : 
+                    result.riskLevel === 'MEDIUM' ? 'info-circle-fill' : 'check-circle-fill';
+    
+    return `
+        <div class="card mb-3 shadow-sm">
+            <div class="card-header bg-${riskClass} text-white">
+                <h6 class="mb-0 d-flex align-items-center">
+                    <i class="bi bi-${riskIcon} me-2"></i>
+                    ${index ? `第${index}项：` : ''}${result.analysisType} - 风险等级: ${result.riskLevel}
+                    <span class="ms-auto badge bg-light text-dark">${result.riskScore}/100分</span>
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-search me-1"></i>分析内容：</h6>
+                        <div class="alert alert-light border">${result.analysisContent || '分析完成'}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-lightbulb me-1"></i>专业建议：</h6>
+                        <div class="alert alert-info border">${result.recommendations || '暂无特殊建议'}</div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <i class="bi bi-clock me-1"></i>分析时间: ${result.createdAt || new Date().toLocaleString()}
+                            <span class="ms-3"><i class="bi bi-cpu me-1"></i>AI引擎版本: v2.0.1</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function showAlert(message, type = 'info') {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            <i class="bi bi-${type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+    
+    // 3秒后自动关闭
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 3000);
+}
+
+function viewAnalysisDetail(contractName) {
+    showAlert(`正在加载 ${contractName} 的详细分析报告...`, 'info');
+}
+
+function exportReport() {
+    showAlert('报告导出功能正在开发中...', 'info');
+}
+</script>
+</th:block>
+</body>
+</html> 

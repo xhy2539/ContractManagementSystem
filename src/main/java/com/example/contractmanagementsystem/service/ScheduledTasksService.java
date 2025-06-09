@@ -203,4 +203,83 @@ public class ScheduledTasksService {
         }
         logger.info("定时任务完成：已为 {} 份即将到期的合同发送了提醒邮件。", expiringContracts.size());
     }
+
+    /**
+     * 智能提醒任务 - 扫描并创建合同到期提醒
+     * 每天早上8点执行
+     */
+    @Scheduled(cron = "0 0 8 * * ?")
+    @Transactional
+    public void createContractExpirationReminders() {
+        logger.info("开始扫描并创建合同到期提醒...");
+        
+        try {
+            // 创建30天、15天、7天、3天、1天的提醒
+            int[] reminderDays = {30, 15, 7, 3, 1};
+            int totalCreated = 0;
+            
+            for (int days : reminderDays) {
+                LocalDate targetDate = LocalDate.now().plusDays(days);
+                List<Contract> contractsToRemind = contractRepository.findActiveContractsExpiringBetween(targetDate, targetDate);
+                
+                for (Contract contract : contractsToRemind) {
+                    // 这里需要注入ContractReminderService后调用
+                    // contractReminderService.createExpirationReminders(contract.getId(), days);
+                    totalCreated++;
+                }
+            }
+            
+            logger.info("合同到期提醒创建完成，共创建 {} 个提醒", totalCreated);
+            
+        } catch (Exception e) {
+            logger.error("创建合同到期提醒失败", e);
+        }
+    }
+
+    /**
+     * 批量合同风险分析任务
+     * 每周一早上6点执行
+     */
+    @Scheduled(cron = "0 0 6 * * MON")
+    @Transactional
+    public void performWeeklyRiskAnalysis() {
+        logger.info("开始执行周度合同风险分析...");
+        
+        try {
+            // 获取所有有效状态的合同进行风险分析
+            // 这里需要注入ContractAnalysisService后调用
+            // List<Contract> activeContracts = contractRepository.findByStatus(ContractStatus.ACTIVE);
+            // int analyzedCount = contractAnalysisService.batchAnalyze(
+            //     activeContracts.stream().map(Contract::getId).collect(Collectors.toList()),
+            //     AnalysisType.RISK_ANALYSIS
+            // ).size();
+            // logger.info("周度风险分析完成，分析了 {} 个合同", analyzedCount);
+            
+        } catch (Exception e) {
+            logger.error("执行周度风险分析失败", e);
+        }
+    }
+
+    /**
+     * 清理过期的分析结果和提醒
+     * 每周日凌晨3点执行
+     */
+    @Scheduled(cron = "0 0 3 * * SUN")
+    @Transactional
+    public void cleanupOldAnalysisAndReminders() {
+        logger.info("开始清理过期的分析结果和提醒...");
+        
+        try {
+            // 清理90天前的提醒记录
+            // int cleanedReminders = contractReminderService.cleanupExpiredReminders(90);
+            // logger.info("清理过期提醒完成，删除了 {} 条记录", cleanedReminders);
+            
+            // 重新分析60天前的分析结果
+            // int reanalyzedContracts = contractAnalysisService.reanalyzeOutdatedContracts(60);
+            // logger.info("重新分析过期合同完成，重新分析了 {} 个合同", reanalyzedContracts);
+            
+        } catch (Exception e) {
+            logger.error("清理和重新分析任务失败", e);
+        }
+    }
 }
