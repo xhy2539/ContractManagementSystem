@@ -1,5 +1,5 @@
 // 通用模态框管理器 - 所有模态框显示和隐藏的唯一管理者
-console.log("🚀 通用模态框管理器启动");
+console.log("🚀 通用模态框管理器启动 v2.0");
 
 (function() {
     'use strict';
@@ -10,7 +10,7 @@ console.log("🚀 通用模态框管理器启动");
     }
     window.universalModalManager = true;
     
-    // 模态框实例存储
+    // Bootstrap Modal 实例存储
     const modalInstances = new Map();
     
     // 客户选择全局变量
@@ -31,7 +31,7 @@ console.log("🚀 通用模态框管理器启动");
     }
     
     function setup() {
-        console.log("🔧 设置通用模态框管理器");
+        console.log("🔧 设置通用模态框管理器 v2.0");
         
         // 查找并修复所有模态框
         const modalSelectors = [
@@ -68,16 +68,46 @@ console.log("🚀 通用模态框管理器启动");
         // 修复客户选择功能
         fixCustomerSelection();
         
-        console.log("✅ 通用模态框管理器修复完成");
+        console.log("✅ 通用模态框管理器修复完成 v2.0");
+    }
+
+    // 获取或创建Bootstrap Modal实例
+    function getBootstrapModalInstance(modalEl) {
+        if (!modalEl || !modalEl.id) {
+            console.error('❌ 模态框元素无效或缺少ID');
+            return null;
+        }
+        
+        const modalId = modalEl.id;
+        
+        // 从缓存中获取实例
+        if (modalInstances.has(modalId)) {
+            return modalInstances.get(modalId);
+        }
+        
+        // 创建新的Bootstrap Modal实例
+        try {
+            const modalInstance = new bootstrap.Modal(modalEl, {
+                backdrop: 'static',
+                keyboard: false,
+                focus: true
+            });
+            
+            modalInstances.set(modalId, modalInstance);
+            console.log(`✅ 创建Bootstrap Modal实例: ${modalId}`);
+            return modalInstance;
+        } catch (error) {
+            console.error(`❌ 创建Bootstrap Modal实例失败: ${modalId}`, error);
+            return null;
+        }
     }
     
     function fixModal(modalEl) {
         const modalId = modalEl.id;
         
-        // 移除Bootstrap属性
+        // 移除Bootstrap属性，但保留基本结构
         modalEl.removeAttribute('data-bs-backdrop');
         modalEl.removeAttribute('data-bs-keyboard');
-        modalEl.classList.remove('fade');
         
         // 修复关闭按钮
         const closeButtons = modalEl.querySelectorAll('.btn-close, button[data-bs-dismiss="modal"]');
@@ -147,16 +177,7 @@ console.log("🚀 通用模态框管理器启动");
     }
     
     function fixTableButtons() {
-        // 使用事件委托处理表格按钮，定期重新绑定以处理动态内容
-        const tables = [
-            'usersTable',
-            'rolesTable', 
-            'functionalitiesTable',
-            'templatesTable',
-            'customersTable'
-        ];
-        
-        // 为整个文档添加事件委托，捕获所有按钮点击
+        // 使用事件委托处理表格按钮
         document.addEventListener('click', function(e) {
             const btn = e.target.closest('button');
             if (!btn) return;
@@ -164,7 +185,7 @@ console.log("🚀 通用模态框管理器启动");
             const classList = btn.classList;
             console.log(`🎯 检测到按钮点击:`, classList.toString());
             
-            // 编辑按钮 - 阻止默认行为，先触发数据加载，再显示模态框
+            // 编辑按钮处理
             if (classList.contains('edit-user-btn') || 
                 classList.contains('edit-role-btn') || 
                 classList.contains('edit-func-btn') ||
@@ -195,303 +216,282 @@ console.log("🚀 通用模态框管理器启动");
                     if (targetModalId) {
                         const modal = document.getElementById(targetModalId);
                         if (modal) {
-                            // 如果模态框没有显示，手动显示
-                            if (modal.style.display !== 'block') {
-                                console.log(`🔧 手动显示模态框: ${targetModalId}`);
-                                showModal(modal);
-                            }
+                            forceModalVisibility(modal);
                         }
                     }
-                }, 200);
+                }, 50);
             }
-            // 附件按钮特殊处理
-            else if (btn.hasAttribute('data-bs-target') && btn.getAttribute('data-bs-target') === '#attachmentListModal') {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🔧 附件按钮点击，处理中...');
+            
+            // 删除按钮 - 仅强制修复
+            if (classList.contains('delete-user-btn') || 
+                classList.contains('delete-role-btn') || 
+                classList.contains('delete-func-btn') ||
+                classList.contains('delete-template-btn') ||
+                classList.contains('delete-customer-btn')) {
                 
-                // 获取附件数据
-                const attachmentsJson = btn.getAttribute('data-attachments');
-                const contractName = btn.getAttribute('data-contract-name');
+                setTimeout(() => {
+                    const confirmModal = document.querySelector('.modal.show');
+                    if (confirmModal) {
+                        forceModalVisibility(confirmModal);
+                    }
+                }, 50);
+            }
+            
+            // 延期按钮处理
+            if (classList.contains('admin-extend-btn')) {
+                console.log('🔧 管理员延期按钮点击');
+                
+                setTimeout(() => {
+                    const modal = document.getElementById('adminExtendModal');
+                    if (modal) {
+                        populateAdminExtendModal(btn, modal);
+                        showModal(modal);
+                    }
+                }, 50);
+            }
+            
+            if (classList.contains('operator-extend-btn')) {
+                console.log('🔧 操作员延期按钮点击');
+                
+                setTimeout(() => {
+                    const modal = document.getElementById('operatorRequestExtendModal');
+                    if (modal) {
+                        populateOperatorRequestExtendModal(btn, modal);
+                        showModal(modal);
+                    }
+                }, 50);
+            }
+            
+            // 附件查看按钮处理
+            if (classList.contains('view-attachments-btn') || classList.contains('attachment-view-btn')) {
+                console.log('🔧 附件查看按钮点击');
                 
                 setTimeout(() => {
                     const modal = document.getElementById('attachmentListModal');
                     if (modal) {
-                        console.log('🔧 显示附件模态框，合同:', contractName);
-                        
-                        // 手动触发附件数据加载
+                        const attachmentsJson = btn.getAttribute('data-attachments');
+                        const contractName = btn.getAttribute('data-contract-name') || '未知合同';
                         loadAttachmentData(modal, btn, attachmentsJson, contractName);
-                        
-                        // 显示模态框
                         showModal(modal);
                     }
-                }, 100);
+                }, 50);
             }
-            // 延期按钮特殊处理
-            else if (btn.hasAttribute('data-bs-target')) {
-                const target = btn.getAttribute('data-bs-target');
-                if (target === '#adminExtendModal' || target === '#operatorRequestExtendModal') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log(`🔧 延期按钮点击: ${target}`);
-                    
-                    const modal = document.querySelector(target);
-                    if (modal) {
-                        // 获取数据并填充模态框
-                        if (target === '#adminExtendModal') {
-                            populateAdminExtendModal(btn, modal);
-                        } else if (target === '#operatorRequestExtendModal') {
-                            populateOperatorRequestExtendModal(btn, modal);
-                        }
-                        
-                        setTimeout(() => {
-                            showModal(modal);
-                        }, 100);
-                    }
+            
+            // 客户选择相关按钮
+            if (classList.contains('modalAddNewCustomerBtn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔧 添加新客户按钮点击');
+                
+                const customerSelectModal = document.getElementById('customerSelectModal');
+                const addCustomerModal = document.getElementById('addCustomerFormModal');
+                
+                if (customerSelectModal && addCustomerModal) {
+                    hideModal(customerSelectModal);
+                    setTimeout(() => showModal(addCustomerModal), 150);
                 }
             }
-            // 删除按钮保持原有行为
-            else if (classList.contains('delete-user-btn') || 
-                    classList.contains('delete-role-btn') || 
-                    classList.contains('delete-func-btn') ||
-                    classList.contains('delete-template-btn') ||
-                    classList.contains('delete-customer-btn')) {
-                console.log('🗑️ 删除按钮点击，保持原有行为');
-                // 不阻止默认行为，让原有的删除逻辑执行
+            
+            if (classList.contains('backToCustomerSelectModalBtn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔧 返回客户选择按钮点击');
+                
+                const addCustomerModal = document.getElementById('addCustomerFormModal');
+                const customerSelectModal = document.getElementById('customerSelectModal');
+                
+                if (addCustomerModal && customerSelectModal) {
+                    hideModal(addCustomerModal);
+                    setTimeout(() => showModal(customerSelectModal), 150);
+                }
             }
-        }, true); // 使用捕获阶段，确保优先处理
+            
+            // 通用关闭按钮处理
+            if (classList.contains('btn-close')) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const modal = btn.closest('.modal');
+                if (modal) {
+                    console.log(`🔧 通用关闭按钮点击: ${modal.id}`);
+                    hideModal(modal);
+                }
+            }
+        });
     }
-    
-    // ==================== 附件模态框逻辑 ====================
-    
+
+    // 附件数据加载
     function loadAttachmentData(modal, button, attachmentsJson, contractName) {
-        console.log('🔧 开始加载附件数据:', contractName, attachmentsJson);
+        const modalBody = modal.querySelector('.modal-body');
         
-        const attachmentListContainer = modal.querySelector('#attachmentListContainer');
-        const modalContractName = modal.querySelector('#modalContractName');
-        
-        if (!attachmentListContainer || !modalContractName) {
-            console.error('找不到附件容器元素');
-            return;
-        }
-        
-        modalContractName.textContent = contractName || '未知合同';
-        attachmentListContainer.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> 正在加载附件...</div>';
-        
-        // 添加文件到UI的函数
         function addExistingFileToUI(serverFileName) {
-            const uniqueId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            const fileItemHTML = `
-                <div class="file-list-item" id="${uniqueId}">
-                    <div class="file-info">
-                        <span class="file-name" title="${serverFileName}">${serverFileName}</span>
+            const encodedFileName = encodeURIComponent(serverFileName);
+            const fileExtension = serverFileName.split('.').pop().toLowerCase();
+            const isPreviewable = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'mp4', 'avi', 'mov'].includes(fileExtension);
+            
+            return `
+                <div class="uploaded-file mb-2 p-2 border rounded d-flex align-items-center justify-content-between">
+                    <div class="file-info d-flex align-items-center">
+                        <i class="bi bi-file-earmark-text me-2"></i>
+                        <span class="file-name">${serverFileName}</span>
                     </div>
                     <div class="file-actions">
-                        <button type="button" class="btn btn-sm btn-outline-info preview-btn" 
-                                title="预览文件" 
-                                data-filename="${serverFileName}">
+                        <a href="/uploads/${encodedFileName}" class="btn btn-outline-primary btn-sm me-2" target="_blank">
+                            <i class="bi bi-download"></i> 下载
+                        </a>
+                        ${isPreviewable ? `<button type="button" class="btn btn-outline-info btn-sm" onclick="handlePreviewFile('${serverFileName}')">
                             <i class="bi bi-eye"></i> 预览
-                        </button>
+                        </button>` : ''}
                     </div>
-                </div>`;
-            attachmentListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
-            
-            // 为预览按钮添加事件监听器
-            const newElement = document.getElementById(uniqueId);
-            if (newElement) {
-                const previewBtn = newElement.querySelector('.preview-btn');
-                if (previewBtn) {
-                    previewBtn.addEventListener('click', function() {
-                        const fileName = this.getAttribute('data-filename');
-                        console.log('🔧 点击预览按钮:', fileName);
-                        handlePreviewFile(fileName);
-                    });
-                }
-            }
+                </div>
+            `;
         }
         
-        // 处理附件JSON数据
         try {
-            if (attachmentsJson && attachmentsJson !== '[]') {
-                const attachmentFiles = JSON.parse(attachmentsJson);
-                attachmentListContainer.innerHTML = '';
-                
-                if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
-                    console.log(`🔧 加载 ${attachmentFiles.length} 个附件文件`);
-                    attachmentFiles.forEach((fileName) => {
-                        console.log(`🔧 添加附件: ${fileName}`);
-                        addExistingFileToUI(fileName);
-                    });
-                } else {
-                    attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
-                }
+            const attachments = JSON.parse(attachmentsJson || '[]');
+            let content = `<h6 class="mb-3">${contractName} - 附件列表</h6>`;
+            
+            if (attachments.length === 0) {
+                content += '<p class="text-muted">暂无附件</p>';
             } else {
-                attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+                content += '<div class="attachments-list">';
+                attachments.forEach(filename => {
+                    content += addExistingFileToUI(filename);
+                });
+                content += '</div>';
             }
+            
+            modalBody.innerHTML = content;
         } catch (e) {
-            console.error('解析附件JSON失败:', e);
-            attachmentListContainer.innerHTML = '<p class="text-danger small">加载附件列表时出错。</p>';
+            console.error('解析附件数据失败:', e);
+            modalBody.innerHTML = '<p class="text-danger">加载附件列表失败</p>';
         }
     }
-    
+
+    // 文件预览处理
     function handlePreviewFile(serverFileName) {
-        if (!serverFileName) {
-            console.error('预览失败：文件名为空');
-            return;
+        const fileExtension = serverFileName.split('.').pop().toLowerCase();
+        const encodedFileName = encodeURIComponent(serverFileName);
+        const fileUrl = `/uploads/${encodedFileName}`;
+        
+        let modalContent = '';
+        if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension)) {
+            modalContent = `<img src="${fileUrl}" class="img-fluid" alt="${serverFileName}">`;
+        } else if (fileExtension === 'pdf') {
+            modalContent = `<embed src="${fileUrl}" type="application/pdf" width="100%" height="600px">`;
+        } else if (['mp4', 'avi', 'mov'].includes(fileExtension)) {
+            modalContent = `<video width="100%" height="400" controls><source src="${fileUrl}" type="video/${fileExtension}">您的浏览器不支持视频播放。</video>`;
         }
         
-        console.log('🔧 开始预览文件:', serverFileName);
-        const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
-        const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+        const previewModal = document.createElement('div');
+        previewModal.className = 'modal fade';
+        previewModal.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">文件预览 - ${serverFileName}</h5>
+                        <button type="button" class="btn-close"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                        ${modalContent}
+                    </div>
+                </div>
+            </div>
+        `;
         
-        if (isPreviewable) {
-            window.open(downloadUrl, '_blank');
-        } else {
-            const userAgreedToDownload = confirm(
-                `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击"确定"将尝试下载该文件。`
-            );
-            if (userAgreedToDownload) {
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.setAttribute('download', serverFileName);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-        }
+        document.body.appendChild(previewModal);
+        const bsModal = new bootstrap.Modal(previewModal);
+        bsModal.show();
+        
+        previewModal.addEventListener('hidden.bs.modal', () => {
+            document.body.removeChild(previewModal);
+        });
+        
+        previewModal.querySelector('.btn-close').addEventListener('click', () => {
+            bsModal.hide();
+        });
     }
-    
-    // ==================== 客户选择模态框逻辑 ====================
-    
+
+    // 客户选择功能
     function fixCustomerSelection() {
         const customerSelectModal = document.getElementById('customerSelectModal');
-        if (!customerSelectModal) {
-            console.log("未找到客户选择模态框，跳过初始化");
-            return;
-        }
+        if (!customerSelectModal) return;
         
-        console.log("🔧 初始化客户选择功能");
-        
-        // 绑定搜索功能
-        const searchInput = document.getElementById('modalCustomerSearchInput');
-        const searchButton = document.getElementById('modalSearchCustomerBtn');
-        
-        if (searchButton && searchInput) {
-            searchButton.addEventListener('click', function() {
-                const keyword = searchInput.value.trim();
-                console.log("🔍 执行客户搜索:", keyword);
+        // 初始化客户搜索
+        const searchInput = customerSelectModal.querySelector('#customerSearchKeyword');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const keyword = this.value.trim();
+                window.customerSelectGlobals.customerSearchKeyword = keyword;
+                window.customerSelectGlobals.currentCustomerPage = 0;
                 searchCustomers(keyword);
             });
-
-            searchInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const keyword = this.value.trim();
-                    console.log("🔍 回车搜索客户:", keyword);
-                    searchCustomers(keyword);
-                }
-            });
         }
+        
+        // 绑定翻页事件
+        customerSelectModal.addEventListener('click', function(e) {
+            if (e.target.classList.contains('customer-page-btn')) {
+                e.preventDefault();
+                const page = parseInt(e.target.getAttribute('data-page'));
+                window.customerSelectGlobals.currentCustomerPage = page;
+                loadCustomerData(page, window.customerSelectGlobals.customerSearchKeyword);
+            }
+        });
     }
     
     function openCustomerSelectModal() {
-        console.log("🔧 打开客户选择模态框");
-        
+        console.log('🔧 打开客户选择模态框');
         const modal = document.getElementById('customerSelectModal');
-        const searchInput = document.getElementById('modalCustomerSearchInput');
-        
-        if (!modal) {
-            console.error("找不到客户选择模态框");
-            return;
+        if (modal) {
+            if (!window.customerSelectGlobals.isInitialized) {
+                loadCustomerData(0, '');
+                window.customerSelectGlobals.isInitialized = true;
+            }
+            showModal(modal);
         }
-        
-        // 清空搜索框
-        if (searchInput) {
-            searchInput.value = '';
-        }
-        window.customerSelectGlobals.customerSearchKeyword = '';
-        
-        // 加载客户数据
-        loadCustomerData(0, '');
-        
-        // 显示模态框
-        showModal(modal);
     }
     
     function searchCustomers(keyword) {
-        window.customerSelectGlobals.customerSearchKeyword = keyword;
+        console.log('🔍 搜索客户:', keyword);
         loadCustomerData(0, keyword);
     }
     
     function loadCustomerData(page, keyword) {
-        console.log(`🔧 加载客户数据 - 页码: ${page}, 关键词: "${keyword}"`);
+        const url = `/baseData/customers/search?page=${page}&size=${window.customerSelectGlobals.CUSTOMER_PAGE_SIZE}&keyword=${encodeURIComponent(keyword || '')}`;
         
-        window.customerSelectGlobals.currentCustomerPage = page;
-        const searchUrl = `/customers/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${window.customerSelectGlobals.CUSTOMER_PAGE_SIZE}&sort=customerName,asc`;
-        
-        const tableBody = document.querySelector('#customerTableModal tbody');
-        const pagination = document.getElementById('customerModalPagination');
-        const spinner = document.getElementById('customerModalSpinner');
-        const alertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
-        
-        // 显示加载状态
-        if (spinner) spinner.style.display = 'block';
-        if (tableBody) tableBody.innerHTML = '';
-        if (pagination) pagination.innerHTML = '';
-        
-        fetch(searchUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-        })
-        .then(response => {
-            console.log(`📡 API响应状态: ${response.status}`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(pageData => {
-            console.log("✅ 客户数据加载成功:", pageData);
-            renderCustomerTable(pageData.content || []);
-            renderCustomerPagination(pageData);
-            if (alertPlaceholder) alertPlaceholder.innerHTML = '';
-        })
-        .catch(error => {
-            console.error('❌ 加载客户数据失败:', error);
-            if (alertPlaceholder) {
-                alertPlaceholder.innerHTML = `<div class="alert alert-danger">加载客户数据失败: ${error.message}</div>`;
-            }
-            renderCustomerTable([]);
-            renderCustomerPagination(null);
-        })
-        .finally(() => {
-            if (spinner) spinner.style.display = 'none';
-        });
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ 客户数据加载成功:', data);
+                renderCustomerTable(data.content);
+                renderCustomerPagination(data);
+            })
+            .catch(error => {
+                console.error('❌ 加载客户数据失败:', error);
+                const tableBody = document.querySelector('#customerSelectTableBody');
+                if (tableBody) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">加载客户数据失败</td></tr>';
+                }
+            });
     }
     
     function renderCustomerTable(customers) {
-        const tableBody = document.querySelector('#customerTableModal tbody');
+        const tableBody = document.querySelector('#customerSelectTableBody');
         if (!tableBody) return;
         
-        if (customers.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">没有找到客户数据</td></tr>';
+        if (!customers || customers.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">暂无客户数据</td></tr>';
             return;
         }
         
         const rows = customers.map(customer => `
             <tr>
                 <td>${customer.customerName || ''}</td>
-                <td>${customer.legalRepresentative || ''}</td>
-                <td>${customer.address || ''}</td>
-                <td>${customer.contactInformation || ''}</td>
+                <td>${customer.contactPerson || ''}</td>
+                <td>${customer.contactPhone || ''}</td>
                 <td>
                     <button type="button" class="btn btn-primary btn-sm" 
-                            onclick="selectCustomer(${customer.id}, '${(customer.customerName || '').replace(/'/g, "\\'")}')">
+                            onclick="selectCustomer(${customer.customerId}, '${customer.customerName}', '${customer.contactPerson}', '${customer.contactPhone}', '${customer.address || ''}')">
                         选择
                     </button>
                 </td>
@@ -502,264 +502,255 @@ console.log("🚀 通用模态框管理器启动");
     }
     
     function renderCustomerPagination(pageData) {
-        const pagination = document.getElementById('customerModalPagination');
-        if (!pagination || !pageData) return;
+        const paginationContainer = document.querySelector('#customerSelectPagination');
+        if (!paginationContainer) return;
         
-        const currentPage = pageData.number || 0;
-        const totalPages = pageData.totalPages || 0;
+        const currentPage = pageData.number;
+        const totalPages = pageData.totalPages;
         
         if (totalPages <= 1) {
-            pagination.innerHTML = '';
+            paginationContainer.innerHTML = '';
             return;
         }
         
-        let paginationHTML = '<nav><ul class="pagination pagination-sm justify-content-center">';
+        let paginationHtml = '<nav><ul class="pagination pagination-sm justify-content-center">';
         
         // 上一页
         if (currentPage > 0) {
-            paginationHTML += `<li class="page-item">
-                <a class="page-link" href="#" onclick="loadCustomerData(${currentPage - 1}, '${window.customerSelectGlobals.customerSearchKeyword}')">上一页</a>
-            </li>`;
+            paginationHtml += `<li class="page-item"><a class="page-link customer-page-btn" href="#" data-page="${currentPage - 1}">上一页</a></li>`;
         }
         
         // 页码
         for (let i = 0; i < totalPages; i++) {
-            const activeClass = i === currentPage ? 'active' : '';
-            paginationHTML += `<li class="page-item ${activeClass}">
-                <a class="page-link" href="#" onclick="loadCustomerData(${i}, '${window.customerSelectGlobals.customerSearchKeyword}')">${i + 1}</a>
-            </li>`;
+            if (i === currentPage) {
+                paginationHtml += `<li class="page-item active"><span class="page-link">${i + 1}</span></li>`;
+            } else {
+                paginationHtml += `<li class="page-item"><a class="page-link customer-page-btn" href="#" data-page="${i}">${i + 1}</a></li>`;
+            }
         }
         
         // 下一页
         if (currentPage < totalPages - 1) {
-            paginationHTML += `<li class="page-item">
-                <a class="page-link" href="#" onclick="loadCustomerData(${currentPage + 1}, '${window.customerSelectGlobals.customerSearchKeyword}')">下一页</a>
-            </li>`;
+            paginationHtml += `<li class="page-item"><a class="page-link customer-page-btn" href="#" data-page="${currentPage + 1}">下一页</a></li>`;
         }
         
-        paginationHTML += '</ul></nav>';
-        pagination.innerHTML = paginationHTML;
+        paginationHtml += '</ul></nav>';
+        paginationContainer.innerHTML = paginationHtml;
     }
-    
-    // ==================== 延期模态框逻辑 ====================
-    
+
+    // 延期模态框数据填充
     function populateAdminExtendModal(button, modal) {
-        console.log("🔧 填充管理员延期模态框数据");
-        
-        const contractId = button.getAttribute('data-contract-id');
-        const contractNumber = button.getAttribute('data-contract-number');
-        const contractName = button.getAttribute('data-contract-name');
-        const currentEndDate = button.getAttribute('data-current-end-date');
-        
-        // 填充数据到模态框
-        const contractIdInput = modal.querySelector('input[name="contractId"]');
-        const contractNumberSpan = modal.querySelector('#adminExtendContractNumber');
-        const contractNameSpan = modal.querySelector('#adminExtendContractName');
-        const currentEndDateSpan = modal.querySelector('#adminExtendCurrentEndDate');
-        const newEndDateInput = modal.querySelector('input[name="newEndDate"]');
-        const reasonTextarea = modal.querySelector('textarea[name="reason"]');
-        
-        if (contractIdInput) contractIdInput.value = contractId || '';
-        if (contractNumberSpan) contractNumberSpan.textContent = contractNumber || '';
-        if (contractNameSpan) contractNameSpan.textContent = contractName || '';
-        if (currentEndDateSpan) currentEndDateSpan.textContent = currentEndDate || '';
-        if (newEndDateInput) newEndDateInput.value = '';
-        if (reasonTextarea) reasonTextarea.value = '';
+        try {
+            const contractId = button.getAttribute('data-contract-id');
+            const contractNumber = button.getAttribute('data-contract-number');
+            const currentEndDate = button.getAttribute('data-current-end-date');
+            
+            const contractIdField = modal.querySelector('#adminExtendContractId');
+            const contractNumberField = modal.querySelector('#adminExtendContractNumber');
+            const originalEndDateField = modal.querySelector('#adminOriginalEndDate');
+            
+            if (contractIdField) contractIdField.value = contractId || '';
+            if (contractNumberField) contractNumberField.value = contractNumber || '';
+            if (originalEndDateField) originalEndDateField.value = currentEndDate || '';
+            
+            // 清除表单验证状态
+            modal.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            modal.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
+            
+            console.log('✅ 管理员延期模态框数据填充完成');
+        } catch (error) {
+            console.error('❌ 填充管理员延期模态框数据失败:', error);
+        }
     }
     
     function populateOperatorRequestExtendModal(button, modal) {
-        console.log("🔧 填充操作员延期请求模态框数据");
+        try {
+            const contractId = button.getAttribute('data-contract-id');
+            const contractNumber = button.getAttribute('data-contract-number');
+            const currentEndDate = button.getAttribute('data-current-end-date');
+            
+            const contractIdField = modal.querySelector('#operatorExtendContractId');
+            const contractNumberField = modal.querySelector('#operatorExtendContractNumber');
+            const originalEndDateField = modal.querySelector('#operatorOriginalEndDate');
+            
+            if (contractIdField) contractIdField.value = contractId || '';
+            if (contractNumberField) contractNumberField.value = contractNumber || '';
+            if (originalEndDateField) originalEndDateField.value = currentEndDate || '';
+            
+            // 清除表单验证状态
+            modal.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            modal.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
+            
+            console.log('✅ 操作员延期模态框数据填充完成');
+        } catch (error) {
+            console.error('❌ 填充操作员延期模态框数据失败:', error);
+        }
+    }
+
+    // 核心模态框显示函数 - 使用Bootstrap原生API + 强制CSS覆盖
+    function showModal(modalEl) {
+        if (!modalEl) {
+            console.error('❌ showModal: 模态框元素为空');
+            return;
+        }
         
-        const contractId = button.getAttribute('data-contract-id');
-        const contractNumber = button.getAttribute('data-contract-number');
-        const contractName = button.getAttribute('data-contract-name');
-        const currentEndDate = button.getAttribute('data-current-end-date');
+        console.log(`🎯 显示模态框: ${modalEl.id}`);
         
-        // 填充数据到模态框
-        const contractIdInput = modal.querySelector('input[name="contractId"]');
-        const contractNumberSpan = modal.querySelector('#operatorExtendContractNumber');
-        const contractNameSpan = modal.querySelector('#operatorExtendContractName');
-        const currentEndDateSpan = modal.querySelector('#operatorExtendCurrentEndDate');
-        const requestedEndDateInput = modal.querySelector('input[name="requestedEndDate"]');
-        const requestReasonTextarea = modal.querySelector('textarea[name="requestReason"]');
+        // 获取Bootstrap Modal实例
+        const bsModal = getBootstrapModalInstance(modalEl);
+        if (!bsModal) {
+            console.error(`❌ 无法获取Bootstrap Modal实例: ${modalEl.id}`);
+            return;
+        }
         
-        if (contractIdInput) contractIdInput.value = contractId || '';
-        if (contractNumberSpan) contractNumberSpan.textContent = contractNumber || '';
-        if (contractNameSpan) contractNameSpan.textContent = contractName || '';
-        if (currentEndDateSpan) currentEndDateSpan.textContent = currentEndDate || '';
-        if (requestedEndDateInput) requestedEndDateInput.value = '';
-        if (requestReasonTextarea) requestReasonTextarea.value = '';
+        // 使用Bootstrap原生show方法
+        bsModal.show();
+        
+        // 强制CSS覆盖解决z-index和pointer-events冲突
+        setTimeout(() => {
+            forceModalVisibility(modalEl);
+        }, 50);
     }
     
-    // ==================== 核心模态框显示/隐藏逻辑 ====================
+    // 核心模态框隐藏函数 - 使用Bootstrap原生API
+    function hideModal(modalEl) {
+        if (!modalEl) {
+            console.error('❌ hideModal: 模态框元素为空');
+            return;
+        }
+        
+        console.log(`🎯 隐藏模态框: ${modalEl.id}`);
+        
+        // 获取Bootstrap Modal实例
+        const bsModal = getBootstrapModalInstance(modalEl);
+        if (!bsModal) {
+            console.error(`❌ 无法获取Bootstrap Modal实例: ${modalEl.id}`);
+            return;
+        }
+        
+        // 使用Bootstrap原生hide方法
+        bsModal.hide();
+        
+        // 清理强制样式
+        setTimeout(() => {
+            cleanupModalStyles(modalEl);
+        }, 50);
+    }
     
-    function showModal(modalEl) {
-        const modalId = modalEl.id;
-        console.log(`🔧 显示模态框: ${modalId}`);
+    // 强制模态框可见性 - 处理z-index和pointer-events冲突
+    function forceModalVisibility(modalEl) {
+        if (!modalEl) return;
         
-        // 显示模态框
-        modalEl.style.display = 'block';
-        modalEl.classList.add('show');
-        modalEl.style.paddingRight = '17px'; // 滚动条补偿
+        console.log(`🔧 强制模态框可见性: ${modalEl.id}`);
         
-        // 设置高优先级样式
-        modalEl.style.position = 'fixed';
-        modalEl.style.top = '0';
-        modalEl.style.left = '0';
-        modalEl.style.width = '100%';
-        modalEl.style.height = '100%';
-        modalEl.style.zIndex = '1055';
-        modalEl.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        modalEl.style.overflowY = 'auto';
-        modalEl.style.pointerEvents = 'auto';
+        // 强制模态框本身的样式
+        modalEl.style.setProperty('z-index', '9999', 'important');
+        modalEl.style.setProperty('pointer-events', 'auto', 'important');
+        modalEl.style.setProperty('display', 'block', 'important');
         
-        // 确保模态框内容的交互性
+        // 强制模态框内容的样式
         const modalDialog = modalEl.querySelector('.modal-dialog');
-        const modalContent = modalEl.querySelector('.modal-content');
-        
         if (modalDialog) {
-            modalDialog.style.zIndex = '1056';
-            modalDialog.style.pointerEvents = 'auto';
+            modalDialog.style.setProperty('z-index', '10000', 'important');
+            modalDialog.style.setProperty('pointer-events', 'auto', 'important');
         }
         
+        const modalContent = modalEl.querySelector('.modal-content');
         if (modalContent) {
-            modalContent.style.zIndex = '1057';
-            modalContent.style.pointerEvents = 'auto';
-            
-            // 为模态框内容添加点击事件，防止冒泡
-            modalContent.onclick = function(e) {
-                e.stopPropagation();
-            };
+            modalContent.style.setProperty('z-index', '10001', 'important');
+            modalContent.style.setProperty('pointer-events', 'auto', 'important');
         }
         
-        // 设置body样式，但保持页面可滚动
-        document.body.classList.add('modal-open');
-        // 不设置 overflow: hidden，保持页面可滚动
+        // 调整backdrop的z-index
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) {
+            backdrop.style.setProperty('z-index', '9998', 'important');
+        }
         
-        // 背景点击关闭
-        modalEl.addEventListener('click', function(e) {
-            if (e.target === modalEl) {
-                hideModal(modalEl);
+        console.log(`✅ 模态框强制可见性设置完成: ${modalEl.id}`);
+    }
+    
+    // 清理模态框强制样式
+    function cleanupModalStyles(modalEl) {
+        if (!modalEl) return;
+        
+        console.log(`🧹 清理模态框样式: ${modalEl.id}`);
+        
+        // 移除强制样式
+        modalEl.style.removeProperty('z-index');
+        modalEl.style.removeProperty('pointer-events');
+        modalEl.style.removeProperty('display');
+        
+        const modalDialog = modalEl.querySelector('.modal-dialog');
+        if (modalDialog) {
+            modalDialog.style.removeProperty('z-index');
+            modalDialog.style.removeProperty('pointer-events');
+        }
+        
+        const modalContent = modalEl.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.removeProperty('z-index');
+            modalContent.style.removeProperty('pointer-events');
+        }
+    }
+
+    // 暴露全局函数供其他脚本使用
+    window.showModal = showModal;
+    window.hideModal = hideModal;
+    
+    // 客户选择相关全局函数
+    window.selectCustomer = function(customerId, customerName, contactPerson, contactPhone, address) {
+        console.log('🔧 选择客户:', { customerId, customerName, contactPerson, contactPhone, address });
+        
+        // 查找各种可能的字段结构
+        const fields = [
+            // draft-contract.html 结构
+            { id: 'customerId', value: customerId },
+            { id: 'customerName', value: customerName },
+            { id: 'contactPerson', value: contactPerson },
+            { id: 'contactPhone', value: contactPhone },
+            { id: 'address', value: address },
+            
+            // 其他页面可能的结构
+            { id: 'contractCustomerId', value: customerId },
+            { id: 'contractCustomerName', value: customerName },
+            { id: 'selectedCustomerName', value: customerName }
+        ];
+        
+        // 填充字段数据
+        fields.forEach(({ id, value }) => {
+            const field = document.getElementById(id);
+            if (field && value !== null && value !== undefined) {
+                field.value = value;
+                
+                // 清除验证状态
+                field.classList.remove('is-invalid');
+                const feedback = field.parentElement.querySelector('.invalid-feedback');
+                if (feedback) feedback.textContent = '';
+                
+                // 触发change事件
+                const changeEvent = new Event('change', { bubbles: true });
+                field.dispatchEvent(changeEvent);
+                
+                console.log(`✅ 填充字段 ${id}: ${value}`);
             }
         });
         
-        // ESC键关闭
-        const escHandler = function(e) {
-            if (e.key === 'Escape') {
-                hideModal(modalEl);
-                document.removeEventListener('keydown', escHandler);
-            }
-        };
-        document.addEventListener('keydown', escHandler);
-        modalEl._escHandler = escHandler;
-        
-        console.log(`✅ 模态框显示成功: ${modalId}`);
-    }
-    
-    function hideModal(modalEl) {
-        const modalId = modalEl.id;
-        console.log(`🔧 隐藏模态框: ${modalId}`);
-        
-        modalEl.style.display = 'none';
-        modalEl.classList.remove('show');
-        modalEl.style.paddingRight = '';
-        
-        document.body.classList.remove('modal-open');
-        // 恢复body滚动
-        document.body.style.overflow = '';
-        
-        // 移除ESC监听器
-        if (modalEl._escHandler) {
-            document.removeEventListener('keydown', modalEl._escHandler);
-            delete modalEl._escHandler;
+        // 关闭客户选择模态框
+        const customerSelectModal = document.getElementById('customerSelectModal');
+        if (customerSelectModal) {
+            hideModal(customerSelectModal);
         }
         
-        console.log(`✅ 模态框隐藏成功: ${modalId}`);
-    }
-    
-    // ==================== Bootstrap Modal 拦截 ====================
-    
-    function interceptBootstrapModal() {
-        // 等待Bootstrap加载
-        const checkBootstrap = () => {
-            if (window.bootstrap && window.bootstrap.Modal) {
-                console.log("🔧 拦截Bootstrap Modal调用");
-                
-                // 保存原始构造函数
-                const OriginalModal = window.bootstrap.Modal;
-                
-                // 创建拦截构造函数
-                window.bootstrap.Modal = function(element, options = {}) {
-                    const el = typeof element === 'string' ? document.getElementById(element) : element;
-                    const elId = el?.id || '';
-                    
-                    console.log("🎯 拦截Modal构造:", elId);
-                    
-                    // 返回通用代理对象
-                    return {
-                        _element: el,
-                        show: function() {
-                            console.log("🔧 拦截Modal.show()调用");
-                            if (this._element) {
-                                showModal(this._element);
-                            }
-                        },
-                        hide: function() {
-                            console.log("🔧 拦截Modal.hide()调用");
-                            if (this._element) {
-                                hideModal(this._element);
-                            }
-                        }
-                    };
-                };
-                
-                // 保持静态方法
-                Object.keys(OriginalModal).forEach(key => {
-                    window.bootstrap.Modal[key] = OriginalModal[key];
-                });
-                
-                console.log("✅ Bootstrap Modal拦截完成");
-            } else {
-                setTimeout(checkBootstrap, 100);
-            }
-        };
-        
-        checkBootstrap();
-    }
-    
-    // ==================== 全局函数暴露 ====================
-    
-    // 暴露到全局，供原有代码调用
-    window.showModal = showModal;
-    window.hideModal = hideModal;
-    window.loadCustomerData = loadCustomerData;
-    window.selectCustomer = function(customerId, customerName) {
-        console.log(`🔧 选择客户: ${customerId} - ${customerName}`);
-        
-        // 填充表单
-        const customerIdInput = document.getElementById('selectedCustomerId');
-        const customerNameInput = document.getElementById('customerName');
-        const infoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
-        
-        if (customerIdInput) customerIdInput.value = customerId;
-        if (customerNameInput) customerNameInput.value = customerName;
-        if (infoPlaceholder) {
-            infoPlaceholder.innerHTML = `<div class="alert alert-success">已选择客户: <strong>${customerName}</strong></div>`;
-        }
-        
-        // 关闭模态框
-        const modal = document.getElementById('customerSelectModal');
-        if (modal) {
-            hideModal(modal);
-        }
+        console.log('✅ 客户选择完成');
     };
     
-    // 启动管理器
-    init();
+    // 附件预览全局函数
+    window.handlePreviewFile = handlePreviewFile;
     
-    // 拦截Bootstrap Modal
-    interceptBootstrapModal();
+    // 初始化
+    init();
     
 })();
 
-console.log("�� 通用模态框管理器脚本已加载"); 
+console.log("✅ 通用模态框管理器脚本已加载"); 

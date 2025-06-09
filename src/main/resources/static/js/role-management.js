@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- DOM Element References ---
     const rolesTableBody = document.querySelector('#rolesTable tbody');
     const roleFormModalEl = document.getElementById('roleFormModal');
-    const roleFormModal = new bootstrap.Modal(roleFormModalEl);
     const roleForm = document.getElementById('roleForm');
     const addRoleBtn = document.getElementById('addRoleBtn');
     const functionalitiesCheckboxesContainer = document.getElementById('functionalitiesCheckboxes');
@@ -168,7 +167,9 @@ document.addEventListener('DOMContentLoaded', function () {
         roleIdInput.value = '';
         roleFormModalLabel.textContent = '添加新角色';
         renderFunctionalityCheckboxes(functionalitiesCheckboxesContainer, allFunctionalities, []); // 创建时默认不选择
-        roleFormModal.show();
+        if (window.showModal) {
+            window.showModal(roleFormModalEl);
+        }
     }
 
     async function handleRoleFormSubmit(event) {
@@ -204,7 +205,9 @@ document.addEventListener('DOMContentLoaded', function () {
             await authenticatedFetch(url, { method, body: roleData }, globalAlertContainerId);
             showAlert(currentRoleId ? '角色更新成功！' : '角色创建成功！', 'success', globalAlertContainerId);
             fetchRoles(currentRoleId ? currentPageRole : 0);
-            roleFormModal.hide();
+            if (window.hideModal) {
+                window.hideModal(roleFormModalEl);
+            }
         } catch (error) {
             console.error("保存角色失败:", error);
             showAlert(currentRoleId ? '角色更新失败，详情请查看控制台。' : '角色创建失败，详情请查看控制台。', 'danger', globalAlertContainerId);
@@ -234,7 +237,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         ? role.functionalities.map(f => f.num) // 假设后端返回的 role 对象中 functionalities 包含 num
                         : [];
                     renderFunctionalityCheckboxes(functionalitiesCheckboxesContainer, allFunctionalities, currentFunctionalityNums);
-                    roleFormModal.show();
+                    if (window.showModal) {
+                        window.showModal(roleFormModalEl);
+                    }
                 } else {
                     showAlert('无法加载角色信息进行编辑。', 'warning', globalAlertContainerId);
                 }

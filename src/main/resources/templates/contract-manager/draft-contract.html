@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>起草新合同 - 合同管理系统</title>
     <th:block layout:fragment="css-links">
-        <!-- 客户选择功能修复脚本 -->
-        <script th:src="@{/js/customer-simple.js}" defer></script>
     </th:block>
     <style layout:fragment="inline-css">
         .card-header { font-weight: 500; }
@@ -338,7 +336,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="customerSelectModalLabel"><i class="bi bi-people-fill me-2"></i>选择签约客户</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="d-flex justify-content-between mb-3">
@@ -377,7 +375,7 @@
                     </nav>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <button type="button" class="btn btn-outline-secondary">
                         <i class="bi bi-x-circle me-1"></i>关闭
                     </button>
                 </div>
@@ -385,13 +383,13 @@
         </div>
     </div>
 
-    <div class="modal fade" id="addCustomerFormModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="addCustomerFormModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addCustomerFormModal" tabindex="-1" aria-labelledby="addCustomerFormModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <form id="addCustomerFormInModal_draft" class="needs-validation" novalidate>
                     <div class="modal-header bg-success text-white">
                         <h5 class="modal-title" id="addCustomerFormModalLabel"><i class="bi bi-person-plus-fill me-2"></i>快速添加新客户</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close btn-close-white" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div id="addCustomerModalAlertPlaceholder_draft" class="mb-3"></div>
@@ -562,30 +560,7 @@
 
             console.log("DEBUG: DOMContentLoaded 事件触发 - 脚本开始执行。");
 
-            // 确保DOM完全加载后再进行API调用
-            setTimeout(() => {
-                console.log("DEBUG: 延迟执行客户选择功能初始化");
-                
-                // 检查必要的元素是否存在
-                const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
-                const customerSelectModalEl = document.getElementById('customerSelectModal');
-                
-                if (!openCustomerSelectModalBtn) {
-                    console.error("ERROR: 无法找到客户选择按钮");
-                    return;
-                }
-                
-                if (!customerSelectModalEl) {
-                    console.error("ERROR: 无法找到客户选择模态框");
-                    return;
-                }
-                
-                console.log("DEBUG: 客户选择相关元素已找到，开始初始化功能");
-                
-                // 重新初始化客户选择功能
-                initializeCustomerSelection();
-                
-            }, 1000); // 延迟1秒执行
+            // 客户选择功能由通用模态框管理器处理
 
             // 添加网络错误检查
             function checkNetworkConnectivity() {
@@ -613,94 +588,9 @@
                 });
             }
 
-            // 客户选择功能初始化
-            function initializeCustomerSelection() {
-                const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
-                const customerSelectModalEl = document.getElementById('customerSelectModal');
-                const customerSelectModal = customerSelectModalEl ? new bootstrap.Modal(customerSelectModalEl) : null;
-                
-                if (openCustomerSelectModalBtn && customerSelectModal) {
-                    // 移除之前的事件监听器
-                    openCustomerSelectModalBtn.removeEventListener('click', openCustomerModal);
-                    // 添加新的事件监听器
-                    openCustomerSelectModalBtn.addEventListener('click', openCustomerModal);
-                    
-                    console.log("DEBUG: 客户选择按钮事件监听器已添加");
-                }
-                
-                function openCustomerModal() {
-                    console.log("DEBUG: 客户选择按钮被点击");
-                    
-                    // 首先检查网络连接
-                    checkNetworkConnectivity().then(isConnected => {
-                        if (isConnected) {
-                            const modalCustomerSearchInput = document.getElementById('modalCustomerSearchInput');
-                            if (modalCustomerSearchInput) modalCustomerSearchInput.value = '';
-                            customerSearchKeyword = '';
-                            loadCustomersForModal(0);
-                            customerSelectModal.show();
-                        }
-                    });
-                }
-            }
+            // 客户选择功能由通用模态框管理器处理
 
-            // 增强的客户加载函数
-            function loadCustomersForModal(page, keyword = customerSearchKeyword) {
-                console.log(`DEBUG: 开始加载客户数据 - 页码: ${page}, 关键词: "${keyword}"`);
-                
-                currentCustomerPage = page;
-                const searchUrl = `/customers/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${CUSTOMER_PAGE_SIZE}&sort=customerName,asc`;
-                
-                const customerModalSpinner = document.getElementById('customerModalSpinner');
-                const customerTableBody = document.querySelector('#customerTableModal tbody');
-                const customerModalAlertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
-                
-                if (customerModalSpinner) customerModalSpinner.style.display = 'block';
-                if (customerTableBody) customerTableBody.innerHTML = '<tr><td colspan="5" class="text-center">正在加载客户数据...</td></tr>';
-                if (customerModalAlertPlaceholder) customerModalAlertPlaceholder.innerHTML = '';
-
-                fetch(searchUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    credentials: 'same-origin'
-                })
-                .then(response => {
-                    console.log(`DEBUG: API响应状态: ${response.status}`);
-                    if (!response.ok) {
-                        throw new Error(`网络响应错误 (${response.status}) 在获取客户时。`);
-                    }
-                    return response.json();
-                })
-                .then(pageData => {
-                    console.log("DEBUG: 客户数据加载成功:", pageData);
-                    if (pageData && pageData.content) {
-                        renderCustomerTable(pageData.content);
-                        renderCustomerPagination(pageData);
-                    } else {
-                        console.warn("WARNING: 接收到的数据格式异常");
-                        renderCustomerTable([]);
-                        renderCustomerPagination(null);
-                    }
-                })
-                .catch(error => {
-                    console.error('ERROR: 加载客户列表失败:', error);
-                    if (customerTableBody) {
-                        customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">
-                            <i class="bi bi-exclamation-triangle me-2"></i>加载客户数据失败: ${error.message}
-                            <br><small class="text-muted">请检查网络连接或联系系统管理员</small>
-                        </td></tr>`;
-                    }
-                    renderCustomerPagination(null);
-                    showAlertInModal('加载客户数据失败: ' + error.message, 'danger', customerModalAlertPlaceholder);
-                })
-                .finally(() => {
-                    if (customerModalSpinner) customerModalSpinner.style.display = 'none';
-                });
-            }
+            // 客户加载功能由通用模态框管理器处理
 
             // 添加Chrome第三方Cookie警告处理
             if (typeof chrome !== 'undefined' && chrome.runtime) {
@@ -852,178 +742,9 @@
             })();
             // --- 客户选择和验证逻辑结束 ---
 
-            // --- 客户模态框变量声明 ---
-            let currentCustomerPage = 0;
-            const CUSTOMER_PAGE_SIZE = 5;
-            let customerSearchKeyword = '';
+            // 客户模态框功能由通用模态框管理器处理
 
-            // 所有相关元素
-            const modalCustomerSearchInput = document.getElementById('modalCustomerSearchInput');
-            const modalSearchCustomerBtn = document.getElementById('modalSearchCustomerBtn');
-            const customerTableBody = document.querySelector('#customerTableModal tbody');
-            const customerModalPagination = document.getElementById('customerModalPagination');
-            const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
-            const selectedCustomerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
-            const selectedCustomerDetailsCard = document.getElementById('selectedCustomerDetailsCard');
-            const modalAddNewCustomerBtn = document.getElementById('modalAddNewCustomerBtn');
-            const addCustomerFormModalEl = document.getElementById('addCustomerFormModal');
-            const addCustomerFormModal = addCustomerFormModalEl ? new bootstrap.Modal(addCustomerFormModalEl) : null;
-            const addCustomerFormInModalDraft = document.getElementById('addCustomerFormInModal_draft');
-            const saveNewCustomerBtnDraft = document.getElementById('saveNewCustomerBtn_draft');
-            const addCustomerModalAlertPlaceholderDraft = document.getElementById('addCustomerModalAlertPlaceholder_draft');
-            const backToCustomerSelectModalBtn = document.getElementById('backToCustomerSelectModalBtn');
-
-            // 搜索功能绑定
-            if(modalSearchCustomerBtn && modalCustomerSearchInput) {
-                modalSearchCustomerBtn.addEventListener('click', function() {
-                    customerSearchKeyword = modalCustomerSearchInput.value.trim();
-                    loadCustomersForModal(0, customerSearchKeyword);
-                });
-                modalCustomerSearchInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        customerSearchKeyword = modalCustomerSearchInput.value.trim();
-                        loadCustomersForModal(0, customerSearchKeyword);
-                    }
-                });
-            }
-
-            function renderCustomerTable(customers) {
-                if(!customerTableBody) return;
-                customerTableBody.innerHTML = '';
-                if (!customers || customers.length === 0) {
-                    customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">未找到匹配的客户记录。</td></tr>`;
-                    return;
-                }
-                customers.forEach(customer => {
-                    const row = customerTableBody.insertRow();
-                    row.insertCell().textContent = customer.customerNumber || 'N/A';
-                    row.insertCell().textContent = customer.customerName;
-                    row.insertCell().textContent = customer.phoneNumber || 'N/A';
-                    row.insertCell().textContent = customer.email || 'N/A';
-                    const actionCell = row.insertCell();
-                    actionCell.classList.add('text-center');
-                    const selectBtn = document.createElement('button');
-                    selectBtn.classList.add('btn', 'btn-sm', 'btn-primary');
-                    selectBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> 选择';
-                    selectBtn.type = 'button';
-                    selectBtn.addEventListener('click', function() { selectCustomerForForm(customer); });
-                    actionCell.appendChild(selectBtn);
-                });
-            }
-
-            function selectCustomerForForm(customer) {
-                if (selectedCustomerIdInput) selectedCustomerIdInput.value = customer.id;
-                if (selectedCustomerInfoPlaceholder) {
-                    selectedCustomerInfoPlaceholder.innerHTML = `<strong class="text-success">${customer.customerName}</strong> <small class="text-muted">(编号: ${customer.customerNumber || 'N/A'})</small>`;
-                    selectedCustomerInfoPlaceholder.classList.remove('is-invalid-placeholder');
-                }
-                if(selectedCustomerDetailsCard) {
-                    document.getElementById('selectedCustomerNameText').textContent = customer.customerName || 'N/A';
-                    document.getElementById('selectedCustomerNumberText').textContent = customer.customerNumber || 'N/A';
-                    document.getElementById('selectedCustomerPhoneText').textContent = customer.phoneNumber || 'N/A';
-                    document.getElementById('selectedCustomerEmailText').textContent = customer.email || 'N/A';
-                    document.getElementById('selectedCustomerAddressText').textContent = customer.address || 'N/A';
-                    selectedCustomerDetailsCard.style.display = 'block';
-                }
-                if(customerSelectModal) customerSelectModal.hide();
-                if(selectedCustomerIdInput) {
-                    selectedCustomerIdInput.dispatchEvent(new Event('change'));
-                    selectedCustomerIdInput.classList.remove('is-invalid');
-                }
-                document.getElementById('selectedCustomerIdClientFeedback').style.display = 'none';
-            }
-
-            function renderCustomerPagination(pageData) {
-                if(!customerModalPagination) return;
-                customerModalPagination.innerHTML = '';
-                if (!pageData || pageData.totalPages === undefined || pageData.totalPages <= 1) return;
-                const { totalPages, number: currentPageIdx, first, last } = pageData;
-                let prevLi = document.createElement('li');
-                prevLi.className = `page-item ${first ? 'disabled' : ''}`;
-                let prevA = document.createElement('a');
-                prevA.className = 'page-link';
-                prevA.href = '#';
-                prevA.innerHTML = '&laquo; <span class="d-none d-sm-inline">上一页</span>';
-                if (!first) prevA.addEventListener('click', (e) => { e.preventDefault(); loadCustomersForModal(currentPageIdx - 1); });
-                prevLi.appendChild(prevA);
-                customerModalPagination.appendChild(prevLi);
-                let currentLi = document.createElement('li');
-                currentLi.className = 'page-item disabled';
-                let currentA = document.createElement('a');
-                currentA.className = 'page-link';
-                currentA.textContent = `第 ${currentPageIdx + 1} / ${totalPages} 页`;
-                currentLi.appendChild(currentA);
-                customerModalPagination.appendChild(currentLi);
-                let nextLi = document.createElement('li');
-                nextLi.className = `page-item ${last ? 'disabled' : ''}`;
-                nextA = document.createElement('a');
-                nextA.className = 'page-link';
-                nextA.href = '#';
-                nextA.innerHTML = '<span class="d-none d-sm-inline">下一页</span> &raquo;';
-                if (!last) nextA.addEventListener('click', (e) => { e.preventDefault(); loadCustomersForModal(currentPageIdx + 1); });
-                nextLi.appendChild(nextA);
-                customerModalPagination.appendChild(nextLi);
-            }
-
-            if(addCustomerFormInModalDraft && saveNewCustomerBtnDraft && addCustomerFormModal) {
-                addCustomerFormInModalDraft.addEventListener('submit', function(event) {
-                    event.preventDefault();
-                    if (!addCustomerFormInModalDraft.checkValidity()) {
-                        event.stopPropagation();
-                        addCustomerFormInModalDraft.classList.add('was-validated');
-                        return;
-                    }
-                    const formData = new FormData(addCustomerFormInModalDraft);
-                    saveNewCustomerBtnDraft.disabled = true;
-                    saveNewCustomerBtnDraft.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>保存中...';
-                    fetch('/customers/api/add', {
-                        method: 'POST',
-                        body: new URLSearchParams(formData)
-                    })
-                        .then(response => {
-                            if (response.status === 201) return response.json();
-                            return response.json().then(errorData => { throw new Error(errorData.message || '创建客户失败') });
-                        })
-                        .then(newCustomer => {
-                            addCustomerFormModal.hide();
-                            showAlertOnMainPage(`新客户 "${newCustomer.customerName}" 已成功添加!`, 'success');
-                            selectCustomerForForm(newCustomer);
-                        })
-                        .catch(error => {
-                            showAlertInModal('添加客户失败: ' + error.message, 'danger', addCustomerModalAlertPlaceholderDraft);
-                        })
-                        .finally(() => {
-                            saveNewCustomerBtnDraft.disabled = false;
-                            saveNewCustomerBtnDraft.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>确认并保存客户';
-                        });
-                });
-            }
-
-            if(backToCustomerSelectModalBtn && addCustomerFormModal && customerSelectModal){
-                backToCustomerSelectModalBtn.addEventListener('click', function(){
-                    addCustomerFormModal.hide();
-                    customerSelectModal.show();
-                });
-            }
-
-            function showAlertInModal(message, type, placeholderElement, duration = 7000) {
-                createAndShowAlert(message, type, placeholderElement, duration);
-            }
-            function showAlertOnMainPage(message, type, duration = 7000) {
-                createAndShowAlert(message, type, document.getElementById('alertPlaceholder'), duration);
-            }
-
-            function createAndShowAlert(message, type, placeholderElement, duration) {
-                const wrapper = document.createElement('div');
-                wrapper.innerHTML = `<div class="alert alert-${type} alert-dismissible fade show" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
-                placeholderElement.innerHTML = '';
-                placeholderElement.append(wrapper.firstChild);
-                setTimeout(() => {
-                    const bsAlert = bootstrap.Alert.getInstance(wrapper.firstChild);
-                    if (bsAlert) bsAlert.close();
-                }, duration);
-            }
+            // 所有客户模态框相关函数已迁移到通用模态框管理器
 
             const attachmentFilesInput = document.getElementById('attachmentFilesInput');
             const fileListContainer = document.getElementById('fileListContainer');

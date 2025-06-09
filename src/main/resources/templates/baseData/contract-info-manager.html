@@ -190,8 +190,7 @@
 
 <th:block layout:fragment="scripts">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Bootstrap模态框修复脚本 -->
-    <script th:src="@{/js/extend-modal-fix.js}"></script>
+
     <script th:inline="javascript">
         // 状态中文名称映射
         const statusLabels = {
@@ -311,12 +310,12 @@
                 if (contractStatus === 'ACTIVE' || contractStatus === 'EXPIRED') {
                     if (isAdmin) {
                         extendButtonHtml = `
-                            <button class="btn btn-sm btn-primary ms-1 extend-contract-btn"
-                                    data-action-type="admin"
+                            <button class="btn btn-sm btn-primary ms-1 admin-extend-btn"
+                                    data-bs-target="#adminExtendModal"
                                     data-contract-id="${contractId}"
                                     data-contract-name="${contractName}"
                                     data-contract-number="${contractNumber}"
-                                    data-original-end-date="${contract.endDate}"
+                                    data-current-end-date="${contract.endDate}"
                                     type="button" title="管理员直接延期">
                                 <i class="bi bi-calendar-plus"></i> 管理员延期
                             </button>
@@ -365,13 +364,7 @@
                 `;
             }).join('');
 
-            // 为动态生成的延期按钮添加事件监听器
-            const extendButtons = document.querySelectorAll('.extend-contract-btn');
-            if (extendButtons && extendButtons.length > 0) { // 防御性检查
-                extendButtons.forEach(button => {
-                    button.addEventListener('click', handleExtendButtonClick);
-                });
-            }
+            // 延期按钮由通用模态框管理器处理
             const deleteButtons = document.querySelectorAll('.delete-contract-btn');
             if(deleteButtons && deleteButtons.length > 0) {
 
@@ -462,146 +455,7 @@
             }
         }
 
-        // --- 延期操作的 JavaScript 逻辑 ---
-
-        // 模态框实例（延迟初始化，并在第一次需要时创建）
-        let adminExtendModalInstance;
-        let operatorRequestExtendModalInstance;
-
-        function getAdminExtendModalInstance() {
-            if (!adminExtendModalInstance) {
-                const modalElement = document.getElementById('adminExtendModal');
-                if (!window.bootstrap || !window.bootstrap.Modal) { // 检查 Bootstrap 是否已加载
-                    console.error("Bootstrap 5 Modal 对象未加载。请确保 bootstrap.bundle.min.js 已正确引入。");
-                    showAlert('Bootstrap 模态框组件未加载，无法启用延期功能。', 'danger');
-                    return null;
-                }
-                if (modalElement) {
-                    try {
-                        adminExtendModalInstance = new bootstrap.Modal(modalElement);
-                        modalElement.addEventListener('hidden.bs.modal', function () {
-                            const form = document.getElementById('adminExtendForm');
-                            if (form) {
-                                form.classList.remove('was-validated');
-                                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                            }
-                        });
-                        console.log('管理员延期模态框初始化成功！Element:', modalElement); // 调试信息
-                    } catch (e) {
-                        console.error("初始化 bootstrap.Modal for adminExtendModal 失败:", e);
-                        console.trace(); // 打印调用堆栈
-                        showAlert('管理员延期模态框初始化失败，请联系管理员。', 'danger');
-                        adminExtendModalInstance = null; // 设置为null以便下次尝试重新初始化
-                    }
-                } else {
-                    console.error("致命错误: 未能在 DOM 中找到 ID 为 'adminExtendModal' 的元素。");
-                    console.trace(); // 打印调用堆栈
-                    return null; // 明确返回null
-                }
-            }
-            return adminExtendModalInstance;
-        }
-
-        function getOperatorRequestExtendModalInstance() {
-            if (!operatorRequestExtendModalInstance) {
-                const modalElement = document.getElementById('operatorRequestExtendModal');
-                if (!window.bootstrap || !window.bootstrap.Modal) { // 检查 Bootstrap 是否已加载
-                    console.error("Bootstrap 5 Modal 对象未加载。请确保 bootstrap.bundle.min.js 已正确引入。");
-                    showAlert('Bootstrap 模态框组件未加载，无法启用延期功能。', 'danger');
-                    return null;
-                }
-                if (modalElement) {
-                    try {
-                        operatorRequestExtendModalInstance = new bootstrap.Modal(modalElement);
-                        modalElement.addEventListener('hidden.bs.modal', function () {
-                            const form = document.getElementById('operatorRequestExtendForm');
-                            if (form) {
-                                form.classList.remove('was-validated');
-                                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                            }
-                        });
-                        console.log('操作员延期请求模态框初始化成功！Element:', modalElement); // 调试信息
-                    } catch (e) {
-                        console.error("初始化 bootstrap.Modal for operatorRequestExtendModal 失败:", e);
-                        console.trace(); // 打印调用堆栈
-                        showAlert('操作员延期请求模态框初始化失败，请联系管理员。', 'danger');
-                        operatorRequestExtendModalInstance = null; // 设置为null以便下次尝试重新初始化
-                    }
-                } else {
-                    console.error("致命错误: 未能在 DOM 中找到 ID 为 'operatorRequestExtendModal' 的元素。");
-                    console.trace(); // 打印调用堆栈
-                    return null; // 明确返回null
-                }
-            }
-            return operatorRequestExtendModalInstance;
-        }
-
-        function handleExtendButtonClick(event) {
-            const button = event.currentTarget;
-            const contractId = button.dataset.contractId;
-            const contractName = button.dataset.contractName;
-            const contractNumber = button.dataset.contractNumber;
-            const originalEndDate = button.dataset.originalEndDate;
-            const actionType = button.dataset.actionType;
-
-            if (actionType === 'admin') {
-                const modal = getAdminExtendModalInstance();
-                if (modal) { // 只有模态框实例成功创建才尝试显示和填充
-                    // 获取所有需要填充的元素，并进行防御性检查
-                    const adminExtendContractId = document.getElementById('adminExtendContractId');
-                    const adminExtendContractName = document.getElementById('adminExtendContractName');
-                    const adminExtendContractNumber = document.getElementById('adminExtendContractNumber');
-                    const adminOriginalEndDate = document.getElementById('adminOriginalEndDate');
-                    const adminNewEndDate = document.getElementById('adminNewEndDate');
-                    const adminExtendComments = document.getElementById('adminExtendComments');
-                    const adminExtendForm = document.getElementById('adminExtendForm');
-
-                    if (adminExtendContractId) adminExtendContractId.value = contractId;
-                    if (adminExtendContractName) adminExtendContractName.textContent = contractName;
-                    if (adminExtendContractNumber) adminExtendContractNumber.textContent = contractNumber;
-                    if (adminOriginalEndDate) adminOriginalEndDate.textContent = originalEndDate;
-                    if (adminNewEndDate) adminNewEndDate.value = '';
-                    if (adminExtendComments) adminExtendComments.value = '';
-
-                    if (adminExtendForm) {
-                        adminExtendForm.classList.remove('was-validated');
-                        adminExtendForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                    }
-                    modal.show();
-                } else {
-                    showAlert('管理员延期模态框未准备好，无法显示。请检查控制台错误。', 'danger'); // 更清晰的提示
-                }
-            } else if (actionType === 'operator-request') {
-                const modal = getOperatorRequestExtendModalInstance();
-                if (modal) { // 只有模态框实例成功创建才尝试显示和填充
-                    // 获取所有需要填充的元素，并进行防御性检查
-                    const operatorRequestContractId = document.getElementById('operatorRequestContractId');
-                    const operatorRequestContractName = document.getElementById('operatorRequestContractName');
-                    const operatorRequestContractNumber = document.getElementById('operatorRequestContractNumber');
-                    const operatorOriginalEndDate = document.getElementById('operatorOriginalEndDate');
-                    const operatorNewEndDate = document.getElementById('operatorNewEndDate');
-                    const operatorRequestReason = document.getElementById('operatorRequestReason');
-                    const operatorRequestComments = document.getElementById('operatorRequestComments');
-                    const operatorRequestExtendForm = document.getElementById('operatorRequestExtendForm');
-
-                    if (operatorRequestContractId) operatorRequestContractId.value = contractId;
-                    if (operatorRequestContractName) operatorRequestContractName.textContent = contractName;
-                    if (operatorRequestContractNumber) operatorRequestContractNumber.textContent = contractNumber;
-                    if (operatorOriginalEndDate) operatorOriginalEndDate.textContent = originalEndDate;
-                    if (operatorNewEndDate) operatorNewEndDate.value = '';
-                    if (operatorRequestReason) operatorRequestReason.value = '';
-                    if (operatorRequestComments) operatorRequestComments.value = '';
-
-                    if (operatorRequestExtendForm) {
-                        operatorRequestExtendForm.classList.remove('was-validated');
-                        operatorRequestExtendForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                    }
-                    modal.show();
-                } else {
-                    showAlert('操作员延期请求模态框未准备好，无法显示。请检查控制台错误。', 'danger'); // 更清晰的提示
-                }
-            }
-        }
+        // --- 延期操作的 JavaScript 逻辑（由通用模态框管理器处理） ---
 
         // 处理删除按钮点击
         function handleDeleteButtonClick(event) {
@@ -643,136 +497,7 @@
             }
         }
 
-        // 管理员延期表单提交
-        document.getElementById('adminExtendForm')?.addEventListener('submit', async function(event) { // 添加 ?. (optional chaining)
-            event.preventDefault();
-            event.stopPropagation();
-
-            const form = this;
-            if (!form.checkValidity()) {
-                form.classList.add('was-validated');
-                return;
-            }
-
-            const extendId = document.getElementById('adminExtendContractId')?.value;
-            const newEndDate = document.getElementById('adminNewEndDate')?.value;
-            const comments = document.getElementById('adminExtendComments')?.value;
-            const adminOriginalEndDateElement = document.getElementById('adminOriginalEndDate');
-            const adminNewEndDateElement = document.getElementById('adminNewEndDate');
-
-            if (!extendId || !newEndDate || !adminOriginalEndDateElement || !adminNewEndDateElement) {
-                showAlert('表单数据不完整，无法提交管理员延期请求。', 'danger');
-                return;
-            }
-
-            // 客户端校验新日期不能早于旧日期或今天
-            const originalEndDateStr = adminOriginalEndDateElement.textContent;
-            const originalEndDate = new Date(originalEndDateStr);
-            const selectedNewEndDate = new Date(newEndDate);
-            const today = new Date();
-            today.setHours(0,0,0,0); // Normalize today's date
-
-            if (selectedNewEndDate <= originalEndDate) {
-                adminNewEndDateElement.classList.add('is-invalid');
-                adminNewEndDateElement.nextElementSibling.textContent = '新的到期日期必须晚于原到期日期。';
-                return;
-            }
-            if (selectedNewEndDate < today) {
-                adminNewEndDateElement.classList.add('is-invalid');
-                adminNewEndDateElement.nextElementSibling.textContent = '新的到期日期不能是过去的日期。';
-                return;
-            }
-            adminNewEndDateElement.classList.remove('is-invalid');
-
-
-            try {
-                const response = await fetch(`/contracts/${extendId}/extend/admin`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ newEndDate, comments })
-                });
-
-                if (response.ok) {
-                    showAlert('合同延期成功！', 'success');
-                    getAdminExtendModalInstance()?.hide();
-                    searchContracts(1); // 重新加载第一页数据，因为状态可能改变
-                } else {
-                    const errorData = await response.json();
-                    showAlert('合同延期失败: ' + (errorData.message || '未知错误'), 'danger');
-                }
-            } catch (error) {
-                console.error('管理员延期请求失败:', error);
-                showAlert('网络请求失败，请稍后再试。', 'danger');
-            }
-        });
-
-        // 操作员请求延期表单提交
-        document.getElementById('operatorRequestExtendForm')?.addEventListener('submit', async function(event) { // 添加 ?. (optional chaining)
-            event.preventDefault();
-            event.stopPropagation();
-
-            const form = this;
-            if (!form.checkValidity()) {
-                form.classList.add('was-validated');
-                return;
-            }
-
-            const requestId = document.getElementById('operatorRequestContractId')?.value;
-            const requestedNewEndDate = document.getElementById('operatorNewEndDate')?.value;
-            const reason = document.getElementById('operatorRequestReason')?.value;
-            const comments = document.getElementById('operatorRequestComments')?.value;
-            const operatorOriginalEndDateElement = document.getElementById('operatorOriginalEndDate');
-            const operatorNewEndDateElement = document.getElementById('operatorNewEndDate');
-
-            if (!requestId || !requestedNewEndDate || !reason || !operatorOriginalEndDateElement || !operatorNewEndDateElement) {
-                showAlert('表单数据不完整，无法提交操作员延期请求。', 'danger');
-                return;
-            }
-
-            // 客户端校验新日期不能早于旧日期或今天
-            const originalEndDateStr = operatorOriginalEndDateElement.textContent;
-            const originalEndDate = new Date(originalEndDateStr);
-            const selectedRequestedNewEndDate = new Date(requestedNewEndDate);
-            const today = new Date();
-            today.setHours(0,0,0,0); // Normalize today's date
-
-            if (selectedRequestedNewEndDate <= originalEndDate) {
-                operatorNewEndDateElement.classList.add('is-invalid');
-                operatorNewEndDateElement.nextElementSibling.textContent = '期望新的到期日期必须晚于原到期日期。';
-                return;
-            }
-            if (selectedRequestedNewEndDate < today) {
-                operatorNewEndDateElement.classList.add('is-invalid');
-                operatorNewEndDateElement.nextElementSibling.textContent = '期望新的到期日期不能是过去的日期。';
-                return;
-            }
-            operatorNewEndDateElement.classList.remove('is-invalid');
-
-
-            try {
-                const response = await fetch(`/contracts/${requestId}/extend/request`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ requestedNewEndDate, reason, comments })
-                });
-
-                if (response.ok) {
-                    showAlert('延期请求已提交，请等待管理员审批。', 'success');
-                    getOperatorRequestExtendModalInstance()?.hide();
-                    searchContracts(1); // 重新加载第一页数据，因为状态可能改变
-                } else {
-                    const errorData = await response.json();
-                    showAlert('延期请求提交失败: ' + (errorData.message || '未知错误'), 'danger');
-                }
-            } catch (error) {
-                console.error('操作员延期请求发送失败:', error);
-                showAlert('网络请求失败，请稍后再试。', 'danger');
-            }
-        });
+        // 表单提交由通用模态框管理器处理
 
         // 页面加载完成后的初始化
         document.addEventListener('DOMContentLoaded', () => {
@@ -805,33 +530,7 @@
                 showAlert('系统初始化失败：必要组件未加载。请尝试刷新页面。', 'danger');
             }
 
-            // 检查并绑定延期按钮事件，虽然已经在 renderContractTable 中处理，这里是针对初始加载的按钮
-            const initialExtendButtons = document.querySelectorAll('.extend-contract-btn');
-            if (initialExtendButtons && initialExtendButtons.length > 0) {
-                initialExtendButtons.forEach(button => {
-                    button.addEventListener('click', handleExtendButtonClick);
-                });
-            }
-
             searchContracts(1); // 页面加载时自动加载第一页数据
-
-            // 自动关闭提示消息
-            const alerts = document.querySelectorAll('.alert-dismissible');
-            alerts.forEach(alertNode => {
-                if (alertNode) { // 确保 alertNode 不是 null 或 undefined
-                    const bsAlert = new bootstrap.Alert(alertNode);
-                    setTimeout(() => {
-                        // 在调用 close() 之前，再次检查实例是否存在，因为元素可能已被移除
-                        if (bootstrap.Alert.getInstance(alertNode)) {
-                            bsAlert.close();
-                        } else if (alertNode.parentNode) { // 如果实例不存在但元素还在，直接从DOM移除
-                            alertNode.parentNode.removeChild(alertNode);
-                        }
-                    }, 7000);
-                } else {
-                    console.warn('发现一个空的或未定义的提示元素，跳过其初始化。');
-                }
-            });
 
         });
     </script>
