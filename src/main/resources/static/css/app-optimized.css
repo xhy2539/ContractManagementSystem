@@ -1,0 +1,52 @@
+/* 优化的应用样式 - 压缩版本 */
+
+/* 基础样式优化 */
+.table th,.table td{vertical-align:middle}
+.action-column{min-width:130px;text-align:center}
+.search-card .card-body{padding:1rem}
+
+/* 状态徽章样式 */
+.status-badge{display:inline-block;padding:.35em .65em;font-size:.75em;font-weight:700;line-height:1;color:#fff;text-align:center;white-space:nowrap;vertical-align:baseline;border-radius:.375rem}
+.status-PENDING_FINALIZATION{background-color:#fd7e14}
+.status-DRAFT{background-color:#6c757d}
+.status-PENDING_COUNTERSIGN{background-color:#0dcaf0;color:#000}
+.status-PENDING_APPROVAL{background-color:#ffc107;color:#000}
+.status-PENDING_SIGNING{background-color:#dc3545}
+.status-ACTIVE{background-color:#198754}
+.status-COMPLETED{background-color:#198754}
+.status-EXPIRED{background-color:#6c757d}
+.status-REJECTED{background-color:#dc3545}
+
+/* 加载动画优化 */
+.spinner-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,0.8);display:flex;justify-content:center;align-items:center;z-index:9999}
+.spinner-border-custom{width:3rem;height:3rem}
+
+/* 表格优化 */
+.table-responsive{border-radius:.375rem;box-shadow:0 .125rem .25rem rgba(0,0,0,.075)}
+.table-hover tbody tr:hover{background-color:rgba(0,123,255,.05)}
+
+/* 按钮组优化 */
+.btn-group-sm>.btn,.btn-sm{padding:.25rem .5rem;font-size:.875rem;border-radius:.25rem}
+
+/* 分页优化 */
+.pagination{margin-bottom:0}
+.page-link{color:#0d6efd;text-decoration:none}
+.page-link:hover{color:#0a58ca;background-color:#e9ecef}
+
+/* 表单优化 */
+.form-control:focus{border-color:#86b7fe;outline:0;box-shadow:0 0 0 .25rem rgba(13,110,253,.25)}
+.form-control-sm{min-height:calc(1.5em + .5rem + 2px);padding:.25rem .5rem;font-size:.875rem}
+
+/* 卡片优化 */
+.card{border:1px solid rgba(0,0,0,.125);border-radius:.375rem}
+.card-header{padding:.75rem 1.25rem;margin-bottom:0;background-color:rgba(0,0,0,.03);border-bottom:1px solid rgba(0,0,0,.125)}
+
+/* 工具提示优化 */
+[data-bs-toggle="tooltip"]{cursor:help}
+
+/* 响应式优化 */
+@media (max-width:576px){
+    .table-responsive{font-size:.875rem}
+    .btn-sm{padding:.125rem .25rem;font-size:.75rem}
+    .card-header{padding:.5rem .75rem}
+} 
