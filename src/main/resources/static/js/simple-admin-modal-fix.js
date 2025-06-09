@@ -1,5 +1,5 @@
 // 通用模态框管理器 - 所有模态框显示和隐藏的唯一管理者
-console.log("🚀 通用模态框管理器启动 v2.0");
+console.log("🚀 通用模态框管理器启动");
 
 (function() {
     'use strict';
@@ -10,7 +10,7 @@ console.log("🚀 通用模态框管理器启动 v2.0");
     }
     window.universalModalManager = true;
     
-    // Bootstrap Modal 实例存储
+    // 模态框实例存储
     const modalInstances = new Map();
     
     // 客户选择全局变量
@@ -31,7 +31,7 @@ console.log("🚀 通用模态框管理器启动 v2.0");
     }
     
     function setup() {
-        console.log("🔧 设置通用模态框管理器 v2.0");
+        console.log("🔧 设置通用模态框管理器");
         
         // 查找并修复所有模态框
         const modalSelectors = [
@@ -68,46 +68,16 @@ console.log("🚀 通用模态框管理器启动 v2.0");
         // 修复客户选择功能
         fixCustomerSelection();
         
-        console.log("✅ 通用模态框管理器修复完成 v2.0");
+        console.log("✅ 通用模态框管理器修复完成");
     }
 
-    // 获取或创建Bootstrap Modal实例
-    function getBootstrapModalInstance(modalEl) {
-        if (!modalEl || !modalEl.id) {
-            console.error('❌ 模态框元素无效或缺少ID');
-            return null;
-        }
-        
-        const modalId = modalEl.id;
-        
-        // 从缓存中获取实例
-        if (modalInstances.has(modalId)) {
-            return modalInstances.get(modalId);
-        }
-        
-        // 创建新的Bootstrap Modal实例
-        try {
-            const modalInstance = new bootstrap.Modal(modalEl, {
-                backdrop: 'static',
-                keyboard: false,
-                focus: true
-            });
-            
-            modalInstances.set(modalId, modalInstance);
-            console.log(`✅ 创建Bootstrap Modal实例: ${modalId}`);
-            return modalInstance;
-        } catch (error) {
-            console.error(`❌ 创建Bootstrap Modal实例失败: ${modalId}`, error);
-            return null;
-        }
-    }
-    
     function fixModal(modalEl) {
         const modalId = modalEl.id;
         
-        // 移除Bootstrap属性，但保留基本结构
+        // 移除Bootstrap属性
         modalEl.removeAttribute('data-bs-backdrop');
         modalEl.removeAttribute('data-bs-keyboard');
+        modalEl.classList.remove('fade');
         
         // 修复关闭按钮
         const closeButtons = modalEl.querySelectorAll('.btn-close, button[data-bs-dismiss="modal"]');
@@ -587,7 +557,7 @@ console.log("🚀 通用模态框管理器启动 v2.0");
         }
     }
 
-    // 核心模态框显示函数 - 使用Bootstrap原生API + 强制CSS覆盖
+    // 核心模态框显示函数
     function showModal(modalEl) {
         if (!modalEl) {
             console.error('❌ showModal: 模态框元素为空');
@@ -596,23 +566,73 @@ console.log("🚀 通用模态框管理器启动 v2.0");
         
         console.log(`🎯 显示模态框: ${modalEl.id}`);
         
-        // 获取Bootstrap Modal实例
-        const bsModal = getBootstrapModalInstance(modalEl);
-        if (!bsModal) {
-            console.error(`❌ 无法获取Bootstrap Modal实例: ${modalEl.id}`);
-            return;
+        // 隐藏所有其他模态框
+        document.querySelectorAll('.modal.show').forEach(modal => {
+            if (modal !== modalEl) {
+                hideModal(modal);
+            }
+        });
+        
+        // 显示模态框
+        modalEl.style.cssText = `
+            display: block !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 9999 !important;
+            background-color: rgba(0, 0, 0, 0.5) !important;
+            overflow-y: auto !important;
+            pointer-events: auto !important;
+        `;
+        
+        modalEl.classList.add('show');
+        document.body.classList.add('modal-open');
+        
+        // 设置模态框内容样式
+        const modalDialog = modalEl.querySelector('.modal-dialog');
+        const modalContent = modalEl.querySelector('.modal-content');
+        
+        if (modalDialog) {
+            modalDialog.style.cssText = `
+                position: relative !important;
+                margin: 1.75rem auto !important;
+                pointer-events: auto !important;
+                z-index: 10000 !important;
+            `;
         }
         
-        // 使用Bootstrap原生show方法
-        bsModal.show();
+        if (modalContent) {
+            modalContent.style.cssText = `
+                position: relative !important;
+                background-color: white !important;
+                border-radius: 0.5rem !important;
+                box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+                pointer-events: auto !important;
+                z-index: 10001 !important;
+            `;
+        }
         
-        // 强制CSS覆盖解决z-index和pointer-events冲突
-        setTimeout(() => {
-            forceModalVisibility(modalEl);
-        }, 50);
+        // 添加背景点击关闭功能
+        modalEl.addEventListener('click', function(e) {
+            if (e.target === modalEl) {
+                hideModal(modalEl);
+            }
+        });
+        
+        // 添加ESC键关闭功能
+        const escHandler = function(e) {
+            if (e.key === 'Escape') {
+                hideModal(modalEl);
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+        
+        console.log(`✅ 模态框显示完成: ${modalEl.id}`);
     }
     
-    // 核心模态框隐藏函数 - 使用Bootstrap原生API
     function hideModal(modalEl) {
         if (!modalEl) {
             console.error('❌ hideModal: 模态框元素为空');
@@ -621,77 +641,101 @@ console.log("🚀 通用模态框管理器启动 v2.0");
         
         console.log(`🎯 隐藏模态框: ${modalEl.id}`);
         
-        // 获取Bootstrap Modal实例
-        const bsModal = getBootstrapModalInstance(modalEl);
-        if (!bsModal) {
-            console.error(`❌ 无法获取Bootstrap Modal实例: ${modalEl.id}`);
-            return;
+        modalEl.style.cssText = '';
+        modalEl.classList.remove('show');
+        
+        // 检查是否还有其他模态框显示
+        const remainingModals = document.querySelectorAll('.modal.show');
+        if (remainingModals.length === 0) {
+            document.body.classList.remove('modal-open');
         }
         
-        // 使用Bootstrap原生hide方法
-        bsModal.hide();
-        
-        // 清理强制样式
-        setTimeout(() => {
-            cleanupModalStyles(modalEl);
-        }, 50);
+        console.log(`✅ 模态框隐藏完成: ${modalEl.id}`);
     }
     
-    // 强制模态框可见性 - 处理z-index和pointer-events冲突
     function forceModalVisibility(modalEl) {
         if (!modalEl) return;
         
         console.log(`🔧 强制模态框可见性: ${modalEl.id}`);
         
-        // 强制模态框本身的样式
-        modalEl.style.setProperty('z-index', '9999', 'important');
-        modalEl.style.setProperty('pointer-events', 'auto', 'important');
-        modalEl.style.setProperty('display', 'block', 'important');
+        modalEl.style.cssText = `
+            display: block !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 9999 !important;
+            background-color: rgba(0, 0, 0, 0.5) !important;
+            overflow-y: auto !important;
+            pointer-events: auto !important;
+        `;
         
-        // 强制模态框内容的样式
         const modalDialog = modalEl.querySelector('.modal-dialog');
-        if (modalDialog) {
-            modalDialog.style.setProperty('z-index', '10000', 'important');
-            modalDialog.style.setProperty('pointer-events', 'auto', 'important');
-        }
-        
         const modalContent = modalEl.querySelector('.modal-content');
-        if (modalContent) {
-            modalContent.style.setProperty('z-index', '10001', 'important');
-            modalContent.style.setProperty('pointer-events', 'auto', 'important');
+        
+        if (modalDialog) {
+            modalDialog.style.cssText = `
+                position: relative !important;
+                margin: 1.75rem auto !important;
+                pointer-events: auto !important;
+                z-index: 10000 !important;
+            `;
         }
         
-        // 调整backdrop的z-index
-        const backdrop = document.querySelector('.modal-backdrop');
-        if (backdrop) {
-            backdrop.style.setProperty('z-index', '9998', 'important');
+        if (modalContent) {
+            modalContent.style.cssText = `
+                position: relative !important;
+                background-color: white !important;
+                border-radius: 0.5rem !important;
+                box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+                pointer-events: auto !important;
+                z-index: 10001 !important;
+            `;
         }
         
         console.log(`✅ 模态框强制可见性设置完成: ${modalEl.id}`);
     }
     
-    // 清理模态框强制样式
-    function cleanupModalStyles(modalEl) {
-        if (!modalEl) return;
+    function interceptBootstrapModal() {
+        // 拦截Bootstrap Modal的构造函数
+        const checkBootstrap = () => {
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                console.log('🎯 拦截Bootstrap Modal构造函数');
+                
+                const originalModal = bootstrap.Modal;
+                bootstrap.Modal = function(element, options) {
+                    console.log('🔧 Bootstrap Modal被调用，使用通用管理器处理');
+                    
+                    // 不创建Bootstrap Modal实例，而是使用我们的管理器
+                    const modalEl = typeof element === 'string' ? document.querySelector(element) : element;
+                    if (modalEl) {
+                        fixModal(modalEl);
+                    }
+                    
+                    // 返回一个兼容的对象
+                    return {
+                        show: () => {
+                            if (modalEl) showModal(modalEl);
+                        },
+                        hide: () => {
+                            if (modalEl) hideModal(modalEl);
+                        },
+                        dispose: () => {
+                            console.log('🔧 Modal dispose called');
+                        }
+                    };
+                };
+                
+                // 保留原始构造函数的静态方法
+                Object.setPrototypeOf(bootstrap.Modal, originalModal);
+                Object.assign(bootstrap.Modal, originalModal);
+            } else {
+                setTimeout(checkBootstrap, 100);
+            }
+        };
         
-        console.log(`🧹 清理模态框样式: ${modalEl.id}`);
-        
-        // 移除强制样式
-        modalEl.style.removeProperty('z-index');
-        modalEl.style.removeProperty('pointer-events');
-        modalEl.style.removeProperty('display');
-        
-        const modalDialog = modalEl.querySelector('.modal-dialog');
-        if (modalDialog) {
-            modalDialog.style.removeProperty('z-index');
-            modalDialog.style.removeProperty('pointer-events');
-        }
-        
-        const modalContent = modalEl.querySelector('.modal-content');
-        if (modalContent) {
-            modalContent.style.removeProperty('z-index');
-            modalContent.style.removeProperty('pointer-events');
-        }
+        checkBootstrap();
     }
 
     // 暴露全局函数供其他脚本使用
@@ -750,6 +794,9 @@ console.log("🚀 通用模态框管理器启动 v2.0");
     
     // 初始化
     init();
+    
+    // 拦截Bootstrap Modal
+    interceptBootstrapModal();
     
 })();
 

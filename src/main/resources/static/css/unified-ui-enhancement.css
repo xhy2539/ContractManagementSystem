@@ -1,6 +1,6 @@
 /* ==========================================================================
-   统一界面UI增强样式表 - 简化版
-   专注于UI美化，不干扰Bootstrap Modal原生功能
+   统一界面UI增强样式表
+   解决模态框问题并统一所有界面风格，确保不影响功能
    ========================================================================== */
 
 /* CSS变量定义 - 统一色彩方案 */
@@ -19,6 +19,254 @@
     --shadow-medium: 0 4px 8px rgba(0,0,0,0.15);
     --border-radius: 8px;
     --transition: all 0.3s ease;
+}
+
+/* ==========================================================================
+   模态框修复 - 解决基础数据管理和系统管理模块的模态框问题
+   ========================================================================== */
+
+/* 确保模态框正确显示 */
+.modal {
+    z-index: 1050 !important;
+}
+
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+/* 修复模态框内容显示 */
+.modal-dialog {
+    position: relative;
+    width: auto;
+    margin: 0.5rem;
+    pointer-events: none;
+}
+
+.modal-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    pointer-events: auto;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid rgba(0,0,0,.2);
+    border-radius: var(--border-radius);
+    outline: 0;
+    box-shadow: var(--shadow-medium);
+}
+
+/* 确保关闭按钮正常工作 */
+.modal-header .btn-close {
+    position: relative;
+    z-index: 10;
+    padding: 0.5rem;
+    margin: -0.5rem -0.5rem -0.5rem auto;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复编辑按钮问题 */
+.btn-action,
+.btn-outline-primary.btn-action,
+.btn[data-bs-toggle="modal"] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 确保表格行的编辑按钮都能正常工作 */
+tbody tr .btn-action {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 专门修复附件模态框问题 */
+.modal#attachmentListModal {
+    z-index: 1055 !important;
+}
+
+.modal#attachmentListModal .modal-dialog {
+    pointer-events: none;
+}
+
+.modal#attachmentListModal .modal-content {
+    pointer-events: auto !important;
+}
+
+.modal#attachmentListModal .modal-body {
+    pointer-events: auto !important;
+}
+
+.modal#attachmentListModal .modal-footer {
+    pointer-events: auto !important;
+}
+
+/* 修复附件模态框内按钮点击问题 */
+.modal#attachmentListModal .preview-btn,
+.modal#attachmentListModal .btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 修复附件预览按钮的事件处理 */
+#attachmentListContainer .preview-btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+#attachmentListContainer .preview-btn:hover {
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+}
+
+/* 修复触发附件模态框的按钮 */
+button[data-bs-target="#attachmentListModal"] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 确保附件列表容器中的所有元素都能正常交互 */
+#attachmentListContainer * {
+    pointer-events: auto !important;
+}
+
+/* 修复文件列表项的交互问题 */
+.file-list-item {
+    pointer-events: auto !important;
+}
+
+.file-list-item .file-actions {
+    pointer-events: auto !important;
+}
+
+.file-list-item .file-actions button {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 全面修复所有模态框中的交互问题 */
+.modal * {
+    pointer-events: auto !important;
+}
+
+.modal .btn-close {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复模态框打开时的背景遮罩问题 */
+.modal-backdrop {
+    pointer-events: auto !important;
+}
+
+/* 确保模态框内的输入框和按钮都能正常交互 */
+.modal input,
+.modal button,
+.modal select,
+.modal textarea,
+.modal a {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复事件委托问题 - 确保点击事件能正确传播 */
+.modal .preview-btn,
+.modal button[data-action],
+.modal .btn[data-action] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 2;
+}
+
+/* 修复附件列表中的按钮无法点击问题 */
+#attachmentListContainer {
+    pointer-events: auto !important;
+}
+
+#attachmentListContainer .file-list-item {
+    pointer-events: auto !important;
+}
+
+#attachmentListContainer .file-actions {
+    pointer-events: auto !important;
+}
+
+#attachmentListContainer button {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 3;
+}
+
+/* 特别针对预览按钮的修复 */
+.preview-btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* 确保按钮文本和图标都能正常点击 */
+.preview-btn i,
+.preview-btn span {
+    pointer-events: none !important;
+}
+
+/* 修复Bootstrap模态框的显示问题 */
+.modal.show {
+    display: block !important;
+}
+
+.modal.show .modal-dialog {
+    transform: none !important;
+}
+
+/* 确保编辑按钮可点击 */
+.btn-outline-primary.btn-action[data-bs-toggle="modal"] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 修复按钮内图标的指针事件 */
+.btn-outline-primary.btn-action i,
+.btn-outline-primary.btn-action span {
+    pointer-events: none !important;
+}
+
+/* 确保客户编辑模态框正确工作 */
+#editCustomerModal,
+#addCustomerModal {
+    z-index: 1055 !important;
+}
+
+/* 美化模态框外观 */
+#editCustomerModal .modal-content,
+#addCustomerModal .modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+/* 确保删除按钮可点击 */
+.btn-outline-danger.btn-action.delete-btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
 }
 
 /* ==========================================================================
