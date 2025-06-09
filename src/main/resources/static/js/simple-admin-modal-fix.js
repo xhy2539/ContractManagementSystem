@@ -598,20 +598,30 @@ console.log("🚀 通用模态框管理器启动");
         
         console.log('📊 渲染客户表格，数据量:', customers.length);
         
-        const rows = customers.map(customer => `
-            <tr>
-                <td>${customer.customerNumber || 'N/A'}</td>
-                <td>${customer.customerName || ''}</td>
-                <td>${customer.phoneNumber || ''}</td>
-                <td>${customer.email || ''}</td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-primary btn-sm" 
-                            onclick="selectCustomer(${customer.id}, '${escapeHtml(customer.customerName || '')}', '${escapeHtml(customer.customerNumber || '')}', '${escapeHtml(customer.phoneNumber || '')}', '${escapeHtml(customer.email || '')}', '${escapeHtml(customer.address || '')}')">
-                        <i class="bi bi-check-circle me-1"></i>选择
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        const rows = customers.map(customer => {
+            // 兼容不同的数据字段名
+            const id = customer.id || customer.customerId;
+            const name = customer.customerName || '';
+            const number = customer.customerNumber || customer.customerId || 'N/A';
+            const phone = customer.phoneNumber || customer.contactPhone || '';
+            const email = customer.email || customer.address || ''; // 从日志看address字段实际是邮箱
+            const address = customer.realAddress || customer.contactPerson || customer.address || ''; // 真实地址字段
+            
+            return `
+                <tr>
+                    <td>${escapeHtml(number)}</td>
+                    <td>${escapeHtml(name)}</td>
+                    <td>${escapeHtml(phone)}</td>
+                    <td>${escapeHtml(email)}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-primary btn-sm" 
+                                onclick="selectCustomer(${id}, '${escapeHtml(name)}', '${escapeHtml(number)}', '${escapeHtml(phone)}', '${escapeHtml(email)}', '${escapeHtml(address)}')">
+                            <i class="bi bi-check-circle me-1"></i>选择
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
         
         tableBody.innerHTML = rows;
     }
@@ -626,12 +636,15 @@ console.log("🚀 通用模态框管理器启动");
 
     // 选择客户函数 - 全局函数，供HTML onclick调用
     window.selectCustomer = function(customerId, customerName, customerNumber, phoneNumber, email, address) {
-        console.log('🎯 选择客户:', { customerId, customerName, customerNumber, phoneNumber, email, address });
+        console.log('🔧 选择客户:', { customerId, customerName, customerNumber, phoneNumber, email, address });
         
         // 填充隐藏的客户ID字段
         const customerIdField = document.getElementById('selectedCustomerId');
         if (customerIdField) {
             customerIdField.value = customerId;
+            console.log('✅ 已设置客户ID:', customerId);
+        } else {
+            console.error('❌ 找不到selectedCustomerId元素');
         }
         
         // 更新客户信息显示
@@ -644,6 +657,9 @@ console.log("🚀 通用模态框管理器启动");
                 </span>
             `;
             placeholderDiv.classList.remove('is-invalid-placeholder');
+            console.log('✅ 已更新客户信息显示');
+        } else {
+            console.error('❌ 找不到selectedCustomerInfoPlaceholder元素');
         }
         
         // 更新详细信息卡片
@@ -654,28 +670,62 @@ console.log("🚀 通用模态框管理器启动");
         const emailText = document.getElementById('selectedCustomerEmailText');
         const addressText = document.getElementById('selectedCustomerAddressText');
         
-        if (nameText) nameText.textContent = customerName || '';
-        if (numberText) numberText.textContent = customerNumber || '';
-        if (phoneText) phoneText.textContent = phoneNumber || '';
-        if (emailText) emailText.textContent = email || '';
-        if (addressText) addressText.textContent = address || '';
+        if (nameText) {
+            nameText.textContent = customerName || '';
+            console.log('✅ 已设置客户名称:', customerName);
+        } else {
+            console.error('❌ 找不到selectedCustomerNameText元素');
+        }
+        
+        if (numberText) {
+            numberText.textContent = customerNumber || '';
+            console.log('✅ 已设置客户编号:', customerNumber);
+        } else {
+            console.error('❌ 找不到selectedCustomerNumberText元素');
+        }
+        
+        if (phoneText) {
+            phoneText.textContent = phoneNumber || '';
+            console.log('✅ 已设置客户电话:', phoneNumber);
+        } else {
+            console.error('❌ 找不到selectedCustomerPhoneText元素');
+        }
+        
+        if (emailText) {
+            emailText.textContent = email || '';
+            console.log('✅ 已设置客户邮箱:', email);
+        } else {
+            console.error('❌ 找不到selectedCustomerEmailText元素');
+        }
+        
+        if (addressText) {
+            addressText.textContent = address || '';
+            console.log('✅ 已设置客户地址:', address);
+        } else {
+            console.error('❌ 找不到selectedCustomerAddressText元素');
+        }
         
         if (detailsCard) {
             detailsCard.style.display = 'block';
+            console.log('✅ 已显示客户详细信息卡片');
+        } else {
+            console.error('❌ 找不到selectedCustomerDetailsCard元素');
         }
         
         // 清除验证错误
         const feedback = document.getElementById('selectedCustomerIdClientFeedback');
         if (feedback) {
             feedback.style.display = 'none';
+            console.log('✅ 已清除验证错误');
         }
         
         // 关闭模态框
         const modal = document.getElementById('customerSelectModal');
         if (modal) {
             hideModal(modal);
-            console.log('✅ 客户选择完成，模态框已关闭');
         }
+        
+        console.log('✅ 客户选择完成');
     };
     
     function renderCustomerPagination(pageData) {
