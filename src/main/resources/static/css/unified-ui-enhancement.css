@@ -453,35 +453,10 @@ h2 {
 }
 
 /* ==========================================================================
-   导航栏样式
+   导航栏样式现在统一由 layout.html 管理
    ========================================================================== */
 
-.navbar {
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)) !important;
-    box-shadow: var(--shadow-medium);
-    padding: 0.8rem 0;
-    border: none;
-}
-
-.navbar .brand {
-    font-weight: 700;
-    font-size: 1.4rem;
-}
-
-.navbar .user-info {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.navbar a {
-    color: white !important;
-    text-decoration: none;
-    transition: var(--transition);
-}
-
-.navbar a:hover {
-    color: rgba(255, 255, 255, 0.8) !important;
-    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
-}
+/* 导航栏样式已移至 layout.html，避免样式冲突 */
 
 /* ==========================================================================
    表格样式
@@ -731,13 +706,7 @@ h2 {
         margin-bottom: 0.5rem;
     }
 
-    .navbar {
-        padding: 0.5rem 0;
-    }
-
-    .navbar .brand {
-        font-size: 1.2rem;
-    }
+    /* 导航栏响应式样式现在由 layout.html 管理 */
 }
 
 /* ==========================================================================

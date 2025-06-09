@@ -23,41 +23,10 @@
 }
 
 /* ================================
-   导航栏美化 - 统一风格
+   导航栏样式现在统一由 layout.html 管理
    ================================ */
 
-/* 针对会签、审批、签订页面的导航栏 */
-.navbar {
-    background: var(--workflow-primary) !important;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3) !important;
-    height: 70px !important;
-    padding: 15px 20px !important;
-}
-
-.navbar .brand {
-    font-weight: 700 !important;
-    color: white !important;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.navbar .user-info {
-    color: rgba(255, 255, 255, 0.9) !important;
-}
-
-.navbar .user-info a {
-    color: rgba(255, 255, 255, 0.9) !important;
-    padding: 8px 16px;
-    border-radius: 8px;
-    transition: var(--workflow-transition);
-    background: rgba(255, 255, 255, 0.1);
-    margin-left: 10px !important;
-    text-decoration: none;
-}
-
-.navbar .user-info a:hover {
-    color: white !important;
-    background: rgba(255, 255, 255, 0.2);
-}
+/* 导航栏样式已移至 layout.html，避免样式冲突 */
 
 /* ================================
    页面容器美化
@@ -504,20 +473,7 @@ textarea:focus {
         border-radius: 8px !important;
     }
     
-    .navbar {
-        padding: 10px 15px !important;
-        height: auto !important;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .navbar .brand {
-        font-size: 1.2rem !important;
-    }
-    
-    .navbar .user-info {
-        font-size: 0.85rem !important;
-    }
+    /* 导航栏响应式样式现在由 layout.html 管理 */
     
     h1 {
         font-size: 1.8rem !important;
@@ -557,9 +513,7 @@ textarea:focus {
    ================================ */
 
 @media print {
-    .navbar {
-        display: none !important;
-    }
+    /* 导航栏样式现在由 layout.html 管理 */
     
     .container {
         margin: 0 !important;

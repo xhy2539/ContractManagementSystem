@@ -407,6 +407,100 @@ console.log("🚀 通用模态框管理器启动");
                 loadCustomerData(page, window.customerSelectGlobals.customerSearchKeyword);
             }
         });
+
+        // 添加客户表单提交处理
+        const addCustomerForm = document.getElementById('addCustomerFormInModal_draft');
+        if (addCustomerForm) {
+            addCustomerForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // 阻止默认提交
+                console.log('🚀 处理客户添加表单提交');
+                
+                // 收集表单数据
+                const formData = new FormData(this);
+                
+                // 显示加载状态
+                const submitBtn = this.querySelector('#saveNewCustomerBtn_draft');
+                const originalBtnText = submitBtn.innerHTML;
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="spinner-border spinner-border-sm me-1"></i>保存中...';
+                }
+                
+                // 发送到正确的API端点
+                fetch('/customers/api/add', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    console.log('📡 添加客户响应状态:', response.status);
+                    if (!response.ok) {
+                        return response.json().then(errorData => {
+                            throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('✅ 客户添加成功:', data);
+                    
+                    // 重置表单
+                    addCustomerForm.reset();
+                    addCustomerForm.classList.remove('was-validated');
+                    
+                    // 关闭添加客户模态框
+                    const addCustomerModal = document.getElementById('addCustomerFormModal');
+                    hideModal(addCustomerModal);
+                    
+                    // 重新打开客户选择模态框并刷新数据
+                    setTimeout(() => {
+                        loadCustomerData(0, ''); // 刷新客户列表
+                        showModal(customerSelectModal);
+                        
+                        // 显示成功消息
+                        const alertContainer = customerSelectModal.querySelector('.modal-body');
+                        if (alertContainer) {
+                            const successAlert = document.createElement('div');
+                            successAlert.className = 'alert alert-success alert-dismissible fade show';
+                            successAlert.innerHTML = `
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                客户"${data.customerName}"添加成功！
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            `;
+                            alertContainer.insertBefore(successAlert, alertContainer.firstChild);
+                            
+                            // 3秒后自动关闭提示
+                            setTimeout(() => {
+                                if (successAlert.parentNode) {
+                                    successAlert.remove();
+                                }
+                            }, 3000);
+                        }
+                    }, 300);
+                })
+                .catch(error => {
+                    console.error('❌ 添加客户失败:', error);
+                    
+                    // 显示错误消息
+                    const alertContainer = addCustomerForm.querySelector('#addCustomerModalAlertPlaceholder_draft');
+                    if (alertContainer) {
+                        alertContainer.innerHTML = `
+                            <div class="alert alert-danger alert-dismissible fade show">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                添加客户失败: ${error.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        `;
+                    }
+                })
+                .finally(() => {
+                    // 恢复按钮状态
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                    }
+                });
+            });
+        }
     }
     
     function openCustomerSelectModal() {
@@ -427,10 +521,19 @@ console.log("🚀 通用模态框管理器启动");
     }
     
     function loadCustomerData(page, keyword) {
-        const url = `/baseData/customers/search?page=${page}&size=${window.customerSelectGlobals.CUSTOMER_PAGE_SIZE}&keyword=${encodeURIComponent(keyword || '')}`;
+        // 修复API路径，使用正确的后端端点
+        const url = `/customers/api/search?page=${page}&size=${window.customerSelectGlobals.CUSTOMER_PAGE_SIZE}&keyword=${encodeURIComponent(keyword || '')}`;
+        
+        console.log('🌐 请求客户数据 URL:', url);
         
         fetch(url)
-            .then(response => response.json())
+            .then(response => {
+                console.log('📡 响应状态:', response.status, response.statusText);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 console.log('✅ 客户数据加载成功:', data);
                 renderCustomerTable(data.content);
@@ -440,7 +543,10 @@ console.log("🚀 通用模态框管理器启动");
                 console.error('❌ 加载客户数据失败:', error);
                 const tableBody = document.querySelector('#customerSelectTableBody');
                 if (tableBody) {
-                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">加载客户数据失败</td></tr>';
+                    tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">
+                        加载客户数据失败: ${error.message}
+                        <br><small class="text-muted">请检查网络连接或联系管理员</small>
+                    </td></tr>`;
                 }
             });
     }

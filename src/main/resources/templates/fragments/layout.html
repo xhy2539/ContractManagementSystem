@@ -5,73 +5,105 @@
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title layout:title-pattern="$CONTENT_TITLE - $LAYOUT_TITLE">合同管理系统</title>
-
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/>
-    <!-- 性能优化的CSS文件 -->
     <link rel="stylesheet" type="text/css" th:href="@{/css/app-optimized.css}"/>
-    <!-- UI风格统一增强CSS (不影响现有功能) -->
     <link rel="stylesheet" type="text/css" th:href="@{/css/ui-enhancement.css}"/>
 
     <style>
-        html, body {
-            height: 100%;
+        /* 这里放置所有全局和导航栏的样式，以确保统一性和优先级 */
+        /* 您可以根据需要调整这些颜色和样式 */
+        :root {
+            --global-navbar-bg: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); /* 动态紫色渐变 */
+            --global-navbar-bg-hover: linear-gradient(135deg, #764ba2 0%, #667eea 50%, #f093fb 100%); /* 悬停时的渐变 */
+            --global-navbar-link-color: rgba(255, 255, 255, 0.95);
+            --global-navbar-link-hover-color: #ffffff;
+            --global-dropdown-bg: rgba(255, 255, 255, 0.98);
+            --global-dropdown-item-color: #4a4a4a;
+            --global-dropdown-item-hover-bg: linear-gradient(135deg, #667eea, #764ba2);
+            --global-dropdown-item-hover-color: white;
+            --global-accent-purple: #8b5cf6;
+            --global-accent-pink: #ec4899;
         }
-        
-        body {
-            display: flex;
-            flex-direction: column;
-            padding-top: 70px; /* 增加导航栏高度 */
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            color: #212529;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        /* 现代化导航栏 */
+
         .navbar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3) !important;
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            height: 70px;
-            transition: all 0.3s ease;
+            background: var(--global-navbar-bg) !important;
+            background-size: 200% 200% !important;
+            animation: gradientShift 8s ease infinite !important;
+            box-shadow: 
+                0 8px 32px rgba(102, 126, 234, 0.3),
+                0 4px 16px rgba(118, 75, 162, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(15px) saturate(180%) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+            height: 70px !important;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            padding: 15px 20px !important;
+            border: none !important;
+            position: relative !important;
         }
-        
+
+        /* 动态渐变动画 */
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 导航栏悬停效果 */
+        .navbar:hover {
+            box-shadow: 
+                0 12px 40px rgba(102, 126, 234, 0.4),
+                0 6px 20px rgba(118, 75, 162, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+            transform: translateY(-1px) !important;
+        }
+
         .navbar-brand {
-            font-weight: 700;
-            font-size: 1.4rem;
-            color: white !important;
-            display: flex;
-            align-items: center;
-            transition: all 0.3s ease;
+            font-weight: 700 !important;
+            font-size: 1.4rem !important;
+            color: var(--global-navbar-link-hover-color) !important;
+            display: flex !important;
+            align-items: center !important;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            text-decoration: none !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            position: relative !important;
         }
-        
+
         .navbar-brand:hover {
-            transform: scale(1.05);
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            transform: scale(1.08) translateY(-2px) !important;
+            text-shadow: 
+                0 0 30px rgba(255, 255, 255, 0.8),
+                0 0 60px rgba(240, 147, 251, 0.6),
+                0 4px 8px rgba(0, 0, 0, 0.2) !important;
+            color: var(--global-navbar-link-hover-color) !important;
+            filter: brightness(1.1) !important;
         }
-        
+
         .navbar-brand i {
             margin-right: 0.75rem;
             font-size: 1.5rem;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        
+
         .nav-link {
             font-size: 1rem;
             font-weight: 500;
-            color: rgba(255, 255, 255, 0.9) !important;
-            transition: all 0.3s ease;
-            border-radius: 8px;
+            color: var(--global-navbar-link-color) !important;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 12px;
             margin: 0 0.25rem;
-            padding: 0.5rem 1rem !important;
+            padding: 0.6rem 1.2rem !important;
             position: relative;
             overflow: hidden;
+            backdrop-filter: blur(5px);
         }
-        
+
         .nav-link::before {
             content: '';
             position: absolute;
@@ -79,75 +111,127 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s ease;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.3), 
+                rgba(240, 147, 251, 0.2), 
+                transparent);
+            transition: left 0.6s ease;
         }
-        
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--global-accent-purple), var(--global-accent-pink));
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
         .nav-link:hover::before {
             left: 100%;
         }
-        
-        .nav-link:hover {
-            color: white !important;
-            background-color: rgba(255, 255, 255, 0.1);
-            transform: translateY(-1px);
+
+        .nav-link:hover::after {
+            width: 80%;
         }
-        
+
+        .nav-link:hover {
+            color: var(--global-navbar-link-hover-color) !important;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.15), 
+                rgba(240, 147, 251, 0.1)) !important;
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
         .nav-link.active {
             background-color: rgba(255, 255, 255, 0.2) !important;
-            color: white !important;
+            color: var(--global-navbar-link-hover-color) !important;
             font-weight: 600;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         .nav-link i {
             margin-right: 0.5rem;
             font-size: 1.1rem;
+            color: inherit; /* 让图标颜色继承父元素 */
         }
-        
+
         /* 下拉菜单优化 */
         .dropdown-menu {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            padding: 0.5rem;
-            margin-top: 0.5rem;
-            animation: dropdownSlide 0.3s ease;
+            background: var(--global-dropdown-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 16px;
+            box-shadow: 
+                0 20px 40px rgba(102, 126, 234, 0.25),
+                0 10px 25px rgba(118, 75, 162, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            margin-top: 12px;
+            animation: dropdownSlide 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
         }
-        
-        @keyframes dropdownSlide {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+
+        .dropdown-menu::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 20px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid rgba(139, 92, 246, 0.8);
+            filter: drop-shadow(0 -2px 4px rgba(0, 0, 0, 0.1));
         }
-        
+
         .dropdown-item {
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 0.75rem 1rem;
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             font-weight: 500;
-            color: #495057;
+            color: var(--global-dropdown-item-color);
+            position: relative;
+            overflow: hidden;
         }
-        
+
+        .dropdown-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(139, 92, 246, 0.1), 
+                rgba(236, 72, 153, 0.1), 
+                transparent);
+            transition: left 0.5s ease;
+        }
+
+        .dropdown-item:hover::before {
+            left: 100%;
+        }
+
         .dropdown-item:hover {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            transform: translateX(5px);
+            background: var(--global-dropdown-item-hover-bg);
+            color: var(--global-dropdown-item-hover-color);
+            transform: translateX(8px) scale(1.02);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
         }
-        
+
         .dropdown-item i {
             margin-right: 0.75rem;
             width: 16px;
             color: inherit;
         }
-        
+
         /* 主内容区域 */
         main.content-wrapper {
             flex: 1 0 auto;
@@ -155,21 +239,21 @@
             padding-bottom: 2rem;
             position: relative;
         }
-        
+
         .main-container {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
             padding: 2.5rem;
             border-radius: 20px;
-            box-shadow: 
-                0 20px 40px rgba(0, 0, 0, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            box-shadow:
+                    0 20px 40px rgba(0, 0, 0, 0.1),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.2);
             min-height: calc(100vh - 70px - 100px - 4rem);
             position: relative;
             animation: fadeInScale 0.6s ease-out;
         }
-        
+
         @keyframes fadeInScale {
             from {
                 opacity: 0;
@@ -180,69 +264,69 @@
                 transform: scale(1) translateY(0);
             }
         }
-        
+
         /* 页脚优化 */
         .footer {
             flex-shrink: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--global-navbar-bg); /* 页脚使用与导航栏相同的背景 */
             color: white;
             padding: 1.5rem 0;
             font-size: 0.9rem;
-            box-shadow: 0 -4px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
             backdrop-filter: blur(10px);
         }
-        
+
         .footer span {
             opacity: 0.9;
         }
-        
+
         /* 用户下拉菜单 */
         .navbar-nav .dropdown-toggle::after {
             display: none;
         }
-        
+
         .navbar-nav .dropdown-toggle {
             display: flex;
             align-items: center;
         }
-        
+
         .navbar-nav .dropdown-toggle i {
             font-size: 1.3rem;
             margin-right: 0.5rem;
         }
-        
+
         /* 响应式优化 */
         @media (max-width: 768px) {
             body {
                 padding-top: 60px;
             }
-            
+
             .navbar {
                 height: 60px;
             }
-            
+
             .navbar-brand {
                 font-size: 1.2rem;
             }
-            
+
             .main-container {
                 padding: 1.5rem;
                 border-radius: 15px;
             }
-            
+
             .nav-link {
                 padding: 0.75rem 1rem !important;
             }
         }
-        
-        /* 加载动画 */
+
+        /* 页面加载动画 */
         .page-loader {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--global-navbar-bg);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -251,12 +335,12 @@
             pointer-events: none;
             transition: opacity 0.3s ease;
         }
-        
+
         .page-loader.active {
             opacity: 1;
             pointer-events: all;
         }
-        
+
         .loader-spinner {
             width: 60px;
             height: 60px;
@@ -265,251 +349,309 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-        
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
+
         /* 滚动条优化 */
         ::-webkit-scrollbar {
-            width: 8px;
+            width: 10px;
         }
-        
+
         ::-webkit-scrollbar-track {
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
+            border-radius: 5px;
         }
-        
+
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 4px;
+            background: linear-gradient(135deg, var(--global-accent-purple), var(--global-accent-pink));
+            border-radius: 5px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
         }
-        
+
         ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #5a6fd8, #6a42a0);
+            background: linear-gradient(135deg, #7c3aed, #db2777);
+            box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
         }
-        
+
         /* 工具提示优化 */
         .tooltip {
             font-size: 0.875rem;
         }
-        
+
         .tooltip-inner {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: var(--global-navbar-bg);
             border-radius: 8px;
             padding: 0.5rem 0.75rem;
         }
-        
+
         /* 焦点优化 */
         *:focus {
-            outline: 2px solid rgba(102, 126, 234, 0.5);
+            outline: 2px solid rgba(139, 92, 246, 0.6); /* 匹配新的紫色主题 */
             outline-offset: 2px;
+            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
         }
-        
+
         /* 按钮悬停效果 */
         .btn {
             transition: all 0.3s ease;
             border-radius: 10px;
             font-weight: 500;
         }
-        
+
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
+
+        /* ==========================================================================
+           白框问题修复 - 确保导航栏显示正常
+           ========================================================================== */
+        
+        /* 防止任何元素遮盖导航栏 */
+        body {
+            padding-top: 70px !important; /* 给导航栏留出空间 */
+        }
+        
+        /* 确保导航栏始终在最顶层 */
+        .navbar.fixed-top {
+            z-index: 1030 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+        }
+        
+        /* 防止下拉菜单被其他元素遮盖 */
+        .navbar .dropdown-menu {
+            z-index: 1040 !important;
+        }
+        
+        /* 确保主内容区域不会覆盖导航栏 */
+        main.content-wrapper {
+            margin-top: 0 !important;
+            padding-top: 2rem !important;
+        }
+        
+        /* 防止页面容器遮盖导航栏 */
+        .container,
+        .container-fluid {
+            margin-top: 0 !important;
+        }
+        
+        /* 移除其他CSS文件中的 .navbar 样式，避免冲突 */
     </style>
     <th:block layout:fragment="css-links"></th:block>
     <style layout:fragment="inline-css"></style>
 </head>
 <body>
-    <!-- 页面加载器 -->
-    <div class="page-loader" id="pageLoader">
-        <div class="loader-spinner"></div>
+<nav class="navbar navbar-expand-md navbar-dark fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" th:href="@{/dashboard}">
+            <i class="bi bi-briefcase-fill"></i>合同管理系统
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                <li class="nav-item">
+                    <a class="nav-link"
+                       th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/dashboard')) ? 'active' : ''}"
+                       aria-current="page" th:href="@{/dashboard}">
+                        <i class="bi bi-house-door-fill"></i> 仪表盘
+                    </a>
+                </li>
+                <li class="nav-item" sec:authorize="hasAnyRole('ADMIN', 'CONTRACT_OPERATOR')">
+                    <a class="nav-link"
+                       th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/contract-analysis')) ? 'active' : ''}"
+                       th:href="@{/contract-analysis}">
+                        <i class="bi bi-cpu-fill"></i> 智能分析
+                    </a>
+                </li>
+                <li class="nav-item dropdown" sec:authorize="hasRole('ROLE_ADMIN')">
+                    <a class="nav-link dropdown-toggle" href="#" id="adminMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-gear-fill"></i> 系统管理
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="adminMenuDropdown">
+                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/users')) ? 'active' : ''}" th:href="@{/admin/users}"><i class="bi bi-people-fill"></i> 用户管理</a></li>
+                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/roles')) ? 'active' : ''}" th:href="@{/admin/roles}"><i class="bi bi-shield-lock-fill"></i> 角色管理</a></li>
+                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/functionalities')) ? 'active' : ''}" th:href="@{/admin/functionalities}"><i class="bi bi-gear-wide-connected"></i> 功能管理</a></li>
+                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/templates')) ? 'active' : ''}" th:href="@{/admin/templates}"><i class="bi bi-file-earmark-text-fill"></i> 模板管理</a></li>
+                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/contract-assignments')) ? 'active' : ''}" th:href="@{/admin/contract-assignments}"><i class="bi bi-person-lines-fill"></i> 合同分配</a></li>
+                        <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/audit-logs')) ? 'active' : ''}" th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i> 审计日志</a></li>
+                        <li sec:authorize="hasAuthority('CON_EXTEND_APPROVAL_VIEW')">
+                            <a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/approve-extension-request')) ? 'active' : ''}" th:href="@{/admin/approve-extension-request}"><i class="bi bi-calendar-plus-fill"></i> 延期请求审批</a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+
+            <ul class="navbar-nav ms-auto mb-2 mb-md-0" sec:authorize="isAuthenticated()">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle"></i> <span sec:authentication="name">User</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                        <li><a class="dropdown-item" th:href="@{/profile}"><i class="bi bi-person-gear"></i>个人设置</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form th:action="@{/perform_logout}" method="post" class="d-inline">
+                                <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right"></i>注销</button>
+                            </form>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+
+            <ul class="navbar-nav" sec:authorize="!isAuthenticated()">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/login}"><i class="bi bi-box-arrow-in-right"></i> 登录</a>
+                </li>
+            </ul>
+        </div>
     </div>
+</nav>
 
-    <nav class="navbar navbar-expand-md navbar-dark fixed-top">
-        <div class="container-fluid">
-            <a class="navbar-brand" th:href="@{/dashboard}">
-                <i class="bi bi-briefcase-fill"></i>合同管理系统
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarCollapse">
-                <ul class="navbar-nav me-auto mb-2 mb-md-0">
-                    <li class="nav-item">
-                        <a class="nav-link"
-                           th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/dashboard')) ? 'active' : ''}"
-                           aria-current="page" th:href="@{/dashboard}">
-                           <i class="bi bi-house-door-fill"></i> 仪表盘
-                        </a>
-                    </li>
-                    <li class="nav-item" sec:authorize="hasAnyRole('ADMIN', 'CONTRACT_OPERATOR')">
-                        <a class="nav-link"
-                           th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/contract-analysis')) ? 'active' : ''}"
-                           th:href="@{/contract-analysis}">
-                           <i class="bi bi-cpu-fill"></i> 智能分析
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown" sec:authorize="hasRole('ROLE_ADMIN')">
-                        <a class="nav-link dropdown-toggle" href="#" id="adminMenuDropdown" role="button" aria-expanded="false">
-                            <i class="bi bi-gear-fill"></i> 系统管理
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="adminMenuDropdown">
-                            <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/users')) ? 'active' : ''}" th:href="@{/admin/users}"><i class="bi bi-people-fill"></i> 用户管理</a></li>
-                            <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/roles')) ? 'active' : ''}" th:href="@{/admin/roles}"><i class="bi bi-shield-lock-fill"></i> 角色管理</a></li>
-                            <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/functionalities')) ? 'active' : ''}" th:href="@{/admin/functionalities}"><i class="bi bi-gear-wide-connected"></i> 功能管理</a></li>
-                            <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/templates')) ? 'active' : ''}" th:href="@{/admin/templates}"><i class="bi bi-file-earmark-text-fill"></i> 模板管理</a></li>
-                            <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/contract-assignments')) ? 'active' : ''}" th:href="@{/admin/contract-assignments}"><i class="bi bi-person-lines-fill"></i> 合同分配</a></li>
-                            <li><a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/audit-logs')) ? 'active' : ''}" th:href="@{/admin/audit-logs}"><i class="bi bi-journals"></i> 审计日志</a></li>
-                            <li sec:authorize="hasAuthority('CON_EXTEND_APPROVAL_VIEW')">
-                                <a class="dropdown-item" th:classappend="${(#httpServletRequest != null && #httpServletRequest.requestURI != null && #strings.startsWith(#httpServletRequest.requestURI, #request.getContextPath() + '/admin/approve-extension-request')) ? 'active' : ''}" th:href="@{/admin/approve-extension-request}"><i class="bi bi-calendar-plus-fill"></i> 延期请求审批</a>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
-
-                <ul class="navbar-nav ms-auto mb-2 mb-md-0" sec:authorize="isAuthenticated()">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" aria-expanded="false">
-                            <i class="bi bi-person-circle"></i> <span sec:authentication="name">User</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" th:href="@{/profile}"><i class="bi bi-person-gear"></i>个人设置</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <form th:action="@{/perform_logout}" method="post" class="d-inline">
-                                    <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right"></i>注销</button>
-                                </form>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
-
-                <ul class="navbar-nav" sec:authorize="!isAuthenticated()">
-                    <li class="nav-item">
-                        <a class="nav-link" th:href="@{/login}"><i class="bi bi-box-arrow-in-right"></i> 登录</a>
-                    </li>
-                </ul>
-            </div>
+<main role="main" class="content-wrapper">
+    <div class="container main-container">
+        <div layout:fragment="content">
+            <h2>欢迎来到合同管理系统</h2>
+            <p>请从导航栏选择一个功能模块开始操作。</p>
         </div>
-    </nav>
+    </div>
+</main>
 
-    <main role="main" class="content-wrapper">
-        <div class="container main-container">
-            <div layout:fragment="content">
-                <h2>欢迎来到合同管理系统</h2>
-                <p>请从导航栏选择一个功能模块开始操作。</p>
-            </div>
-        </div>
-    </main>
+<footer class="footer">
+    <div class="container text-center">
+        <span>&copy; <span th:text="${#dates.year(#dates.createNow())}">2025</span> 合同管理系统. 版权所有.</span>
+    </div>
+</footer>
 
-    <footer class="footer">
-        <div class="container text-center">
-            <span>&copy; <span th:text="${#dates.year(#dates.createNow())}">2025</span> 合同管理系统. 版权所有.</span>
-        </div>
-    </footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-    
-    <!-- 通用模态框管理器 - 必须在其他功能脚本之前加载 -->
-    <script th:src="@{/js/simple-admin-modal-fix.js}"></script>
-    
-    <!-- 性能优化工具函数 -->
-    <script th:src="@{/js/performance-utils.js}"></script>
-    
-    <!-- 通用工具函数 -->
-    <script th:src="@{/js/utils.js}"></script>
+<script th:src="@{/js/simple-admin-modal-fix.js}"></script>
 
-    <th:block layout:fragment="scripts"></th:block>
+<script th:src="@{/js/performance-utils.js}"></script>
 
-    <script>
-        // 页面加载动画
-        document.addEventListener('DOMContentLoaded', function() {
-            const loader = document.getElementById('pageLoader');
-            if (loader) {
-                setTimeout(() => {
-                    loader.classList.remove('active');
-                }, 300);
-            }
+<script th:src="@{/js/utils.js}"></script>
 
-            // Bootstrap 组件初始化
-            if (typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined' && typeof bootstrap.Dropdown !== 'undefined') {
-                console.log('Bootstrap 5 JS 成功加载并可用。');
+<th:block layout:fragment="scripts"></th:block>
 
-                // 初始化下拉菜单
-                setTimeout(function() {
-                    const dropdownToggleElements = document.querySelectorAll('.nav-link.dropdown-toggle');
+<script>
+    // 页面加载动画
+    document.addEventListener('DOMContentLoaded', function() {
+        const loader = document.getElementById('pageLoader');
+        if (loader) {
+            setTimeout(() => {
+                loader.classList.remove('active');
+            }, 300);
+        }
 
-                    dropdownToggleElements.forEach(function (dropdownToggleEl) {
-                        try {
-                            if (dropdownToggleEl && !bootstrap.Dropdown.getInstance(dropdownToggleEl)) {
+        // Bootstrap 组件初始化
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined' && typeof bootstrap.Dropdown !== 'undefined') {
+            console.log('Bootstrap 5 JS 成功加载并可用。');
+
+            // 初始化下拉菜单（改进版）
+            setTimeout(function() {
+                const dropdownToggleElements = document.querySelectorAll('.nav-link.dropdown-toggle');
+                console.log('🔍 发现下拉菜单元素数量:', dropdownToggleElements.length);
+
+                dropdownToggleElements.forEach(function (dropdownToggleEl) {
+                    try {
+                        if (dropdownToggleEl && dropdownToggleEl.id) {
+                            // 检查是否已经初始化过
+                            const existingInstance = bootstrap.Dropdown.getInstance(dropdownToggleEl);
+                            
+                            if (!existingInstance) {
+                                // 使用Bootstrap默认初始化，不手动处理点击事件
                                 const dropdown = new bootstrap.Dropdown(dropdownToggleEl);
-                                console.log('手动初始化 Bootstrap Dropdown:', dropdownToggleEl.id || dropdownToggleEl.className);
-
-                                dropdownToggleEl.addEventListener('click', function(event) {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    dropdown.toggle();
-                                    console.log('Dropdown toggle attempted for:', this.id || this.className, 'Expanded:', this.getAttribute('aria-expanded'));
-                                });
+                                dropdownToggleEl.setAttribute('data-bs-dropdown-initialized', 'true');
+                                console.log('✅ 成功初始化 Bootstrap Dropdown:', dropdownToggleEl.id);
+                            } else {
+                                dropdownToggleEl.setAttribute('data-bs-dropdown-initialized', 'true');
+                                console.log('ℹ️ Dropdown已存在:', dropdownToggleEl.id);
                             }
+                        }
+                    } catch (e) {
+                        console.error('❌ 初始化下拉菜单失败:', dropdownToggleEl.id || 'unknown', e);
+                    }
+                });
+            }, 200);
+
+            // 备用初始化方法 - 如果上面的方法失败，等待更长时间再试
+            setTimeout(function() {
+                const problematicDropdowns = document.querySelectorAll('.nav-link.dropdown-toggle:not([data-bs-dropdown-initialized])');
+                if (problematicDropdowns.length > 0) {
+                    console.log('🔄 执行备用初始化，处理剩余下拉菜单:', problematicDropdowns.length);
+                    
+                    problematicDropdowns.forEach(function(el) {
+                        try {
+                            new bootstrap.Dropdown(el);
+                            el.setAttribute('data-bs-dropdown-initialized', 'true');
+                            console.log('🆘 备用初始化成功:', el.id);
                         } catch (e) {
-                            console.error('初始化下拉菜单失败:', dropdownToggleEl.id || dropdownToggleEl.className, e);
+                            console.error('🚨 备用初始化也失败:', el.id, e);
                         }
                     });
-                }, 200);
+                }
+            }, 1000);
 
-            } else {
-                console.error('错误: Bootstrap 5 JS 未加载或不可用。下拉菜单和其他组件可能无法工作。');
-                console.trace();
-            }
+        } else {
+            console.error('❌ 错误: Bootstrap 5 JS 未加载或不可用。下拉菜单和其他组件可能无法工作。');
+            console.trace();
+        }
 
-            // 平滑滚动
-            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', function (e) {
+        // 平滑滚动（修复空选择器问题）
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                const href = this.getAttribute('href');
+                // 检查href是否有效（不只是"#"）
+                if (href && href.length > 1 && href !== '#') {
                     e.preventDefault();
-                    const target = document.querySelector(this.getAttribute('href'));
+                    const target = document.querySelector(href);
                     if (target) {
                         target.scrollIntoView({
                             behavior: 'smooth',
                             block: 'start'
                         });
                     }
-                });
-            });
-
-            // 工具提示初始化
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
+                }
             });
         });
 
-        // 页面切换动画
-        window.addEventListener('beforeunload', function() {
-            const loader = document.getElementById('pageLoader');
-            if (loader) {
-                loader.classList.add('active');
-            }
+        // 工具提示初始化
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
+    });
 
-        // 导航栏滚动效果
-        let lastScrollTop = 0;
-        window.addEventListener('scroll', function() {
-            let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            const navbar = document.querySelector('.navbar');
-            
-            if (scrollTop > lastScrollTop && scrollTop > 100) {
-                // 向下滚动
-                navbar.style.transform = 'translateY(-100%)';
-            } else {
-                // 向上滚动
-                navbar.style.transform = 'translateY(0)';
-            }
-            lastScrollTop = scrollTop;
-        });
-    </script>
+    // 页面切换动画
+    window.addEventListener('beforeunload', function() {
+        const loader = document.getElementById('pageLoader');
+        if (loader) {
+            loader.classList.add('active');
+        }
+    });
 
+    // 导航栏滚动效果
+    let lastScrollTop = 0;
+    window.addEventListener('scroll', function() {
+        let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const navbar = document.querySelector('.navbar');
+
+        if (scrollTop > lastScrollTop && scrollTop > 100) {
+            // 向下滚动
+            navbar.style.transform = 'translateY(-100%)';
+        } else {
+            // 向上滚动
+            navbar.style.transform = 'translateY(0)';
+        }
+        lastScrollTop = scrollTop;
+    });
+</script>
 </body>
 </html>

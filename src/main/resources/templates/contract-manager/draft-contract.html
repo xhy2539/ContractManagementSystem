@@ -386,7 +386,7 @@
     <div class="modal fade" id="addCustomerFormModal" tabindex="-1" aria-labelledby="addCustomerFormModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <form id="addCustomerFormInModal_draft" class="needs-validation" novalidate>
+                <form id="addCustomerFormInModal_draft" th:action="@{/customers/api/add}" method="post" class="needs-validation" novalidate>
                     <div class="modal-header bg-success text-white">
                         <h5 class="modal-title" id="addCustomerFormModalLabel"><i class="bi bi-person-plus-fill me-2"></i>快速添加新客户</h5>
                         <button type="button" class="btn-close btn-close-white" aria-label="Close"></button>
