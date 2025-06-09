@@ -313,3 +313,144 @@ function validateForm(formElement) {
 
     return isValid;
 }
+
+/**
+ * 显示Bootstrap模态框
+ * @param {string} modalId - 模态框的ID
+ */
+function showModal(modalId) {
+    const modalElement = document.getElementById(modalId);
+    if (!modalElement) {
+        console.error(`模态框 ${modalId} 不存在`);
+        return;
+    }
+
+    try {
+        // 使用Bootstrap的Modal API
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            modal.show();
+            console.log(`✅ 模态框 ${modalId} 显示成功`);
+        } else {
+            // 备用方案：直接操作CSS
+            modalElement.style.display = 'block';
+            modalElement.classList.add('show');
+            modalElement.setAttribute('aria-hidden', 'false');
+            
+            // 添加背景遮罩
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            backdrop.id = `${modalId}-backdrop`;
+            document.body.appendChild(backdrop);
+            
+            console.log(`⚠️ Bootstrap不可用，使用备用方案显示模态框 ${modalId}`);
+        }
+    } catch (error) {
+        console.error(`显示模态框 ${modalId} 失败:`, error);
+        // 最后的备用方案
+        modalElement.style.display = 'block';
+        modalElement.classList.add('show');
+    }
+}
+
+/**
+ * 隐藏Bootstrap模态框
+ * @param {string} modalId - 模态框的ID
+ */
+function hideModal(modalId) {
+    const modalElement = document.getElementById(modalId);
+    if (!modalElement) {
+        console.error(`模态框 ${modalId} 不存在`);
+        return;
+    }
+
+    try {
+        // 使用Bootstrap的Modal API
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+                console.log(`✅ 模态框 ${modalId} 隐藏成功`);
+            }
+        } else {
+            // 备用方案：直接操作CSS
+            modalElement.style.display = 'none';
+            modalElement.classList.remove('show');
+            modalElement.setAttribute('aria-hidden', 'true');
+            
+            // 移除背景遮罩
+            const backdrop = document.getElementById(`${modalId}-backdrop`);
+            if (backdrop) {
+                backdrop.remove();
+            }
+            
+            console.log(`⚠️ Bootstrap不可用，使用备用方案隐藏模态框 ${modalId}`);
+        }
+    } catch (error) {
+        console.error(`隐藏模态框 ${modalId} 失败:`, error);
+        // 最后的备用方案
+        modalElement.style.display = 'none';
+        modalElement.classList.remove('show');
+    }
+}
+
+/**
+ * 在主页面显示警告信息
+ * @param {string} message - 要显示的消息
+ * @param {string} type - 警告类型 ('success', 'danger', 'warning', 'info')
+ * @param {number} timeout - 自动关闭时间（毫秒），默认5000ms
+ * @param {string} containerId - 容器ID，默认'alertPlaceholder'
+ */
+function showAlertOnMainPage(message, type = 'info', timeout = 5000, containerId = 'alertPlaceholder') {
+    const alertContainer = document.getElementById(containerId);
+    if (!alertContainer) {
+        console.warn(`警告容器 ${containerId} 不存在，使用标准alert`);
+        alert(`${type.toUpperCase()}: ${message}`);
+        return;
+    }
+
+    // 清空现有的警告
+    alertContainer.innerHTML = '';
+
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.innerHTML = `
+        <i class="bi bi-${getIconForType(type)} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+
+    alertContainer.appendChild(alertDiv);
+
+    // 自动关闭
+    if (timeout > 0) {
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.classList.remove('show');
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 150);
+            }
+        }, timeout);
+    }
+
+    console.log(`📢 显示${type}类型警告: ${message}`);
+}
+
+/**
+ * 根据警告类型获取对应的Bootstrap图标
+ * @param {string} type - 警告类型
+ * @returns {string} - 图标类名
+ */
+function getIconForType(type) {
+    const iconMap = {
+        'success': 'check-circle-fill',
+        'danger': 'exclamation-triangle-fill',
+        'warning': 'exclamation-circle-fill',
+        'info': 'info-circle-fill'
+    };
+    return iconMap[type] || 'info-circle-fill';
+}

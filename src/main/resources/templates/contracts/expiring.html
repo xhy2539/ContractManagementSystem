@@ -609,7 +609,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="extensionForm">
+                    <form id="extensionForm" data-auto-reset>
                         <div class="mb-3">
                             <label class="form-label">合同名称</label>
                             <input type="text" class="form-control" id="contractName" readonly>
@@ -663,7 +663,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="renewalForm">
+                    <form id="renewalForm" data-auto-reset>
                         <div class="mb-3">
                             <label class="form-label">原合同名称</label>
                             <input type="text" class="form-control" id="originalContractName" readonly>
@@ -786,9 +786,6 @@
     }
 
     function showExtensionModal(contractId) {
-        // 模拟加载合同数据
-        const modal = new bootstrap.Modal(document.getElementById('extensionModal'));
-        
         // 填充合同信息
         document.getElementById('contractName').value = 'ABC公司软件维护服务合同';
         document.getElementById('currentExpiry').value = '2024-01-15';
@@ -796,13 +793,10 @@
         document.getElementById('extensionReason').value = '';
         document.getElementById('extensionDescription').value = '';
         
-        modal.show();
+        showModal('extensionModal');
     }
 
     function showRenewalModal(contractId) {
-        // 模拟加载合同数据
-        const modal = new bootstrap.Modal(document.getElementById('renewalModal'));
-        
         // 填充合同信息
         document.getElementById('originalContractName').value = 'ABC公司软件维护服务合同';
         document.getElementById('newContractName').value = 'ABC公司软件维护服务合同（续签）';
@@ -810,7 +804,7 @@
         document.getElementById('renewalEndDate').value = '2025-01-15';
         document.getElementById('renewalAmount').value = '500000';
         
-        modal.show();
+        showModal('renewalModal');
     }
 
     function submitExtension() {
@@ -832,7 +826,7 @@
         // 模拟API调用
         setTimeout(() => {
             // 关闭模态框
-            bootstrap.Modal.getInstance(document.getElementById('extensionModal')).hide();
+            hideModal('extensionModal');
             
             // 显示成功消息
             showNotification('延期申请已提交，等待审批', 'success');
@@ -865,7 +859,7 @@
         // 模拟API调用
         setTimeout(() => {
             // 关闭模态框
-            bootstrap.Modal.getInstance(document.getElementById('renewalModal')).hide();
+            hideModal('renewalModal');
             
             // 显示成功消息
             showNotification('续签合同已创建，进入审批流程', 'success');

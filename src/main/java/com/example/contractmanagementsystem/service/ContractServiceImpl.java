@@ -1128,7 +1128,7 @@ public class ContractServiceImpl implements ContractService {
     @Transactional(readOnly = true)
     public List<ContractProcess> getAllContractProcessesByContractAndType(Contract contract, ContractProcessType type) {
         List<ContractProcess> processes = contractProcessRepository.findByContractAndType(contract, type); //
-        processes.forEach(process -> Hibernate.initialize(process.getOperator())); //
+        // 已通过Repository中的JOIN FETCH处理了关联数据，无需手动初始化
         return processes.stream()
                 .sorted(Comparator.comparing(ContractProcess::getProcessedAt, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList()); //
@@ -1558,13 +1558,44 @@ public class ContractServiceImpl implements ContractService {
     public void deleteContract(Long id) {
         // 检查合同是否存在
         Contract contract = contractRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Contract not found with ID: " + id)); //
+                .orElseThrow(() -> new ResourceNotFoundException("Contract not found with ID: " + id));
 
-        // 删除 contractprocess 表中与该合同相关的记录
-        contractProcessRepository.deleteByContract(id); //
+        logger.info("开始删除合同 ID: {} - {}", id, contract.getContractName());
 
-        // 删除 contract 表中的记录
-        contractRepository.deleteById(id); //
+        try {
+            // 根据日志分析：只有 contract_process 和 contracts 表确实存在
+            // 其他表（contract_analyses, contract_versions, contract_reminders）在数据库中并不存在
+            // 所以只删除确实存在的表，避免任何数据库异常导致事务rollback
+            
+            // 1. 删除合同流程记录 - 必须先删除以避免外键约束
+            int processesDeleted = entityManager.createNativeQuery("DELETE FROM contract_process WHERE contract_id = ?")
+                    .setParameter(1, id)
+                    .executeUpdate();
+            logger.debug("已删除 {} 条合同流程记录", processesDeleted);
+
+            // 2. 强制刷新以确保删除操作已执行
+            entityManager.flush();
+
+            // 3. 最后删除合同记录
+            int contractDeleted = entityManager.createNativeQuery("DELETE FROM contracts WHERE id = ?")
+                    .setParameter(1, id)
+                    .executeUpdate();
+            logger.debug("已删除 {} 条合同记录", contractDeleted);
+            
+            logger.info("成功删除合同 ID: {} - {}", id, contract.getContractName());
+            
+            // 记录审计日志
+            String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+            auditLogService.logAction(
+                currentUsername, 
+                "DELETE_CONTRACT", 
+                "删除合同: " + contract.getContractName() + " (ID: " + id + ")"
+            );
+            
+        } catch (Exception e) {
+            logger.error("删除合同失败 ID: {} - {}", id, contract.getContractName(), e);
+            throw new BusinessLogicException("删除合同失败: " + e.getMessage());
+        }
     }
 
     @Override

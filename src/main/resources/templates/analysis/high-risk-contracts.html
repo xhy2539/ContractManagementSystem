@@ -443,7 +443,7 @@ function initializeSelectAll() {
 }
 
 function showAnalysisDetail(contractId) {
-    const modal = new bootstrap.Modal(document.getElementById('analysisDetailModal'));
+                showModal('analysisDetailModal');
     document.getElementById('analysisDetailContent').innerHTML = `
         <div class="text-center py-5">
             <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
@@ -451,7 +451,7 @@ function showAnalysisDetail(contractId) {
             <p class="text-muted">正在获取合同的详细风险分析报告</p>
         </div>
     `;
-    modal.show();
+            // 模态框已通过showModal显示
     
     fetch(`/contract-analysis/history/${contractId}`)
         .then(response => response.json())

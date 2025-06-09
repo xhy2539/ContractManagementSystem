@@ -202,11 +202,10 @@
                 <td>
                     <a th:href="@{/contract-manager/approval-details/{id}(id=${item.contractProcess.contract.id})}" class="btn btn-sm btn-action">审批</a>
                     <a th:href="@{/contracts/{id}/detail(id=${item.contractProcess.contract.id})}" class="btn btn-sm btn-view">查看</a>
-                    <button type="button" class="btn btn-sm btn-view-attachment"
+                    <button type="button" class="btn btn-sm btn-view-attachment view-attachment-btn"
                             th:if="${!#lists.isEmpty(item.attachmentFileNames)}"
                             th:data-attachments="${item.attachmentFileNamesAsJson}"
-                            th:data-contract-name="${item.contractProcess.contract.contractName}"
-                            data-bs-target="#attachmentListModal">
+                            th:data-contract-name="${item.contractProcess.contract.contractName}">
                         附件
                     </button>
                 </td>
@@ -267,17 +266,59 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    attachmentModal.addEventListener('show.bs.modal', function (event) {
+    // 标记是否已初始化，避免重复绑定
+    if (window.attachmentModalInitialized) {
+        console.log('附件模态框已初始化，跳过重复初始化');
+        return;
+    }
+    window.attachmentModalInitialized = true;
+
+    // 防止统一模态框管理器干扰
+    if (attachmentModal.dataset.unifiedModalManaged) {
+        delete attachmentModal.dataset.unifiedModalManaged;
+    }
+    attachmentModal.setAttribute('data-bypass-unified-manager', 'true');
+
+    // 处理查看附件按钮点击（只绑定一次）
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.view-attachment-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const button = e.target.closest('.view-attachment-btn');
+            const attachmentsJson = button.getAttribute('data-attachments');
+            const contractName = button.getAttribute('data-contract-name');
+            
+            console.log('点击查看附件按钮，合同:', contractName);
+            
+            // 显示模态框并加载附件数据
+            showAttachmentModal(attachmentsJson, contractName);
+        }
+    }, true); // 使用捕获阶段确保优先处理
+
+    function showAttachmentModal(attachmentsJson, contractName) {
         console.log('附件模态框正在打开...');
         
-        // 强制设置模态框可见性和交互性
+        // 手动显示模态框（完全绕过Bootstrap）
         attachmentModal.style.display = 'block';
         attachmentModal.classList.add('show');
-        document.body.classList.add('modal-open');
+        attachmentModal.setAttribute('aria-modal', 'true');
+        attachmentModal.style.pointerEvents = 'auto';
+        attachmentModal.style.zIndex = '1060';
+        attachmentModal.removeAttribute('aria-hidden');
         
-        const button = event.relatedTarget;
-        const attachmentsJson = button.getAttribute('data-attachments');
-        const contractName = button.getAttribute('data-contract-name');
+        // 强制设置所有子元素可交互
+        const allElements = attachmentModal.querySelectorAll('*');
+        allElements.forEach(el => {
+            el.style.pointerEvents = 'auto';
+        });
+        
+        // 确保模态框内容可见
+        const modalContent = attachmentModal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.pointerEvents = 'auto';
+            modalContent.style.zIndex = '1061';
+        }
 
         const attachmentListContainer = document.getElementById('attachmentListContainer');
         const modalContractName = document.getElementById('modalContractName');
@@ -285,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function () {
         modalContractName.textContent = contractName || '未知合同';
         attachmentListContainer.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> 正在加载附件列表...</div>';
 
-        // 添加文件项到UI（使用事件委托避免绑定问题）
+        // 添加文件项到UI
         function addExistingFileToUI(serverFileName) {
             const uniqueId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             const fileItemHTML = `
@@ -306,66 +347,19 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log(`已添加文件到UI: ${serverFileName}, ID: ${uniqueId}`);
         }
 
-        // 使用事件委托处理预览按钮点击
-        function setupEventDelegation() {
-            // 移除之前的事件监听器（如果存在）
-            attachmentListContainer.removeEventListener('click', handleContainerClick);
-            // 添加新的事件监听器
-            attachmentListContainer.addEventListener('click', handleContainerClick);
-        }
-
-        function handleContainerClick(event) {
-            const target = event.target.closest('.preview-btn');
-            if (target && target.getAttribute('data-action') === 'preview') {
-                event.preventDefault();
-                event.stopPropagation();
-                
-                const fileName = target.getAttribute('data-filename');
-                console.log('点击预览按钮，文件名:', fileName);
-                
-                if (fileName) {
-                    handlePreviewFile(fileName);
-                } else {
-                    console.error('无法获取文件名');
-                    alert('预览失败：无法获取文件名');
-                }
-            }
-        }
-
-        // --- 完整预览功能实现（支持21种格式）---
+        // 预览文件功能
         function handlePreviewFile(serverFileName) {
-            if (!serverFileName) {
-                console.error('预览失败：文件名为空');
-                alert('预览失败：文件名为空');
-                return;
-            }
-            
             console.log('开始预览文件:', serverFileName);
             const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
             const fileExtension = serverFileName.toLowerCase().split('.').pop();
             
             // 定义各种文件类型的预览支持
             const previewableInBrowser = {
-                // 图片文件 - 浏览器原生支持
                 images: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'],
-                // PDF文件 - 浏览器原生支持
                 pdf: ['pdf'],
-                // 文本文件 - 浏览器原生支持
-                text: ['txt', 'csv', 'log', 'md', 'json', 'xml', 'html', 'css', 'js'],
-                // 音频文件 - 浏览器原生支持
-                audio: ['mp3', 'wav', 'ogg', 'aac', 'm4a'],
-                // 视频文件 - 浏览器原生支持
-                video: ['mp4', 'webm', 'ogg', 'mov']
+                text: ['txt', 'csv', 'log', 'md', 'json', 'xml', 'html', 'css', 'js']
             };
             
-            // 需要下载的文件类型
-            const downloadOnly = {
-                office: ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'],
-                archives: ['zip', 'rar', '7z', 'tar', 'gz'],
-                others: ['exe', 'msi', 'dmg', 'deb', 'rpm']
-            };
-            
-            // 检查文件类型
             let canPreview = false;
             let fileCategory = '';
             
@@ -380,11 +374,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log(`文件 ${serverFileName} 类型检测: ${fileCategory}, 可预览: ${canPreview}`);
             
             if (canPreview) {
-                // 浏览器支持预览的文件直接打开
-                if (fileCategory === 'images') {
-                    // 图片文件 - 创建更好的预览体验
-                    openImagePreview(downloadUrl, serverFileName);
-                } else if (fileCategory === 'pdf') {
+                if (fileCategory === 'pdf') {
                     // PDF文件 - 提供选择：在线预览或下载
                     const userChoice = confirm(
                         `PDF文件 "${serverFileName}" 预览选项：\n\n` +
@@ -397,166 +387,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     } else {
                         downloadFile(downloadUrl, serverFileName);
                     }
-                } else if (fileCategory === 'text') {
-                    // 文本文件 - 直接在新窗口打开
+                } else {
+                    // 其他可预览文件直接打开
                     window.open(downloadUrl, '_blank');
-                } else if (fileCategory === 'audio' || fileCategory === 'video') {
-                    // 音视频文件 - 创建媒体预览
-                    openMediaPreview(downloadUrl, serverFileName, fileCategory);
                 }
             } else {
-                // 不支持预览的文件，提示用户下载
-                let downloadReason = '';
-                
-                if (downloadOnly.office.includes(fileExtension)) {
-                    downloadReason = 'Office文档需要使用相应的办公软件打开';
-                } else if (downloadOnly.archives.includes(fileExtension)) {
-                    downloadReason = '压缩包文件需要解压缩软件打开';
-                } else {
-                    downloadReason = '此文件类型不支持在浏览器中直接预览';
-                }
-                
+                // 不支持预览的文件，提示下载
                 const userConfirmed = confirm(
-                    `文件 "${serverFileName}" ${downloadReason}。\n\n点击"确定"下载文件到本地查看，点击"取消"关闭此对话框。`
+                    `文件 "${serverFileName}" 不支持在浏览器中直接预览。\n\n点击"确定"下载文件到本地查看，点击"取消"关闭此对话框。`
                 );
-
                 if (userConfirmed) {
                     downloadFile(downloadUrl, serverFileName);
                 }
             }
         }
-        
-        // 图片预览功能
-        function openImagePreview(imageUrl, fileName) {
-            const uniqueId = Date.now();
-            const modal = document.createElement('div');
-            modal.className = 'modal fade';
-            modal.innerHTML = `
-                <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">图片预览: ${fileName}</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body text-center">
-                            <div class="preview-loading" id="imageLoading_${uniqueId}">
-                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                正在加载图片...
-                            </div>
-                            <img src="${imageUrl}" class="img-fluid" style="max-height: 70vh; display: none;" alt="${fileName}" 
-                                 onload="this.style.display='block'; document.getElementById('imageLoading_${uniqueId}').style.display='none';"
-                                 onerror="this.onerror=null; this.style.display='none'; document.getElementById('imageLoading_${uniqueId}').style.display='none'; this.nextElementSibling.style.display='block';">
-                            <div class="alert alert-warning mt-3" style="display: none;">
-                                <i class="bi bi-exclamation-triangle"></i> 图片加载失败，请尝试下载后查看
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <small class="text-muted me-auto">快捷键: ESC-关闭, D-下载</small>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                            <button type="button" class="btn btn-primary" onclick="downloadFile('${imageUrl}', '${fileName}')">
-                                <i class="bi bi-download"></i> 下载
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            const bootstrapModal = new bootstrap.Modal(modal);
-            bootstrapModal.show();
-            
-            // 模态框关闭后移除DOM元素
-            modal.addEventListener('hidden.bs.modal', () => {
-                document.body.removeChild(modal);
-            });
-            
-            // 添加键盘快捷键支持
-            modal.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    bootstrapModal.hide();
-                } else if (e.key === 'd' || e.key === 'D') {
-                    downloadFile(imageUrl, fileName);
-                }
-            });
-        }
-        
-        // 媒体文件（音频/视频）预览功能
-        function openMediaPreview(mediaUrl, fileName, mediaType) {
-            const isVideo = mediaType === 'video';
-            const mediaTag = isVideo ? 'video' : 'audio';
-            const mediaControls = isVideo ? 'controls width="100%" height="400"' : 'controls width="100%"';
-            const uniqueId = Date.now();
-            
-            const modal = document.createElement('div');
-            modal.className = 'modal fade';
-            modal.innerHTML = `
-                <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="bi bi-${isVideo ? 'camera-video' : 'music-note'}"></i> 
-                                ${isVideo ? '视频' : '音频'}预览: ${fileName}
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body text-center">
-                            <div class="preview-loading" id="mediaLoading_${uniqueId}">
-                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                正在加载${isVideo ? '视频' : '音频'}...
-                            </div>
-                            <${mediaTag} ${mediaControls} preload="metadata" style="display: none;"
-                                    onloadedmetadata="this.style.display='block'; document.getElementById('mediaLoading_${uniqueId}').style.display='none';"
-                                    onerror="this.onerror=null; this.style.display='none'; document.getElementById('mediaLoading_${uniqueId}').style.display='none'; this.nextElementSibling.style.display='block';">
-                                <source src="${mediaUrl}" type="${mediaType}/${fileName.split('.').pop()}">
-                                您的浏览器不支持${isVideo ? '视频' : '音频'}播放。
-                            </${mediaTag}>
-                            <div class="alert alert-warning mt-3" style="display: none;">
-                                <i class="bi bi-exclamation-triangle"></i> ${isVideo ? '视频' : '音频'}加载失败，请尝试下载后查看
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <small class="text-muted me-auto">快捷键: ESC-关闭, D-下载, 空格-播放/暂停</small>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                            <button type="button" class="btn btn-primary" onclick="downloadFile('${mediaUrl}', '${fileName}')">
-                                <i class="bi bi-download"></i> 下载
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            const bootstrapModal = new bootstrap.Modal(modal);
-            bootstrapModal.show();
-            
-            // 模态框关闭后移除DOM元素
-            modal.addEventListener('hidden.bs.modal', () => {
-                document.body.removeChild(modal);
-            });
-            
-            // 添加键盘快捷键支持
-            modal.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    bootstrapModal.hide();
-                } else if (e.key === 'd' || e.key === 'D') {
-                    downloadFile(mediaUrl, fileName);
-                } else if (e.key === ' ') {
-                    // 空格键暂停/播放媒体
-                    e.preventDefault();
-                    const mediaElement = modal.querySelector('video, audio');
-                    if (mediaElement) {
-                        if (mediaElement.paused) {
-                            mediaElement.play();
-                        } else {
-                            mediaElement.pause();
-                        }
-                    }
-                }
-            });
-        }
-        
-        // 通用下载功能 - 定义为全局函数
-        window.downloadFile = function(fileUrl, fileName) {
+
+        // 下载文件功能
+        function downloadFile(fileUrl, fileName) {
             try {
                 const link = document.createElement('a');
                 link.href = fileUrl;
@@ -564,13 +411,37 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                
                 console.log(`文件 "${fileName}" 开始下载`);
             } catch (error) {
                 console.error('下载失败:', error);
                 alert('下载失败，请稍后重试');
             }
-        };
+        }
+
+        // 处理附件列表内的点击事件（只绑定一次）
+        function handleAttachmentListClick(e) {
+            if (e.target.closest('.preview-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const target = e.target.closest('.preview-btn');
+                const fileName = target.getAttribute('data-filename');
+                console.log('点击预览按钮，文件名:', fileName);
+                
+                if (fileName) {
+                    handlePreviewFile(fileName);
+                } else {
+                    console.error('无法获取文件名');
+                    alert('预览失败：无法获取文件名');
+                }
+            }
+        }
+
+        // 移除之前的事件监听器（如果存在）
+        attachmentListContainer.removeEventListener('click', window.attachmentListClickHandler);
+        // 绑定新的事件监听器
+        window.attachmentListClickHandler = handleAttachmentListClick;
+        attachmentListContainer.addEventListener('click', window.attachmentListClickHandler);
 
         // 处理附件加载
         try {
@@ -584,10 +455,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         console.log(`加载附件 ${index + 1}: ${fileName}`);
                         addExistingFileToUI(fileName);
                     });
-                    
-                    // 设置事件委托
-                    setupEventDelegation();
-                    console.log('事件委托已设置完成');
+                    console.log('附件列表加载完成');
                 } else {
                     attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
                 }
@@ -598,11 +466,32 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('解析附件JSON失败: ', e);
             attachmentListContainer.innerHTML = '<p class="text-danger small">加载附件列表时出错。</p>';
         }
-    });
+    }
 
-    // 原有的模态框处理代码已被 customer-modal-fix.js 接管
-    // 不再需要这些代码，避免冲突
-    console.log('✅ 待审批页面附件功能由 customer-modal-fix.js 处理');
+    // 关闭模态框功能
+    function closeAttachmentModal() {
+        attachmentModal.style.display = 'none';
+        attachmentModal.classList.remove('show');
+        attachmentModal.setAttribute('aria-hidden', 'true');
+        attachmentModal.removeAttribute('aria-modal');
+        attachmentModal.style.pointerEvents = '';
+        attachmentModal.style.zIndex = '';
+    }
+
+    // 处理关闭按钮（只绑定一次）
+    function handleModalClick(e) {
+        if (e.target.closest('.btn-close') || e.target.closest('button[data-bs-dismiss="modal"]') || e.target === attachmentModal) {
+            closeAttachmentModal();
+        }
+    }
+
+    // 移除之前的事件监听器（如果存在）
+    attachmentModal.removeEventListener('click', window.attachmentModalClickHandler);
+    // 绑定新的事件监听器
+    window.attachmentModalClickHandler = handleModalClick;
+    attachmentModal.addEventListener('click', window.attachmentModalClickHandler);
+
+    console.log('✅ 待审批页面附件功能完整独立处理');
 });
 </script>
 

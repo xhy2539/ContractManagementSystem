@@ -335,6 +335,7 @@
                 const uniqueId = Date.now();
                 const modal = document.createElement('div');
                 modal.className = 'modal fade';
+                modal.id = `imagePreviewModal_${uniqueId}`;
                 modal.innerHTML = `
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content">
@@ -366,8 +367,7 @@
                 `;
                 
                 document.body.appendChild(modal);
-                const bootstrapModal = new bootstrap.Modal(modal);
-                bootstrapModal.show();
+                showModal(modal.id);
                 
                 // 模态框关闭后移除DOM元素
                 modal.addEventListener('hidden.bs.modal', () => {
@@ -377,7 +377,7 @@
                 // 添加键盘快捷键支持
                 modal.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
-                        bootstrapModal.hide();
+                        hideModal(modal.id);
                     } else if (e.key === 'd' || e.key === 'D') {
                         downloadFile(imageUrl, fileName);
                     }
@@ -393,6 +393,7 @@
                 
                 const modal = document.createElement('div');
                 modal.className = 'modal fade';
+                modal.id = `mediaPreviewModal_${uniqueId}`;
                 modal.innerHTML = `
                     <div class="modal-dialog modal-lg modal-dialog-centered">
                         <div class="modal-content">
@@ -430,8 +431,7 @@
                 `;
                 
                 document.body.appendChild(modal);
-                const bootstrapModal = new bootstrap.Modal(modal);
-                bootstrapModal.show();
+                showModal(modal.id);
                 
                 // 模态框关闭后移除DOM元素
                 modal.addEventListener('hidden.bs.modal', () => {
@@ -441,7 +441,7 @@
                 // 添加键盘快捷键支持
                 modal.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
-                        bootstrapModal.hide();
+                        hideModal(modal.id);
                     } else if (e.key === 'd' || e.key === 'D') {
                         downloadFile(mediaUrl, fileName);
                     } else if (e.key === ' ') {

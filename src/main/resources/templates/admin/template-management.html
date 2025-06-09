@@ -100,7 +100,7 @@
   <div class="modal fade" id="templateFormModal" tabindex="-1" aria-labelledby="templateFormModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <form id="templateForm">
+                        <form id="templateForm" data-auto-reset>
           <div class="modal-header">
             <h5 class="modal-title" id="templateFormModalLabel">模板信息</h5>
             <button type="button" class="btn-close" aria-label="Close"></button>
@@ -144,10 +144,9 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       // --- DOM Element References ---
-      const templatesTableBody = document.querySelector('#templatesTable tbody');
-      const templateFormModalEl = document.getElementById('templateFormModal');
-      const templateFormModal = new bootstrap.Modal(templateFormModalEl);
-      const templateForm = document.getElementById('templateForm');
+              const templatesTableBody = document.querySelector('#templatesTable tbody');
+        const templateFormModalEl = document.getElementById('templateFormModal');
+        const templateForm = document.getElementById('templateForm');
       const addTemplateBtn = document.getElementById('addTemplateBtn');
       const templateIdInput = document.getElementById('templateId');
       const templateNameInput = document.getElementById('templateName');
@@ -294,7 +293,7 @@
         if (tinymceEditor) {
           tinymceEditor.setContent(''); // Clear TinyMCE content
         }
-        templateFormModal.show();
+        showModal('templateFormModal');
       }
 
       async function handleTemplateFormSubmit(event) {
@@ -342,7 +341,7 @@
           await authenticatedFetch(apiUrl, { method, body: templateData }, globalAlertContainerId);
           showAlert(currentTemplateId ? '模板更新成功！' : '模板创建成功！', 'success', globalAlertContainerId);
           fetchTemplates(currentTemplateId ? currentPageTemplate : 0);
-          templateFormModal.hide();
+          hideModal('templateFormModal');
         } catch (error) {
           // authenticatedFetch already handles displaying the alert
         } finally {
@@ -383,7 +382,7 @@
               }
               placeholderFieldsInput.value = Array.isArray(placeholderFieldsArray) ? placeholderFieldsArray.join(', ') : '';
 
-              templateFormModal.show();
+              showModal('templateFormModal');
             } else {
               showAlert('无法加载模板信息进行编辑。', 'warning', globalAlertContainerId);
             }

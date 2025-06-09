@@ -432,7 +432,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="customerForm">
+                    <form id="customerForm" data-auto-reset>
                         <input type="hidden" id="customerId" name="id">
                         
                         <div class="row g-3">
@@ -507,7 +507,7 @@
                     document.getElementById('address').value = customer.address || '';
                     document.getElementById('description').value = customer.description || '';
                     
-                    new bootstrap.Modal(document.getElementById('addCustomerModal')).show();
+                    showModal('addCustomerModal');
                 })
                 .catch(error => {
                     ContractApp.showMessage('获取客户信息失败: ' + error.message, 'danger');
@@ -585,7 +585,7 @@
                 if (response.ok) {
                     const action = customerId ? '更新' : '添加';
                     ContractApp.showMessage(`客户${action}成功`, 'success');
-                    bootstrap.Modal.getInstance(document.getElementById('addCustomerModal')).hide();
+                    hideModal('addCustomerModal');
                     setTimeout(() => {
                         window.location.reload();
                     }, 1000);

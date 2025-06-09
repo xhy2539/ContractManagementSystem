@@ -190,11 +190,10 @@
                 <td class="text-center">
                     <a th:href="@{/contract-manager/sign-contract/{id}(id=${process.id})}" class="btn btn-primary btn-sm">签订</a>
                     <a th:href="@{'/contracts/' + ${process.contract.id} + '/detail'}" class="btn btn-secondary btn-sm">查看</a>
-                    <button type="button" class="btn btn-info btn-sm"
+                    <button type="button" class="btn btn-info btn-sm view-attachment-btn"
                             th:if="${process.contract.attachmentPath != null and !#strings.equals(process.contract.attachmentPath, '[]')}"
                             th:data-attachments="${process.contract.attachmentPath}"
-                            th:data-contract-name="${process.contract.contractName}"
-                            data-bs-target="#attachmentListModal">
+                            th:data-contract-name="${process.contract.contractName}">
                         附件
                     </button>
                 </td>
@@ -241,84 +240,223 @@
 <!-- 模态框由 layout.html 中的通用模态框管理器处理 -->
 
 <script th:inline="javascript">
-    // 原有的附件处理代码已被 customer-modal-fix.js 接管
-    // 不再需要这些代码，避免冲突
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('待签订页面：初始化附件预览功能');
     
-    document.addEventListener('DOMContentLoaded', function () {
-        console.log('✅ 待签订页面已加载，附件功能由 customer-modal-fix.js 处理');
-        
-        /*
-        const attachmentModal = document.getElementById('attachmentListModal');
-        if (attachmentModal) {
-            attachmentModal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const attachmentsJson = button.getAttribute('data-attachments');
-                const contractName = button.getAttribute('data-contract-name');
-                const attachmentListContainer = document.getElementById('attachmentListContainer');
-                const modalContractName = document.getElementById('modalContractName');
+    const attachmentModal = document.getElementById('attachmentListModal');
+    if (!attachmentModal) {
+        console.error('找不到附件列表模态框');
+        return;
+    }
 
-                modalContractName.textContent = contractName || '未知合同';
-                attachmentListContainer.innerHTML = '';
+    // 标记是否已初始化，避免重复绑定
+    if (window.attachmentModalInitialized) {
+        console.log('附件模态框已初始化，跳过重复初始化');
+        return;
+    }
+    window.attachmentModalInitialized = true;
 
-                function addExistingFileToUI(serverFileName) {
-                    const safeId = `modal-existing-${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}`;
-                    const fileItemHTML = `
-                        <div class="file-list-item" id="${safeId}">
-                            <div class="file-info"><span class="file-name" title="${serverFileName}">${serverFileName}</span></div>
-                            <div class="file-actions">
-                                <button type="button" class="btn btn-sm btn-outline-info preview-btn" title="预览/下载">
-                                    <i class="bi bi-eye"></i> 预览
-                                </button>
-                            </div>
-                        </div>`;
-                    attachmentListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
-                    const newElement = attachmentListContainer.querySelector(`#${safeId}`);
-                    if (newElement) {
-                        const previewBtn = newElement.querySelector('.preview-btn');
-                        previewBtn.addEventListener('click', () => handlePreviewFile(serverFileName));
-                    }
-                }
+    // 防止统一模态框管理器干扰
+    if (attachmentModal.dataset.unifiedModalManaged) {
+        delete attachmentModal.dataset.unifiedModalManaged;
+    }
+    attachmentModal.setAttribute('data-bypass-unified-manager', 'true');
 
-                function handlePreviewFile(serverFileName) {
-                    if (!serverFileName) return;
-                    const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
-                    const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
-                    if (isPreviewable) {
-                        window.open(downloadUrl, '_blank');
-                    } else {
-                        const userAgreedToDownload = confirm(
-                            `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击“确定”将尝试下载该文件。`
-                        );
-                        if (userAgreedToDownload) {
-                            const link = document.createElement('a');
-                            link.href = downloadUrl;
-                            link.setAttribute('download', serverFileName);
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                        }
-                    }
-                }
-
-                try {
-                    if (attachmentsJson && attachmentsJson !== '[]') {
-                        const attachmentFiles = JSON.parse(attachmentsJson);
-                        if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
-                            attachmentFiles.forEach(fileName => addExistingFileToUI(fileName));
-                        } else {
-                            attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
-                        }
-                    } else {
-                        attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
-                    }
-                } catch (e) {
-                    console.error('解析附件JSON失败: ', e);
-                    attachmentListContainer.innerHTML = '<p class="text-danger small">加载附件列表时出错。</p>';
-                }
-            });
+    // 处理查看附件按钮点击（只绑定一次）
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.view-attachment-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const button = e.target.closest('.view-attachment-btn');
+            const attachmentsJson = button.getAttribute('data-attachments');
+            const contractName = button.getAttribute('data-contract-name');
+            
+            console.log('点击查看附件按钮，合同:', contractName);
+            
+            // 显示模态框并加载附件数据
+            showAttachmentModal(attachmentsJson, contractName);
         }
-        */
-    });
+    }, true); // 使用捕获阶段确保优先处理
+
+    function showAttachmentModal(attachmentsJson, contractName) {
+        console.log('显示附件模态框，合同:', contractName);
+        
+        // 设置模态框内容
+        const modalContractName = document.getElementById('modalContractName');
+        const attachmentListContainer = document.getElementById('attachmentListContainer');
+        
+        modalContractName.textContent = contractName || '未知合同';
+        attachmentListContainer.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> 正在加载附件列表...</div>';
+
+        // 手动显示模态框（完全绕过Bootstrap）
+        attachmentModal.style.display = 'block';
+        attachmentModal.classList.add('show');
+        attachmentModal.setAttribute('aria-modal', 'true');
+        attachmentModal.style.pointerEvents = 'auto';
+        attachmentModal.style.zIndex = '1060';
+        attachmentModal.removeAttribute('aria-hidden');
+        
+        // 强制设置所有子元素可交互
+        const allElements = attachmentModal.querySelectorAll('*');
+        allElements.forEach(el => {
+            el.style.pointerEvents = 'auto';
+        });
+        
+        // 确保模态框内容可见
+        const modalContent = attachmentModal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.pointerEvents = 'auto';
+            modalContent.style.zIndex = '1061';
+        }
+
+        // 添加文件项到UI
+        function addExistingFileToUI(serverFileName) {
+            const uniqueId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const fileItemHTML = `
+                <div class="file-list-item" id="${uniqueId}">
+                    <div class="file-info">
+                        <span class="file-name" title="${serverFileName}">${serverFileName}</span>
+                    </div>
+                    <div class="file-actions">
+                        <button type="button" class="btn btn-sm btn-outline-info preview-btn" 
+                                title="预览文件" 
+                                data-filename="${serverFileName}"
+                                data-action="preview">
+                            <i class="bi bi-eye"></i> 预览
+                        </button>
+                    </div>
+                </div>`;
+            attachmentListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
+        }
+
+        // 预览文件功能
+        function handlePreviewFile(serverFileName) {
+            console.log('开始预览文件:', serverFileName);
+            const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+            const fileExtension = serverFileName.toLowerCase().split('.').pop();
+            
+            // 定义各种文件类型的预览支持
+            const previewableInBrowser = {
+                images: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'],
+                pdf: ['pdf'],
+                text: ['txt', 'csv', 'log', 'md', 'json', 'xml', 'html', 'css', 'js']
+            };
+            
+            let canPreview = false;
+            let fileCategory = '';
+            
+            for (const [category, extensions] of Object.entries(previewableInBrowser)) {
+                if (extensions.includes(fileExtension)) {
+                    canPreview = true;
+                    fileCategory = category;
+                    break;
+                }
+            }
+            
+            if (canPreview) {
+                if (fileCategory === 'images') {
+                    // 图片预览
+                    window.open(downloadUrl, '_blank');
+                } else if (fileCategory === 'pdf' || fileCategory === 'text') {
+                    // PDF和文本文件预览
+                    window.open(downloadUrl, '_blank');
+                }
+            } else {
+                // 不支持预览的文件，提示下载
+                const userConfirmed = confirm(
+                    `文件 "${serverFileName}" 不支持在浏览器中直接预览。\n\n点击"确定"下载文件到本地查看，点击"取消"关闭此对话框。`
+                );
+                if (userConfirmed) {
+                    downloadFile(downloadUrl, serverFileName);
+                }
+            }
+        }
+
+        // 下载文件功能
+        function downloadFile(fileUrl, fileName) {
+            try {
+                const link = document.createElement('a');
+                link.href = fileUrl;
+                link.setAttribute('download', fileName);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (error) {
+                console.error('下载失败:', error);
+                alert('下载失败，请稍后重试');
+            }
+        }
+
+        // 处理附件列表内的点击事件（只绑定一次）
+        function handleAttachmentListClick(e) {
+            if (e.target.closest('.preview-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const target = e.target.closest('.preview-btn');
+                const fileName = target.getAttribute('data-filename');
+                if (fileName) {
+                    handlePreviewFile(fileName);
+                }
+            }
+        }
+
+        // 移除之前的事件监听器（如果存在）
+        attachmentListContainer.removeEventListener('click', window.attachmentListClickHandler);
+        // 绑定新的事件监听器
+        window.attachmentListClickHandler = handleAttachmentListClick;
+        attachmentListContainer.addEventListener('click', window.attachmentListClickHandler);
+
+        // 处理附件加载
+        try {
+            if (attachmentsJson && attachmentsJson !== '[]') {
+                const attachmentFiles = JSON.parse(attachmentsJson);
+                attachmentListContainer.innerHTML = '';
+                
+                if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
+                    console.log(`准备加载 ${attachmentFiles.length} 个附件文件`);
+                    attachmentFiles.forEach((fileName, index) => {
+                        console.log(`加载附件 ${index + 1}: ${fileName}`);
+                        addExistingFileToUI(fileName);
+                    });
+                } else {
+                    attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+                }
+            } else {
+                attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+            }
+        } catch (e) {
+            console.error('解析附件JSON失败: ', e);
+            attachmentListContainer.innerHTML = '<p class="text-danger small">加载附件列表时出错。</p>';
+        }
+    }
+
+    // 关闭模态框功能
+    function closeAttachmentModal() {
+        attachmentModal.style.display = 'none';
+        attachmentModal.classList.remove('show');
+        attachmentModal.setAttribute('aria-hidden', 'true');
+        attachmentModal.removeAttribute('aria-modal');
+        attachmentModal.style.pointerEvents = '';
+        attachmentModal.style.zIndex = '';
+    }
+
+    // 处理关闭按钮（只绑定一次）
+    function handleModalClick(e) {
+        if (e.target.closest('.btn-close') || e.target.closest('button[data-bs-dismiss="modal"]') || e.target === attachmentModal) {
+            closeAttachmentModal();
+        }
+    }
+
+    // 移除之前的事件监听器（如果存在）
+    attachmentModal.removeEventListener('click', window.attachmentModalClickHandler);
+    // 绑定新的事件监听器
+    window.attachmentModalClickHandler = handleModalClick;
+    attachmentModal.addEventListener('click', window.attachmentModalClickHandler);
+
+    console.log('✅ 待签订页面附件功能初始化完成');
+});
 </script>
 
 </section>

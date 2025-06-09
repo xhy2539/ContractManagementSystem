@@ -129,7 +129,7 @@
     <div class="modal fade" id="adminExtendModal" tabindex="-1" aria-labelledby="adminExtendModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form id="adminExtendForm" class="needs-validation" novalidate>
+                                            <form id="adminExtendForm" class="needs-validation" data-auto-reset novalidate>
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title" id="adminExtendModalLabel">管理员直接延期合同</h5>
                         <button type="button" class="btn-close btn-close-white" aria-label="Close"></button>
@@ -160,7 +160,7 @@
     <div class="modal fade" id="operatorRequestExtendModal" tabindex="-1" aria-labelledby="operatorRequestExtendModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form id="operatorRequestExtendForm" class="needs-validation" novalidate>
+                                            <form id="operatorRequestExtendForm" class="needs-validation" data-auto-reset novalidate>
                     <div class="modal-header bg-warning text-dark">
                         <h5 class="modal-title" id="operatorRequestExtendModalLabel">请求延期合同</h5>
                         <button type="button" class="btn-close" aria-label="Close"></button>
@@ -482,76 +482,18 @@
 
         // --- 延期操作的 JavaScript 逻辑 ---
 
-        // 模态框实例（延迟初始化，并在第一次需要时创建）
-        let adminExtendModalInstance;
-        let operatorRequestExtendModalInstance;
-
-        function getAdminExtendModalInstance() {
-            if (!adminExtendModalInstance) {
-                const modalElement = document.getElementById('adminExtendModal');
-                if (!window.bootstrap || !window.bootstrap.Modal) { // 检查 Bootstrap 是否已加载
-                    console.error("Bootstrap 5 Modal 对象未加载。请确保 bootstrap.bundle.min.js 已正确引入。");
-                    showAlert('Bootstrap 模态框组件未加载，无法启用延期功能。', 'danger');
-                    return null;
-                }
-                if (modalElement) {
-                    try {
-                        adminExtendModalInstance = new bootstrap.Modal(modalElement);
-                        modalElement.addEventListener('hidden.bs.modal', function () {
-                            const form = document.getElementById('adminExtendForm');
-                            if (form) {
-                                form.classList.remove('was-validated');
-                                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                            }
-                        });
-                        console.log('管理员延期模态框初始化成功！Element:', modalElement); // 调试信息
-                    } catch (e) {
-                        console.error("初始化 bootstrap.Modal for adminExtendModal 失败:", e);
-                        console.trace(); // 打印调用堆栈
-                        showAlert('管理员延期模态框初始化失败，请联系管理员。', 'danger');
-                        adminExtendModalInstance = null; // 设置为null以便下次尝试重新初始化
+        // 简化的模态框管理器 - 使用统一管理器
+        function setupModalFormReset(modalId, formId) {
+            const modalElement = document.getElementById(modalId);
+            if (modalElement) {
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    const form = document.getElementById(formId);
+                    if (form) {
+                        form.classList.remove('was-validated');
+                        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
                     }
-                } else {
-                    console.error("致命错误: 未能在 DOM 中找到 ID 为 'adminExtendModal' 的元素。");
-                    console.trace(); // 打印调用堆栈
-                    return null; // 明确返回null
-                }
+                });
             }
-            return adminExtendModalInstance;
-        }
-
-        function getOperatorRequestExtendModalInstance() {
-            if (!operatorRequestExtendModalInstance) {
-                const modalElement = document.getElementById('operatorRequestExtendModal');
-                if (!window.bootstrap || !window.bootstrap.Modal) { // 检查 Bootstrap 是否已加载
-                    console.error("Bootstrap 5 Modal 对象未加载。请确保 bootstrap.bundle.min.js 已正确引入。");
-                    showAlert('Bootstrap 模态框组件未加载，无法启用延期功能。', 'danger');
-                    return null;
-                }
-                if (modalElement) {
-                    try {
-                        operatorRequestExtendModalInstance = new bootstrap.Modal(modalElement);
-                        modalElement.addEventListener('hidden.bs.modal', function () {
-                            const form = document.getElementById('operatorRequestExtendForm');
-                            if (form) {
-                                form.classList.remove('was-validated');
-                                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                            }
-                        });
-                        console.log('操作员延期请求模态框初始化成功！Element:', modalElement); // 调试信息
-                    } catch (e) {
-                        console.error("初始化 bootstrap.Modal for operatorRequestExtendModal 失败:", e);
-                        console.trace(); // 打印调用堆栈
-                        showAlert('操作员延期请求模态框初始化失败，请联系管理员。', 'danger');
-                        operatorRequestExtendModalInstance = null; // 设置为null以便下次尝试重新初始化
-                    }
-                } else {
-                    console.error("致命错误: 未能在 DOM 中找到 ID 为 'operatorRequestExtendModal' 的元素。");
-                    console.trace(); // 打印调用堆栈
-                    return null; // 明确返回null
-                }
-            }
-            return operatorRequestExtendModalInstance;
         }
 
         function handleExtendButtonClick(event) {
@@ -563,61 +505,51 @@
             const actionType = button.dataset.actionType;
 
             if (actionType === 'admin') {
-                const modal = getAdminExtendModalInstance();
-                if (modal) { // 只有模态框实例成功创建才尝试显示和填充
-                    // 获取所有需要填充的元素，并进行防御性检查
-                    const adminExtendContractId = document.getElementById('adminExtendContractId');
-                    const adminExtendContractName = document.getElementById('adminExtendContractName');
-                    const adminExtendContractNumber = document.getElementById('adminExtendContractNumber');
-                    const adminOriginalEndDate = document.getElementById('adminOriginalEndDate');
-                    const adminNewEndDate = document.getElementById('adminNewEndDate');
-                    const adminExtendComments = document.getElementById('adminExtendComments');
-                    const adminExtendForm = document.getElementById('adminExtendForm');
+                // 获取所有需要填充的元素，并进行防御性检查
+                const adminExtendContractId = document.getElementById('adminExtendContractId');
+                const adminExtendContractName = document.getElementById('adminExtendContractName');
+                const adminExtendContractNumber = document.getElementById('adminExtendContractNumber');
+                const adminOriginalEndDate = document.getElementById('adminOriginalEndDate');
+                const adminNewEndDate = document.getElementById('adminNewEndDate');
+                const adminExtendComments = document.getElementById('adminExtendComments');
+                const adminExtendForm = document.getElementById('adminExtendForm');
 
-                    if (adminExtendContractId) adminExtendContractId.value = contractId;
-                    if (adminExtendContractName) adminExtendContractName.textContent = contractName;
-                    if (adminExtendContractNumber) adminExtendContractNumber.textContent = contractNumber;
-                    if (adminOriginalEndDate) adminOriginalEndDate.textContent = originalEndDate;
-                    if (adminNewEndDate) adminNewEndDate.value = '';
-                    if (adminExtendComments) adminExtendComments.value = '';
+                if (adminExtendContractId) adminExtendContractId.value = contractId;
+                if (adminExtendContractName) adminExtendContractName.textContent = contractName;
+                if (adminExtendContractNumber) adminExtendContractNumber.textContent = contractNumber;
+                if (adminOriginalEndDate) adminOriginalEndDate.textContent = originalEndDate;
+                if (adminNewEndDate) adminNewEndDate.value = '';
+                if (adminExtendComments) adminExtendComments.value = '';
 
-                    if (adminExtendForm) {
-                        adminExtendForm.classList.remove('was-validated');
-                        adminExtendForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                    }
-                    modal.show();
-                } else {
-                    showAlert('管理员延期模态框未准备好，无法显示。请检查控制台错误。', 'danger'); // 更清晰的提示
+                if (adminExtendForm) {
+                    adminExtendForm.classList.remove('was-validated');
+                    adminExtendForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
                 }
+                showModal('adminExtendModal');
             } else if (actionType === 'operator-request') {
-                const modal = getOperatorRequestExtendModalInstance();
-                if (modal) { // 只有模态框实例成功创建才尝试显示和填充
-                    // 获取所有需要填充的元素，并进行防御性检查
-                    const operatorRequestContractId = document.getElementById('operatorRequestContractId');
-                    const operatorRequestContractName = document.getElementById('operatorRequestContractName');
-                    const operatorRequestContractNumber = document.getElementById('operatorRequestContractNumber');
-                    const operatorOriginalEndDate = document.getElementById('operatorOriginalEndDate');
-                    const operatorNewEndDate = document.getElementById('operatorNewEndDate');
-                    const operatorRequestReason = document.getElementById('operatorRequestReason');
-                    const operatorRequestComments = document.getElementById('operatorRequestComments');
-                    const operatorRequestExtendForm = document.getElementById('operatorRequestExtendForm');
+                // 获取所有需要填充的元素，并进行防御性检查
+                const operatorRequestContractId = document.getElementById('operatorRequestContractId');
+                const operatorRequestContractName = document.getElementById('operatorRequestContractName');
+                const operatorRequestContractNumber = document.getElementById('operatorRequestContractNumber');
+                const operatorOriginalEndDate = document.getElementById('operatorOriginalEndDate');
+                const operatorNewEndDate = document.getElementById('operatorNewEndDate');
+                const operatorRequestReason = document.getElementById('operatorRequestReason');
+                const operatorRequestComments = document.getElementById('operatorRequestComments');
+                const operatorRequestExtendForm = document.getElementById('operatorRequestExtendForm');
 
-                    if (operatorRequestContractId) operatorRequestContractId.value = contractId;
-                    if (operatorRequestContractName) operatorRequestContractName.textContent = contractName;
-                    if (operatorRequestContractNumber) operatorRequestContractNumber.textContent = contractNumber;
-                    if (operatorOriginalEndDate) operatorOriginalEndDate.textContent = originalEndDate;
-                    if (operatorNewEndDate) operatorNewEndDate.value = '';
-                    if (operatorRequestReason) operatorRequestReason.value = '';
-                    if (operatorRequestComments) operatorRequestComments.value = '';
+                if (operatorRequestContractId) operatorRequestContractId.value = contractId;
+                if (operatorRequestContractName) operatorRequestContractName.textContent = contractName;
+                if (operatorRequestContractNumber) operatorRequestContractNumber.textContent = contractNumber;
+                if (operatorOriginalEndDate) operatorOriginalEndDate.textContent = originalEndDate;
+                if (operatorNewEndDate) operatorNewEndDate.value = '';
+                if (operatorRequestReason) operatorRequestReason.value = '';
+                if (operatorRequestComments) operatorRequestComments.value = '';
 
-                    if (operatorRequestExtendForm) {
-                        operatorRequestExtendForm.classList.remove('was-validated');
-                        operatorRequestExtendForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                    }
-                    modal.show();
-                } else {
-                    showAlert('操作员延期请求模态框未准备好，无法显示。请检查控制台错误。', 'danger'); // 更清晰的提示
+                if (operatorRequestExtendForm) {
+                    operatorRequestExtendForm.classList.remove('was-validated');
+                    operatorRequestExtendForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
                 }
+                showModal('operatorRequestExtendModal');
             }
         }
 
@@ -674,7 +606,7 @@
 
                 if (response.ok) {
                     showAlert('合同延期成功！', 'success');
-                    getAdminExtendModalInstance()?.hide();
+                    hideModal('adminExtendModal');
                     searchContracts(1); // 重新加载第一页数据，因为状态可能改变
                 } else {
                     const errorData = await response.json();
@@ -740,7 +672,7 @@
 
                 if (response.ok) {
                     showAlert('延期请求已提交，请等待管理员审批。', 'success');
-                    getOperatorRequestExtendModalInstance()?.hide();
+                    hideModal('operatorRequestExtendModal');
                     searchContracts(1); // 重新加载第一页数据，因为状态可能改变
                 } else {
                     const errorData = await response.json();
@@ -782,16 +714,9 @@
             // `expiringSoon` 标志不直接映射到下拉菜单，但它会作为 URL 参数的一部分被后端逻辑处理。
             // --- 预填充表单字段结束 ---
 
-            const adminModalCheck = document.getElementById('adminExtendModal');
-            const operatorModalCheck = document.getElementById('operatorRequestExtendModal');
-            console.log('adminExtendModal 元素:', adminModalCheck);
-            console.log('operatorRequestExtendModal 元素:', operatorModalCheck);
-
-            // 检查 Bootstrap 库是否加载
-            if (typeof bootstrap === 'undefined') {
-                console.error('致命错误: Bootstrap 库 (bootstrap.bundle.min.js) 未加载！请检查 CDN 链接或网络连接。');
-                showAlert('Bootstrap 库未加载，部分页面功能可能不完整。', 'danger');
-            }
+            // 设置模态框表单重置
+            setupModalFormReset('adminExtendModal', 'adminExtendForm');
+            setupModalFormReset('operatorRequestExtendModal', 'operatorRequestExtendForm');
 
             const searchForm = document.getElementById('contractSearchForm');
 

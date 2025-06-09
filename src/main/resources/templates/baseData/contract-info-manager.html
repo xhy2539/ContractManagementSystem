@@ -37,6 +37,65 @@
         .btn-close.btn-close-white {
             filter: invert(1) grayscale(100%) brightness(200%); /* Make close button white */
         }
+        
+        /* 修复模态框交互问题 */
+        .modal {
+            z-index: 1050 !important;
+        }
+        .modal-backdrop {
+            z-index: 1040 !important;
+        }
+        .modal-dialog {
+            z-index: 1055 !important;
+            position: relative;
+        }
+        .modal-content {
+            z-index: 1060 !important;
+            position: relative;
+        }
+        
+        /* 确保模态框内的元素可以交互 */
+        .modal.show .modal-dialog {
+            pointer-events: auto !important;
+        }
+        .modal.show .modal-content {
+            pointer-events: auto !important;
+        }
+        .modal.show .modal-body * {
+            pointer-events: auto !important;
+        }
+        .modal.show input, .modal.show textarea, .modal.show select, .modal.show button {
+            pointer-events: auto !important;
+        }
+        
+        /* 专门为延期模态框强制设置 */
+        #adminExtendModal, #operatorRequestExtendModal {
+            pointer-events: auto !important;
+        }
+        
+        #adminExtendModal *, #operatorRequestExtendModal * {
+            pointer-events: auto !important;
+        }
+        
+        #adminExtendModal .modal-content,
+        #operatorRequestExtendModal .modal-content {
+            pointer-events: auto !important;
+            z-index: 1065 !important;
+            position: relative;
+        }
+        
+        /* 自定义背景样式 */
+        #custom-backdrop-admin,
+        #custom-backdrop-operator {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background-color: rgba(0, 0, 0, 0.5) !important;
+            z-index: 1050 !important;
+            pointer-events: none !important;
+        }
     </style>
 </head>
 <body>
@@ -125,7 +184,7 @@
                 <form id="adminExtendForm" class="needs-validation" novalidate>
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title" id="adminExtendModalLabel">管理员直接延期合同</h5>
-                        <button type="button" class="btn-close btn-close-white" aria-label="Close"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeAdminExtendModal()" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="adminExtendContractId">
@@ -142,7 +201,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary">取消</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeAdminExtendModal()">取消</button>
                         <button type="submit" class="btn btn-primary">确认延期</button>
                     </div>
                 </form>
@@ -156,7 +215,7 @@
                 <form id="operatorRequestExtendForm" class="needs-validation" novalidate>
                     <div class="modal-header bg-warning text-dark">
                         <h5 class="modal-title" id="operatorRequestExtendModalLabel">请求延期合同</h5>
-                        <button type="button" class="btn-close" aria-label="Close"></button>
+                        <button type="button" class="btn-close" onclick="closeOperatorExtendModal()" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="operatorRequestContractId">
@@ -178,7 +237,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary">取消</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeOperatorExtendModal()">取消</button>
                         <button type="submit" class="btn btn-warning">提交延期请求</button>
                     </div>
                 </form>
@@ -364,10 +423,12 @@
                 `;
             }).join('');
 
-            // 延期按钮由通用模态框管理器处理
+            // 设置延期按钮事件监听器
+            setupExtendButtonListeners();
+            
+            // 设置删除按钮事件监听器
             const deleteButtons = document.querySelectorAll('.delete-contract-btn');
             if(deleteButtons && deleteButtons.length > 0) {
-
                 deleteButtons.forEach(btn => {
                     btn.addEventListener('click', handleDeleteButtonClick);
                 });
@@ -455,7 +516,290 @@
             }
         }
 
-        // --- 延期操作的 JavaScript 逻辑（由通用模态框管理器处理） ---
+        // --- 延期操作的 JavaScript 逻辑 ---
+        
+        // 关闭管理员延期模态框
+        function closeAdminExtendModal() {
+            const modalEl = document.getElementById('adminExtendModal');
+            if (modalEl) {
+                modalEl.style.display = 'none';
+                modalEl.classList.remove('show');
+                modalEl.setAttribute('aria-hidden', 'true');
+                modalEl.removeAttribute('aria-modal');
+                modalEl.removeAttribute('role');
+                
+                // 移除自定义背景（如果存在）
+                const customBackdrop = document.getElementById('custom-backdrop-admin');
+                if (customBackdrop) {
+                    customBackdrop.remove();
+                }
+                
+                // 恢复body滚动
+                document.body.style.overflow = '';
+                
+                // 重置表单
+                const form = document.getElementById('adminExtendForm');
+                if (form) {
+                    form.reset();
+                    form.classList.remove('was-validated');
+                }
+            }
+        }
+        
+        // 关闭操作员延期模态框
+        function closeOperatorExtendModal() {
+            const modalEl = document.getElementById('operatorRequestExtendModal');
+            if (modalEl) {
+                modalEl.style.display = 'none';
+                modalEl.classList.remove('show');
+                modalEl.setAttribute('aria-hidden', 'true');
+                modalEl.removeAttribute('aria-modal');
+                modalEl.removeAttribute('role');
+                
+                // 移除自定义背景（如果存在）
+                const customBackdrop = document.getElementById('custom-backdrop-operator');
+                if (customBackdrop) {
+                    customBackdrop.remove();
+                }
+                
+                // 恢复body滚动
+                document.body.style.overflow = '';
+                
+                // 重置表单
+                const form = document.getElementById('operatorRequestExtendForm');
+                if (form) {
+                    form.reset();
+                    form.classList.remove('was-validated');
+                }
+            }
+        }
+        
+        // 设置延期按钮事件监听器
+        function setupExtendButtonListeners() {
+            // 管理员延期按钮
+            const adminExtendButtons = document.querySelectorAll('.admin-extend-btn');
+            adminExtendButtons.forEach(btn => {
+                btn.addEventListener('click', handleAdminExtendButtonClick);
+            });
+            
+            // 操作员延期请求按钮
+            const operatorExtendButtons = document.querySelectorAll('.extend-contract-btn');
+            operatorExtendButtons.forEach(btn => {
+                btn.addEventListener('click', handleOperatorExtendButtonClick);
+            });
+        }
+        
+        // 处理管理员延期按钮点击
+        function handleAdminExtendButtonClick(event) {
+            console.log('管理员延期按钮被点击');
+            const button = event.currentTarget;
+            const contractId = button.dataset.contractId;
+            const contractName = button.dataset.contractName;
+            const contractNumber = button.dataset.contractNumber;
+            const currentEndDate = button.dataset.currentEndDate;
+            
+            console.log('合同信息:', { contractId, contractName, contractNumber, currentEndDate });
+            
+            // 填充模态框信息
+            document.getElementById('adminExtendContractId').value = contractId;
+            document.getElementById('adminExtendContractName').textContent = contractName;
+            document.getElementById('adminExtendContractNumber').textContent = contractNumber;
+            document.getElementById('adminOriginalEndDate').textContent = formatDate(currentEndDate);
+            
+            // 重置表单
+            const form = document.getElementById('adminExtendForm');
+            form.reset();
+            form.classList.remove('was-validated');
+            
+            // 确保模态框元素存在
+            const modalEl = document.getElementById('adminExtendModal');
+            if (!modalEl) {
+                console.error('模态框元素 adminExtendModal 不存在!');
+                showAlert('系统错误：模态框未找到', 'danger');
+                return;
+            }
+            
+            // 清理可能的残留状态和强制移除任何阻止交互的样式
+            modalEl.classList.remove('show');
+            modalEl.style.display = '';
+            modalEl.style.pointerEvents = '';
+            
+            // 清除可能存在的旧实例
+            const existingInstance = bootstrap.Modal.getInstance(modalEl);
+            if (existingInstance) {
+                existingInstance.dispose();
+            }
+            
+            // 显示模态框
+            console.log('准备显示管理员延期模态框');
+            try {
+                // 尝试最简单的方式：直接显示模态框，去掉所有可能的阻碍
+                modalEl.style.display = 'block';
+                modalEl.classList.add('show');
+                modalEl.setAttribute('aria-modal', 'true');
+                modalEl.setAttribute('role', 'dialog');
+                modalEl.removeAttribute('aria-hidden');
+                
+                // 非常强制地确保可交互
+                modalEl.style.pointerEvents = 'auto';
+                modalEl.style.zIndex = '1060';
+                // 保持Bootstrap默认的模态框定位样式，不强制全屏
+                
+                // 强制设置所有子元素可交互
+                const allElements = modalEl.querySelectorAll('*');
+                allElements.forEach(el => {
+                    el.style.pointerEvents = 'auto';
+                });
+                
+                // 暂时移除背景遮罩，专注解决交互问题
+                console.log('跳过添加背景遮罩，测试交互性');
+                
+                // 移除任何可能存在的背景遮罩
+                const existingBackdrop = document.getElementById('custom-backdrop-admin');
+                if (existingBackdrop) {
+                    existingBackdrop.remove();
+                }
+                
+                // 强制聚焦到第一个输入框
+                setTimeout(() => {
+                    const firstInput = modalEl.querySelector('input[type="date"]');
+                    if (firstInput) {
+                        firstInput.focus();
+                        firstInput.click(); // 也尝试点击它
+                    }
+                }, 100);
+                
+                // 添加调试信息
+                setTimeout(() => {
+                    console.log('=== 管理员延期模态框调试信息 ===');
+                    console.log('模态框是否可见:', modalEl.offsetWidth > 0 && modalEl.offsetHeight > 0);
+                    console.log('模态框位置:', modalEl.getBoundingClientRect());
+                    console.log('模态框样式:', {
+                        display: modalEl.style.display,
+                        pointerEvents: modalEl.style.pointerEvents,
+                        zIndex: modalEl.style.zIndex,
+                        position: modalEl.style.position
+                    });
+                    
+                    const modalContent = modalEl.querySelector('.modal-content');
+                    if (modalContent) {
+                        console.log('内容区域样式:', modalContent.style.pointerEvents);
+                    }
+                    console.log('=== 调试信息结束 ===');
+                }, 300);
+                
+                console.log('管理员延期模态框显示完成');
+            } catch (error) {
+                console.error('显示管理员延期模态框时出错:', error);
+                showAlert('模态框显示失败', 'danger');
+            }
+        }
+        
+        // 处理操作员延期请求按钮点击
+        function handleOperatorExtendButtonClick(event) {
+            console.log('操作员延期请求按钮被点击');
+            const button = event.currentTarget;
+            const contractId = button.dataset.contractId;
+            const contractName = button.dataset.contractName;
+            const contractNumber = button.dataset.contractNumber;
+            const originalEndDate = button.dataset.originalEndDate;
+            
+            console.log('合同信息:', { contractId, contractName, contractNumber, originalEndDate });
+            
+            // 填充模态框信息
+            document.getElementById('operatorRequestContractId').value = contractId;
+            document.getElementById('operatorRequestContractName').textContent = contractName;
+            document.getElementById('operatorRequestContractNumber').textContent = contractNumber;
+            document.getElementById('operatorOriginalEndDate').textContent = formatDate(originalEndDate);
+            
+            // 重置表单
+            const form = document.getElementById('operatorRequestExtendForm');
+            form.reset();
+            form.classList.remove('was-validated');
+            
+            // 确保模态框元素存在
+            const modalEl = document.getElementById('operatorRequestExtendModal');
+            if (!modalEl) {
+                console.error('模态框元素 operatorRequestExtendModal 不存在!');
+                showAlert('系统错误：模态框未找到', 'danger');
+                return;
+            }
+            
+            // 清理可能的残留状态和强制移除任何阻止交互的样式
+            modalEl.classList.remove('show');
+            modalEl.style.display = '';
+            modalEl.style.pointerEvents = '';
+            
+            // 清除可能存在的旧实例
+            const existingInstance = bootstrap.Modal.getInstance(modalEl);
+            if (existingInstance) {
+                existingInstance.dispose();
+            }
+            
+                            // 显示模态框
+            console.log('准备显示操作员延期请求模态框');
+            try {
+                // 尝试最简单的方式：直接显示模态框，去掉所有可能的阻碍
+                modalEl.style.display = 'block';
+                modalEl.classList.add('show');
+                modalEl.setAttribute('aria-modal', 'true');
+                modalEl.setAttribute('role', 'dialog');
+                modalEl.removeAttribute('aria-hidden');
+                
+                // 非常强制地确保可交互
+                modalEl.style.pointerEvents = 'auto';
+                modalEl.style.zIndex = '1060';
+                // 保持Bootstrap默认的模态框定位样式，不强制全屏
+                
+                // 强制设置所有子元素可交互
+                const allElements = modalEl.querySelectorAll('*');
+                allElements.forEach(el => {
+                    el.style.pointerEvents = 'auto';
+                });
+                
+                // 暂时移除背景遮罩，专注解决交互问题
+                console.log('跳过添加背景遮罩，测试交互性');
+                
+                // 移除任何可能存在的背景遮罩
+                const existingBackdrop = document.getElementById('custom-backdrop-operator');
+                if (existingBackdrop) {
+                    existingBackdrop.remove();
+                }
+                
+                // 强制聚焦到第一个输入框
+                setTimeout(() => {
+                    const firstInput = modalEl.querySelector('input[type="date"]');
+                    if (firstInput) {
+                        firstInput.focus();
+                        firstInput.click(); // 也尝试点击它
+                    }
+                }, 100);
+                
+                // 添加调试信息
+                setTimeout(() => {
+                    console.log('=== 操作员延期模态框调试信息 ===');
+                    console.log('模态框是否可见:', modalEl.offsetWidth > 0 && modalEl.offsetHeight > 0);
+                    console.log('模态框位置:', modalEl.getBoundingClientRect());
+                    console.log('模态框样式:', {
+                        display: modalEl.style.display,
+                        pointerEvents: modalEl.style.pointerEvents,
+                        zIndex: modalEl.style.zIndex,
+                        position: modalEl.style.position
+                    });
+                    
+                    const modalContent = modalEl.querySelector('.modal-content');
+                    if (modalContent) {
+                        console.log('内容区域样式:', modalContent.style.pointerEvents);
+                    }
+                    console.log('=== 调试信息结束 ===');
+                }, 300);
+                
+                console.log('操作员延期模态框显示完成');
+            } catch (error) {
+                console.error('显示操作员延期模态框时出错:', error);
+                showAlert('模态框显示失败', 'danger');
+            }
+        }
 
         // 处理删除按钮点击
         function handleDeleteButtonClick(event) {
@@ -515,6 +859,37 @@
                 showAlert('Bootstrap 库未加载，部分页面功能可能不完整。', 'danger');
             }
 
+            // 添加模态框事件监听器用于调试
+            if (adminModalCheck) {
+                adminModalCheck.addEventListener('show.bs.modal', function (event) {
+                    console.log('管理员延期模态框即将显示');
+                });
+                adminModalCheck.addEventListener('shown.bs.modal', function (event) {
+                    console.log('管理员延期模态框已显示');
+                });
+                adminModalCheck.addEventListener('hide.bs.modal', function (event) {
+                    console.log('管理员延期模态框即将隐藏');
+                });
+                adminModalCheck.addEventListener('hidden.bs.modal', function (event) {
+                    console.log('管理员延期模态框已隐藏');
+                });
+            }
+
+            if (operatorModalCheck) {
+                operatorModalCheck.addEventListener('show.bs.modal', function (event) {
+                    console.log('操作员延期模态框即将显示');
+                });
+                operatorModalCheck.addEventListener('shown.bs.modal', function (event) {
+                    console.log('操作员延期模态框已显示');
+                });
+                operatorModalCheck.addEventListener('hide.bs.modal', function (event) {
+                    console.log('操作员延期模态框即将隐藏');
+                });
+                operatorModalCheck.addEventListener('hidden.bs.modal', function (event) {
+                    console.log('操作员延期模态框已隐藏');
+                });
+            }
+
             const searchForm = document.getElementById('contractSearchForm');
 
             if (searchForm) {
@@ -531,8 +906,132 @@
             }
 
             searchContracts(1); // 页面加载时自动加载第一页数据
+            
+            // 设置延期表单提交事件
+            setupExtendFormHandlers();
 
         });
+        
+        // 设置延期表单事件处理器
+        function setupExtendFormHandlers() {
+            // 管理员延期表单
+            const adminForm = document.getElementById('adminExtendForm');
+            if (adminForm) {
+                adminForm.addEventListener('submit', handleAdminExtendSubmit);
+                // 添加自动重置标记
+                adminForm.setAttribute('data-auto-reset', 'true');
+            }
+            
+            // 操作员延期请求表单
+            const operatorForm = document.getElementById('operatorRequestExtendForm');
+            if (operatorForm) {
+                operatorForm.addEventListener('submit', handleOperatorExtendSubmit);
+                // 添加自动重置标记
+                operatorForm.setAttribute('data-auto-reset', 'true');
+            }
+        }
+        
+        // 处理管理员延期表单提交
+        async function handleAdminExtendSubmit(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            if (!form.checkValidity()) {
+                form.classList.add('was-validated');
+                return;
+            }
+            
+            const contractId = document.getElementById('adminExtendContractId').value;
+            const newEndDate = document.getElementById('adminNewEndDate').value;
+            const comments = document.getElementById('adminExtendComments').value;
+            
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            
+            try {
+                submitButton.disabled = true;
+                submitButton.textContent = '处理中...';
+                
+                const response = await fetch(`/contracts/${contractId}/extend/admin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        newEndDate: newEndDate,
+                        comments: comments
+                    })
+                });
+                
+                if (response.ok) {
+                    // 关闭模态框
+                    closeAdminExtendModal();
+                    showAlert('合同延期成功！', 'success');
+                    searchContracts(1); // 刷新列表
+                } else {
+                    const errorMessage = await response.text();
+                    showAlert(`延期失败: ${errorMessage || '未知错误'}`, 'danger');
+                }
+            } catch (error) {
+                console.error('延期请求失败:', error);
+                showAlert('发生了一个意外错误：' + error.message, 'danger');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+            }
+        }
+        
+        // 处理操作员延期请求表单提交
+        async function handleOperatorExtendSubmit(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            if (!form.checkValidity()) {
+                form.classList.add('was-validated');
+                return;
+            }
+            
+            const contractId = document.getElementById('operatorRequestContractId').value;
+            const requestedNewEndDate = document.getElementById('operatorNewEndDate').value;
+            const reason = document.getElementById('operatorRequestReason').value;
+            const comments = document.getElementById('operatorRequestComments').value;
+            
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            
+            try {
+                submitButton.disabled = true;
+                submitButton.textContent = '提交中...';
+                
+                const response = await fetch(`/contracts/${contractId}/extend/request`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        requestedNewEndDate: requestedNewEndDate,
+                        reason: reason,
+                        comments: comments
+                    })
+                });
+                
+                if (response.ok) {
+                    // 关闭模态框
+                    closeOperatorExtendModal();
+                    showAlert('延期请求已提交，等待管理员审批', 'success');
+                    searchContracts(1); // 刷新列表
+                } else {
+                    const errorMessage = await response.text();
+                    showAlert(`提交失败: ${errorMessage || '未知错误'}`, 'danger');
+                }
+            } catch (error) {
+                console.error('延期请求提交失败:', error);
+                showAlert('发生了一个意外错误：' + error.message, 'danger');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+            }
+        }
     </script>
 </th:block>
 </body>

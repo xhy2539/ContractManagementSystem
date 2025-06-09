@@ -667,7 +667,6 @@ function showAnalysisModal(type) {
     }
     
     // 显示增强的加载界面
-    const modal = new bootstrap.Modal(document.getElementById('analysisResultModal'));
     document.getElementById('analysisResultContent').innerHTML = `
         <div class="text-center py-5">
             <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
@@ -681,7 +680,7 @@ function showAnalysisModal(type) {
             </div>
         </div>
     `;
-    modal.show();
+    showModal('analysisResultModal');
     
     // 调用对应的分析API
     const apiUrl = `/contract-analysis/${type === 'risk' ? 'risk-analysis' : type === 'clause' ? 'clause-check' : 'compliance-check'}/${contractId}`;
@@ -725,7 +724,6 @@ function performQuickAnalysis(event) {
     simulateAnalysisProgress();
     
     // 显示加载提示
-    const modal = new bootstrap.Modal(document.getElementById('analysisResultModal'));
     document.getElementById('analysisResultContent').innerHTML = `
         <div class="text-center py-5">
             <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
@@ -733,7 +731,7 @@ function performQuickAnalysis(event) {
             <p class="text-muted">AI引擎正在深度分析合同内容，请稍候</p>
         </div>
     `;
-    modal.show();
+    showModal('analysisResultModal');
     
     // 调用API
     let apiUrl;
