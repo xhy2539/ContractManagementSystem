@@ -30,7 +30,9 @@ console.log("🚀 简化版管理模块模态框修复启动");
             '#roleFormModal', 
             '#functionalityFormModal',
             '#assignRolesModal',
-            '#templateFormModal'
+            '#templateFormModal',
+            '#customerFormModal',
+            '#attachmentListModal'
         ];
         
         modalSelectors.forEach(selector => {
@@ -94,7 +96,8 @@ console.log("🚀 简化版管理模块模态框修复启动");
             { id: 'addUserBtn', modalId: 'userFormModal' },
             { id: 'addRoleBtn', modalId: 'roleFormModal' },
             { id: 'addFunctionalityBtn', modalId: 'functionalityFormModal' },
-            { id: 'addTemplateBtn', modalId: 'templateFormModal' }
+            { id: 'addTemplateBtn', modalId: 'templateFormModal' },
+            { id: 'addCustomerBtn', modalId: 'customerFormModal' }
         ];
         
         triggerButtons.forEach(({ id, modalId }) => {
@@ -122,7 +125,8 @@ console.log("🚀 简化版管理模块模态框修复启动");
             'usersTable',
             'rolesTable', 
             'functionalitiesTable',
-            'templatesTable'
+            'templatesTable',
+            'customersTable'
         ];
         
         tables.forEach(tableId => {
@@ -142,7 +146,8 @@ console.log("🚀 简化版管理模块模态框修复启动");
                     classList.contains('edit-role-btn') || 
                     classList.contains('edit-func-btn') ||
                     classList.contains('edit-template-btn') ||
-                    classList.contains('assign-roles-btn')) {
+                    classList.contains('assign-roles-btn') ||
+                    classList.contains('edit-customer-btn')) {
                     
                     console.log('🔧 编辑相关按钮点击，处理中...');
                     
@@ -163,6 +168,8 @@ console.log("🚀 简化版管理模块模态框修复启动");
                             targetModalId = 'functionalityFormModal';
                         } else if (classList.contains('edit-template-btn')) {
                             targetModalId = 'templateFormModal';
+                        } else if (classList.contains('edit-customer-btn')) {
+                            targetModalId = 'customerFormModal';
                         }
                         
                         if (targetModalId) {
@@ -177,11 +184,35 @@ console.log("🚀 简化版管理模块模态框修复启动");
                         }
                     }, 200);
                 }
+                // 附件按钮特殊处理
+                else if (btn.hasAttribute('data-bs-target') && btn.getAttribute('data-bs-target') === '#attachmentListModal') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🔧 附件按钮点击，处理中...');
+                    
+                    // 获取附件数据
+                    const attachmentsJson = btn.getAttribute('data-attachments');
+                    const contractName = btn.getAttribute('data-contract-name');
+                    
+                    setTimeout(() => {
+                        const modal = document.getElementById('attachmentListModal');
+                        if (modal) {
+                            console.log('🔧 显示附件模态框，合同:', contractName);
+                            
+                            // 手动触发附件数据加载
+                            loadAttachmentData(modal, btn, attachmentsJson, contractName);
+                            
+                            // 显示模态框
+                            showModal(modal);
+                        }
+                    }, 100);
+                }
                 // 删除按钮保持原有行为
                 else if (classList.contains('delete-user-btn') || 
                         classList.contains('delete-role-btn') || 
                         classList.contains('delete-func-btn') ||
-                        classList.contains('delete-template-btn')) {
+                        classList.contains('delete-template-btn') ||
+                        classList.contains('delete-customer-btn')) {
                     console.log('🗑️ 删除按钮点击，保持原有行为');
                     // 不阻止默认行为，让原有的删除逻辑执行
                 }
@@ -204,6 +235,105 @@ console.log("🚀 简化版管理模块模态框修复启动");
                 }
             });
         }, 2000);
+    }
+    
+    // 附件数据加载函数
+    function loadAttachmentData(modal, button, attachmentsJson, contractName) {
+        console.log('🔧 开始加载附件数据:', contractName, attachmentsJson);
+        
+        const attachmentListContainer = modal.querySelector('#attachmentListContainer');
+        const modalContractName = modal.querySelector('#modalContractName');
+        
+        if (!attachmentListContainer || !modalContractName) {
+            console.error('找不到附件容器元素');
+            return;
+        }
+        
+        modalContractName.textContent = contractName || '未知合同';
+        attachmentListContainer.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div> 正在加载附件...</div>';
+        
+        // 添加文件到UI的函数
+        function addExistingFileToUI(serverFileName) {
+            const uniqueId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const fileItemHTML = `
+                <div class="file-list-item" id="${uniqueId}">
+                    <div class="file-info">
+                        <span class="file-name" title="${serverFileName}">${serverFileName}</span>
+                    </div>
+                    <div class="file-actions">
+                        <button type="button" class="btn btn-sm btn-outline-info preview-btn" 
+                                title="预览文件" 
+                                data-filename="${serverFileName}">
+                            <i class="bi bi-eye"></i> 预览
+                        </button>
+                    </div>
+                </div>`;
+            attachmentListContainer.insertAdjacentHTML('beforeend', fileItemHTML);
+            
+            // 为预览按钮添加事件监听器
+            const newElement = document.getElementById(uniqueId);
+            if (newElement) {
+                const previewBtn = newElement.querySelector('.preview-btn');
+                if (previewBtn) {
+                    previewBtn.addEventListener('click', function() {
+                        const fileName = this.getAttribute('data-filename');
+                        console.log('🔧 点击预览按钮:', fileName);
+                        handlePreviewFile(fileName);
+                    });
+                }
+            }
+        }
+        
+        // 文件预览处理函数
+        function handlePreviewFile(serverFileName) {
+            if (!serverFileName) {
+                console.error('预览失败：文件名为空');
+                return;
+            }
+            
+            console.log('🔧 开始预览文件:', serverFileName);
+            const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
+            const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+            
+            if (isPreviewable) {
+                window.open(downloadUrl, '_blank');
+            } else {
+                const userAgreedToDownload = confirm(
+                    `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击"确定"将尝试下载该文件。`
+                );
+                if (userAgreedToDownload) {
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.setAttribute('download', serverFileName);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+        }
+        
+        // 处理附件JSON数据
+        try {
+            if (attachmentsJson && attachmentsJson !== '[]') {
+                const attachmentFiles = JSON.parse(attachmentsJson);
+                attachmentListContainer.innerHTML = '';
+                
+                if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
+                    console.log(`🔧 加载 ${attachmentFiles.length} 个附件文件`);
+                    attachmentFiles.forEach((fileName) => {
+                        console.log(`🔧 添加附件: ${fileName}`);
+                        addExistingFileToUI(fileName);
+                    });
+                } else {
+                    attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+                }
+            } else {
+                attachmentListContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+            }
+        } catch (e) {
+            console.error('解析附件JSON失败:', e);
+            attachmentListContainer.innerHTML = '<p class="text-danger small">加载附件列表时出错。</p>';
+        }
     }
     
     function showModal(modalEl) {
