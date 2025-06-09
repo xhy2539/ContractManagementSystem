@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>起草新合同 - 合同管理系统</title>
     <th:block layout:fragment="css-links">
+        <!-- 客户选择功能修复脚本 -->
+        <script th:src="@{/js/customer-selection-fix.js}" defer></script>
     </th:block>
     <style layout:fragment="inline-css">
         .card-header { font-weight: 500; }
@@ -560,6 +562,190 @@
 
             console.log("DEBUG: DOMContentLoaded 事件触发 - 脚本开始执行。");
 
+            // 确保DOM完全加载后再进行API调用
+            setTimeout(() => {
+                console.log("DEBUG: 延迟执行客户选择功能初始化");
+                
+                // 检查必要的元素是否存在
+                const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
+                const customerSelectModalEl = document.getElementById('customerSelectModal');
+                
+                if (!openCustomerSelectModalBtn) {
+                    console.error("ERROR: 无法找到客户选择按钮");
+                    return;
+                }
+                
+                if (!customerSelectModalEl) {
+                    console.error("ERROR: 无法找到客户选择模态框");
+                    return;
+                }
+                
+                console.log("DEBUG: 客户选择相关元素已找到，开始初始化功能");
+                
+                // 重新初始化客户选择功能
+                initializeCustomerSelection();
+                
+            }, 1000); // 延迟1秒执行
+
+            // 添加网络错误检查
+            function checkNetworkConnectivity() {
+                return fetch('/customers/api/search?keyword=&page=0&size=1', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`网络请求失败: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("DEBUG: 网络连接正常，API响应:", data);
+                    return true;
+                })
+                .catch(error => {
+                    console.error("ERROR: 网络连接或API错误:", error);
+                    showAlertOnMainPage('网络连接异常，无法加载客户数据。请检查网络连接并刷新页面。', 'danger');
+                    return false;
+                });
+            }
+
+            // 客户选择功能初始化
+            function initializeCustomerSelection() {
+                const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
+                const customerSelectModalEl = document.getElementById('customerSelectModal');
+                const customerSelectModal = customerSelectModalEl ? new bootstrap.Modal(customerSelectModalEl) : null;
+                
+                if (openCustomerSelectModalBtn && customerSelectModal) {
+                    // 移除之前的事件监听器
+                    openCustomerSelectModalBtn.removeEventListener('click', openCustomerModal);
+                    // 添加新的事件监听器
+                    openCustomerSelectModalBtn.addEventListener('click', openCustomerModal);
+                    
+                    console.log("DEBUG: 客户选择按钮事件监听器已添加");
+                }
+                
+                function openCustomerModal() {
+                    console.log("DEBUG: 客户选择按钮被点击");
+                    
+                    // 首先检查网络连接
+                    checkNetworkConnectivity().then(isConnected => {
+                        if (isConnected) {
+                            const modalCustomerSearchInput = document.getElementById('modalCustomerSearchInput');
+                            if (modalCustomerSearchInput) modalCustomerSearchInput.value = '';
+                            customerSearchKeyword = '';
+                            loadCustomersForModal(0);
+                            customerSelectModal.show();
+                        }
+                    });
+                }
+            }
+
+            // 增强的客户加载函数
+            function loadCustomersForModal(page, keyword = customerSearchKeyword) {
+                console.log(`DEBUG: 开始加载客户数据 - 页码: ${page}, 关键词: "${keyword}"`);
+                
+                currentCustomerPage = page;
+                const searchUrl = `/customers/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${CUSTOMER_PAGE_SIZE}&sort=customerName,asc`;
+                
+                const customerModalSpinner = document.getElementById('customerModalSpinner');
+                const customerTableBody = document.querySelector('#customerTableModal tbody');
+                const customerModalAlertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
+                
+                if (customerModalSpinner) customerModalSpinner.style.display = 'block';
+                if (customerTableBody) customerTableBody.innerHTML = '<tr><td colspan="5" class="text-center">正在加载客户数据...</td></tr>';
+                if (customerModalAlertPlaceholder) customerModalAlertPlaceholder.innerHTML = '';
+
+                fetch(searchUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    console.log(`DEBUG: API响应状态: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`网络响应错误 (${response.status}) 在获取客户时。`);
+                    }
+                    return response.json();
+                })
+                .then(pageData => {
+                    console.log("DEBUG: 客户数据加载成功:", pageData);
+                    if (pageData && pageData.content) {
+                        renderCustomerTable(pageData.content);
+                        renderCustomerPagination(pageData);
+                    } else {
+                        console.warn("WARNING: 接收到的数据格式异常");
+                        renderCustomerTable([]);
+                        renderCustomerPagination(null);
+                    }
+                })
+                .catch(error => {
+                    console.error('ERROR: 加载客户列表失败:', error);
+                    if (customerTableBody) {
+                        customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>加载客户数据失败: ${error.message}
+                            <br><small class="text-muted">请检查网络连接或联系系统管理员</small>
+                        </td></tr>`;
+                    }
+                    renderCustomerPagination(null);
+                    showAlertInModal('加载客户数据失败: ' + error.message, 'danger', customerModalAlertPlaceholder);
+                })
+                .finally(() => {
+                    if (customerModalSpinner) customerModalSpinner.style.display = 'none';
+                });
+            }
+
+            // 添加Chrome第三方Cookie警告处理
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                // 忽略Chrome扩展相关的错误
+                window.addEventListener('error', function(event) {
+                    if (event.message && event.message.includes('chrome')) {
+                        console.warn('Chrome扩展相关错误已忽略:', event.message);
+                        event.preventDefault();
+                        return false;
+                    }
+                });
+            }
+
+            // 添加全局错误处理
+            window.addEventListener('unhandledrejection', function(event) {
+                console.error('未处理的Promise拒绝:', event.reason);
+                if (event.reason && event.reason.message && event.reason.message.includes('客户')) {
+                    showAlertOnMainPage('客户数据加载出现问题，请刷新页面重试', 'warning');
+                }
+            });
+
+            console.log("DEBUG: draft-contract.html 的内联脚本主要逻辑执行完毕。");
+            
+            // 检查Bootstrap是否正确加载
+            if (typeof bootstrap !== 'undefined') {
+                console.log("Bootstrap 5 JS 成功加载并可用。");
+                
+                // 手动初始化下拉菜单
+                const adminMenuDropdown = document.getElementById('adminMenuDropdown');
+                const userDropdown = document.getElementById('userDropdown');
+                
+                if (adminMenuDropdown) {
+                    console.log("手动初始化 Bootstrap Dropdown: adminMenuDropdown");
+                    new bootstrap.Dropdown(adminMenuDropdown);
+                }
+                
+                if (userDropdown) {
+                    console.log("手动初始化 Bootstrap Dropdown: userDropdown");
+                    new bootstrap.Dropdown(userDropdown);
+                }
+            } else {
+                console.error("Bootstrap 5 JS 未正确加载！");
+                showAlertOnMainPage('页面脚本加载异常，部分功能可能不可用', 'warning');
+            }
+
             // --- 开始：现有客户选择和 Bootstrap 验证逻辑 ---
             (function () {
                 'use strict'
@@ -666,16 +852,16 @@
             })();
             // --- 客户选择和验证逻辑结束 ---
 
-            // --- 所有客户模态框和附件逻辑 ---
-            const openCustomerSelectModalBtn = document.getElementById('openCustomerSelectModalBtn');
-            const customerSelectModalEl = document.getElementById('customerSelectModal');
-            const customerSelectModal = customerSelectModalEl ? new bootstrap.Modal(customerSelectModalEl) : null;
+            // --- 客户模态框变量声明 ---
+            let currentCustomerPage = 0;
+            const CUSTOMER_PAGE_SIZE = 5;
+            let customerSearchKeyword = '';
+
+            // 所有相关元素
             const modalCustomerSearchInput = document.getElementById('modalCustomerSearchInput');
             const modalSearchCustomerBtn = document.getElementById('modalSearchCustomerBtn');
             const customerTableBody = document.querySelector('#customerTableModal tbody');
             const customerModalPagination = document.getElementById('customerModalPagination');
-            const customerModalSpinner = document.getElementById('customerModalSpinner');
-            const customerModalAlertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
             const selectedCustomerIdInput = document.getElementById('selectedCustomerId');
             const selectedCustomerInfoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
             const selectedCustomerDetailsCard = document.getElementById('selectedCustomerDetailsCard');
@@ -687,19 +873,7 @@
             const addCustomerModalAlertPlaceholderDraft = document.getElementById('addCustomerModalAlertPlaceholder_draft');
             const backToCustomerSelectModalBtn = document.getElementById('backToCustomerSelectModalBtn');
 
-            let currentCustomerPage = 0;
-            const CUSTOMER_PAGE_SIZE = 5;
-            let customerSearchKeyword = '';
-
-            if(openCustomerSelectModalBtn && customerSelectModal) {
-                openCustomerSelectModalBtn.addEventListener('click', function() {
-                    if(modalCustomerSearchInput) modalCustomerSearchInput.value = '';
-                    customerSearchKeyword = '';
-                    loadCustomersForModal(0);
-                    customerSelectModal.show();
-                });
-            }
-
+            // 搜索功能绑定
             if(modalSearchCustomerBtn && modalCustomerSearchInput) {
                 modalSearchCustomerBtn.addEventListener('click', function() {
                     customerSearchKeyword = modalCustomerSearchInput.value.trim();
@@ -712,38 +886,6 @@
                         loadCustomersForModal(0, customerSearchKeyword);
                     }
                 });
-            }
-
-            function loadCustomersForModal(page, keyword = customerSearchKeyword) {
-                currentCustomerPage = page;
-                const searchUrl = `/customers/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${CUSTOMER_PAGE_SIZE}&sort=customerName,asc`;
-                if(customerModalSpinner) customerModalSpinner.style.display = 'block';
-                if(customerTableBody) customerTableBody.innerHTML = '';
-                if(customerModalAlertPlaceholder) customerModalAlertPlaceholder.innerHTML = '';
-
-                fetch(searchUrl)
-                    .then(response => {
-                        if (!response.ok) throw new Error(`网络响应错误 (${response.status}) 在获取客户时。`);
-                        return response.json();
-                    })
-                    .then(pageData => {
-                        if (pageData && pageData.content) {
-                            renderCustomerTable(pageData.content);
-                            renderCustomerPagination(pageData);
-                        } else {
-                            renderCustomerTable([]);
-                            renderCustomerPagination(null);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('加载客户列表失败:', error);
-                        if(customerTableBody) customerTableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">加载客户数据失败: ${error.message}</td></tr>`;
-                        renderCustomerPagination(null);
-                        showAlertInModal('加载客户数据失败: ' + error.message, 'danger', customerModalAlertPlaceholder);
-                    })
-                    .finally(() => {
-                        if(customerModalSpinner) customerModalSpinner.style.display = 'none';
-                    });
             }
 
             function renderCustomerTable(customers) {
@@ -2331,6 +2473,218 @@
             }
 
             console.log("DEBUG: draft-contract.html 的内联脚本主要逻辑执行完毕。");
+            
+            // ============ 客户选择功能修复 ============
+            console.log("🚀 开始客户选择功能修复");
+            
+            // 修复客户选择按钮功能
+            setTimeout(() => {
+                const openBtn = document.getElementById('openCustomerSelectModalBtn');
+                const modalEl = document.getElementById('customerSelectModal');
+                
+                if (openBtn && modalEl) {
+                    console.log("✅ 找到客户选择相关元素，重新绑定事件");
+                    
+                    // 移除所有现有的事件监听器
+                    const newBtn = openBtn.cloneNode(true);
+                    openBtn.parentNode.replaceChild(newBtn, openBtn);
+                    
+                    // 重新绑定点击事件
+                    newBtn.addEventListener('click', function() {
+                        console.log("🔧 客户选择按钮被点击 - 修复版本");
+                        
+                        // 测试API连接
+                        fetch('/customers/api/search?keyword=&page=0&size=1')
+                            .then(response => {
+                                console.log("📡 API测试响应:", response.status);
+                                if (response.ok) {
+                                    // API正常，打开模态框
+                                    const modal = new bootstrap.Modal(modalEl);
+                                    const searchInput = document.getElementById('modalCustomerSearchInput');
+                                    if (searchInput) searchInput.value = '';
+                                    
+                                    // 清空并加载客户数据
+                                    loadCustomersFixed(0, '');
+                                    modal.show();
+                                } else {
+                                    throw new Error('API不可访问');
+                                }
+                            })
+                            .catch(error => {
+                                console.error("❌ API测试失败:", error);
+                                alert('无法连接到客户数据服务，请检查网络连接或联系系统管理员。');
+                            });
+                    });
+                    
+                    console.log("✅ 客户选择按钮事件重新绑定完成");
+                } else {
+                    console.error("❌ 未找到客户选择相关元素");
+                }
+            }, 1000);
+            
+            // 修复后的客户加载函数
+            function loadCustomersFixed(page, keyword) {
+                console.log(`🔧 加载客户数据 - 页码: ${page}, 关键词: "${keyword}"`);
+                
+                const spinner = document.getElementById('customerModalSpinner');
+                const tableBody = document.querySelector('#customerTableModal tbody');
+                const alertPlaceholder = document.getElementById('customerModalAlertPlaceholder');
+                
+                if (spinner) spinner.style.display = 'block';
+                if (tableBody) tableBody.innerHTML = '<tr><td colspan="5" class="text-center">正在加载...</td></tr>';
+                if (alertPlaceholder) alertPlaceholder.innerHTML = '';
+                
+                const url = `/customers/api/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=5&sort=customerName,asc`;
+                
+                fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    console.log("📡 客户数据响应:", response.status);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("✅ 客户数据加载成功:", data);
+                    renderCustomersFixed(data.content || []);
+                    renderPaginationFixed(data);
+                })
+                .catch(error => {
+                    console.error("❌ 客户数据加载失败:", error);
+                    if (tableBody) {
+                        tableBody.innerHTML = `
+                            <tr><td colspan="5" class="text-center text-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>加载失败: ${error.message}
+                                <br><small>请检查网络连接</small>
+                            </td></tr>
+                        `;
+                    }
+                })
+                .finally(() => {
+                    if (spinner) spinner.style.display = 'none';
+                });
+            }
+            
+            // 修复后的客户表格渲染
+            function renderCustomersFixed(customers) {
+                const tableBody = document.querySelector('#customerTableModal tbody');
+                if (!tableBody) return;
+                
+                tableBody.innerHTML = '';
+                
+                if (!customers || customers.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">未找到客户记录</td></tr>';
+                    return;
+                }
+                
+                customers.forEach(customer => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${customer.customerNumber || 'N/A'}</td>
+                        <td>${customer.customerName}</td>
+                        <td>${customer.phoneNumber || 'N/A'}</td>
+                        <td>${customer.email || 'N/A'}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-primary select-btn">
+                                <i class="bi bi-check-circle-fill me-1"></i>选择
+                            </button>
+                        </td>
+                    `;
+                    
+                    const selectBtn = row.querySelector('.select-btn');
+                    selectBtn.addEventListener('click', function() {
+                        selectCustomerFixed(customer);
+                    });
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+            
+            // 修复后的客户选择函数
+            function selectCustomerFixed(customer) {
+                console.log("✅ 选择客户:", customer.customerName);
+                
+                const selectedIdInput = document.getElementById('selectedCustomerId');
+                const infoPlaceholder = document.getElementById('selectedCustomerInfoPlaceholder');
+                const detailsCard = document.getElementById('selectedCustomerDetailsCard');
+                const modalEl = document.getElementById('customerSelectModal');
+                
+                if (selectedIdInput) selectedIdInput.value = customer.id;
+                
+                if (infoPlaceholder) {
+                    infoPlaceholder.innerHTML = `
+                        <strong class="text-success">${customer.customerName}</strong> 
+                        <small class="text-muted">(编号: ${customer.customerNumber || 'N/A'})</small>
+                    `;
+                    infoPlaceholder.classList.remove('is-invalid-placeholder');
+                }
+                
+                if (detailsCard) {
+                    document.getElementById('selectedCustomerNameText').textContent = customer.customerName || 'N/A';
+                    document.getElementById('selectedCustomerNumberText').textContent = customer.customerNumber || 'N/A';
+                    document.getElementById('selectedCustomerPhoneText').textContent = customer.phoneNumber || 'N/A';
+                    document.getElementById('selectedCustomerEmailText').textContent = customer.email || 'N/A';
+                    document.getElementById('selectedCustomerAddressText').textContent = customer.address || 'N/A';
+                    detailsCard.style.display = 'block';
+                }
+                
+                // 关闭模态框
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                
+                // 触发验证
+                if (selectedIdInput) {
+                    selectedIdInput.dispatchEvent(new Event('change'));
+                    selectedIdInput.classList.remove('is-invalid');
+                }
+                
+                const errorFeedback = document.getElementById('selectedCustomerIdClientFeedback');
+                if (errorFeedback) errorFeedback.style.display = 'none';
+                
+                console.log("✅ 客户选择完成");
+            }
+            
+            function renderPaginationFixed(pageData) {
+                // 简化版分页，基本功能实现
+                const pagination = document.getElementById('customerModalPagination');
+                if (!pagination || !pageData || pageData.totalPages <= 1) return;
+                
+                pagination.innerHTML = '';
+                const { totalPages, number, first, last } = pageData;
+                
+                if (!first) {
+                    const prev = document.createElement('li');
+                    prev.className = 'page-item';
+                    prev.innerHTML = '<a class="page-link" href="#">上一页</a>';
+                    prev.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        loadCustomersFixed(number - 1, '');
+                    });
+                    pagination.appendChild(prev);
+                }
+                
+                const current = document.createElement('li');
+                current.className = 'page-item disabled';
+                current.innerHTML = `<span class="page-link">第 ${number + 1} / ${totalPages} 页</span>`;
+                pagination.appendChild(current);
+                
+                if (!last) {
+                    const next = document.createElement('li');
+                    next.className = 'page-item';
+                    next.innerHTML = '<a class="page-link" href="#">下一页</a>';
+                    next.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        loadCustomersFixed(number + 1, '');
+                    });
+                    pagination.appendChild(next);
+                }
+            }
+            
+            console.log("🎯 客户选择功能修复完成");
         });
         /*]]>*/
     </script>
