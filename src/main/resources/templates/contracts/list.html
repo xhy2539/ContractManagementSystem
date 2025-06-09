@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title>合同列表</title>
+    <style layout:fragment="inline-css">
+        /* 合同列表特定样式 */
+        .search-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .search-form {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .contracts-table {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px 15px 0 0;
+        }
+
+        .contract-row {
+            border-bottom: 1px solid #f3f4f6;
+            transition: all 0.3s ease;
+        }
+
+        .contract-row:hover {
+            background-color: rgba(102, 126, 234, 0.05);
+            transform: translateX(5px);
+        }
+
+        .contract-row:last-child {
+            border-bottom: none;
+        }
+
+        .contract-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .status-active {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: #d97706;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .status-draft {
+            background: rgba(107, 114, 128, 0.1);
+            color: #4b5563;
+            border: 1px solid rgba(107, 114, 128, 0.2);
+        }
+
+        .status-expired {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .btn-action {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-view {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-delete {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .contract-meta {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .contract-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .search-input {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .filter-chip {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            border: none;
+            margin: 0.25rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-chip:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .filter-chip.active {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .pagination-container {
+            background: white;
+            border-radius: 0 0 15px 15px;
+            padding: 1.5rem;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .no-contracts {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #6b7280;
+        }
+
+        .no-contracts i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .stats-row {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .stats-item {
+            text-align: center;
+        }
+
+        .stats-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stats-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            .search-form {
+                padding: 1rem;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            
+            .btn-action {
+                width: 100%;
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- 页面标题 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">
+                    <i class="bi bi-file-earmark-text"></i> 合同列表
+                </h2>
+                <p class="text-muted mb-0">管理和查看所有合同信息</p>
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="location.href='/contracts/draft'" 
+                        sec:authorize="hasAuthority('CON_DRAFT')">
+                    <i class="bi bi-plus-lg"></i> 起草合同
+                </button>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="stats-row">
+            <div class="row">
+                <div class="col-md-3 col-6">
+                    <div class="stats-item">
+                        <div class="stats-number" th:text="${totalContracts ?: 0}">0</div>
+                        <div class="stats-label">总合同数</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stats-item">
+                        <div class="stats-number text-success" th:text="${activeContracts ?: 0}">0</div>
+                        <div class="stats-label">生效中</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stats-item">
+                        <div class="stats-number text-warning" th:text="${pendingContracts ?: 0}">0</div>
+                        <div class="stats-label">待处理</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stats-item">
+                        <div class="stats-number text-danger" th:text="${expiredContracts ?: 0}">0</div>
+                        <div class="stats-label">已过期</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 搜索和筛选 -->
+        <div class="search-card">
+            <div class="card-body">
+                <div class="search-form">
+                    <form method="get" th:action="@{/contracts}" id="searchForm">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">合同名称</label>
+                                <input type="text" class="form-control search-input" 
+                                       name="contractName" th:value="${contractName}"
+                                       placeholder="输入合同名称搜索...">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">合同编号</label>
+                                <input type="text" class="form-control search-input" 
+                                       name="contractNumber" th:value="${contractNumber}"
+                                       placeholder="输入合同编号搜索...">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">合同状态</label>
+                                <select class="form-select search-input" name="status">
+                                    <option value="">全部状态</option>
+                                    <option value="DRAFT" th:selected="${status == 'DRAFT'}">草稿</option>
+                                    <option value="PENDING_APPROVAL" th:selected="${status == 'PENDING_APPROVAL'}">待审批</option>
+                                    <option value="ACTIVE" th:selected="${status == 'ACTIVE'}">生效中</option>
+                                    <option value="EXPIRED" th:selected="${status == 'EXPIRED'}">已过期</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">客户名称</label>
+                                <input type="text" class="form-control search-input" 
+                                       name="customerName" th:value="${customerName}"
+                                       placeholder="输入客户名称搜索...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">起草人</label>
+                                <input type="text" class="form-control search-input" 
+                                       name="drafterName" th:value="${drafterName}"
+                                       placeholder="输入起草人姓名搜索...">
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-search"></i> 搜索
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="clearSearch()">
+                                        <i class="bi bi-arrow-clockwise"></i> 重置
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 快速筛选标签 -->
+                <div class="mt-3">
+                    <div class="d-flex flex-wrap align-items-center">
+                        <span class="me-2 text-muted">快速筛选：</span>
+                        <button class="filter-chip" onclick="quickFilter('')">全部</button>
+                        <button class="filter-chip" onclick="quickFilter('ACTIVE')">生效中</button>
+                        <button class="filter-chip" onclick="quickFilter('PENDING_APPROVAL')">待审批</button>
+                        <button class="filter-chip" onclick="quickFilter('DRAFT')">草稿</button>
+                        <button class="filter-chip" onclick="quickFilter('EXPIRED')">已过期</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 合同表格 -->
+        <div class="contracts-table">
+            <div class="table-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-list-ul"></i> 合同清单
+                    </h5>
+                    <span class="badge bg-light text-dark">
+                        共 <span th:text="${contracts?.totalElements ?: 0}">0</span> 条记录
+                    </span>
+                </div>
+            </div>
+
+            <div th:if="${contracts != null and contracts.hasContent()}" class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="d-none">
+                        <tr>
+                            <th>合同信息</th>
+                            <th>客户</th>
+                            <th>状态</th>
+                            <th>日期</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="contract : ${contracts.content}" class="contract-row">
+                            <td class="py-3">
+                                <div class="contract-title" th:text="${contract.contractName}">合同名称</div>
+                                <div class="contract-meta">
+                                    <span>编号：<span th:text="${contract.contractNumber}">编号</span></span>
+                                    <span class="ms-3">起草人：<span th:text="${contract.drafter?.username ?: '未知'}">起草人</span></span>
+                                </div>
+                            </td>
+                            <td class="py-3">
+                                <div th:text="${contract.customer?.customerName}">客户名称</div>
+                                <div class="contract-meta" th:text="${contract.customer?.contactInfo}">联系方式</div>
+                            </td>
+                            <td class="py-3">
+                                <span class="contract-status"
+                                      th:classappend="${contract.status.name() == 'ACTIVE' ? 'status-active' : 
+                                                      (contract.status.name() == 'PENDING_APPROVAL' ? 'status-pending' : 
+                                                      (contract.status.name() == 'DRAFT' ? 'status-draft' : 'status-expired'))}"
+                                      th:text="${contract.status.description}">
+                                    状态
+                                </span>
+                            </td>
+                            <td class="py-3">
+                                <div>开始：<span th:text="${#dates.format(contract.startDate, 'yyyy-MM-dd')}">开始日期</span></div>
+                                <div class="contract-meta">结束：<span th:text="${#dates.format(contract.endDate, 'yyyy-MM-dd')}">结束日期</span></div>
+                            </td>
+                            <td class="py-3">
+                                <div class="action-buttons">
+                                    <button type="button" class="btn btn-action btn-view" 
+                                            th:onclick="'viewContract(' + ${contract.id} + ')'">
+                                        <i class="bi bi-eye"></i> 查看
+                                    </button>
+                                    <button type="button" class="btn btn-action btn-edit" 
+                                            th:onclick="'editContract(' + ${contract.id} + ')'"
+                                            sec:authorize="hasAuthority('CON_EDIT')">
+                                        <i class="bi bi-pencil"></i> 编辑
+                                    </button>
+                                    <button type="button" class="btn btn-action btn-delete" 
+                                            th:onclick="'deleteContract(' + ${contract.id} + ', \'' + ${contract.contractName} + '\')''"
+                                            sec:authorize="hasAuthority('CON_DELETE')">
+                                        <i class="bi bi-trash"></i> 删除
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 无数据提示 -->
+            <div th:if="${contracts == null or !contracts.hasContent()}" class="no-contracts">
+                <i class="bi bi-file-earmark-x"></i>
+                <h5>暂无合同数据</h5>
+                <p>没有找到符合条件的合同，请尝试调整搜索条件</p>
+                <button class="btn btn-primary" onclick="clearSearch()">
+                    <i class="bi bi-arrow-clockwise"></i> 重置搜索
+                </button>
+            </div>
+
+            <!-- 分页 -->
+            <div th:if="${contracts != null and contracts.hasContent()}" class="pagination-container">
+                <nav>
+                    <ul class="pagination justify-content-center mb-0">
+                        <!-- 第一页 -->
+                        <li class="page-item" th:classappend="${contracts.first} ? 'disabled'">
+                            <a class="page-link" th:href="@{/contracts(page=0, size=${contracts.size}, contractName=${contractName}, contractNumber=${contractNumber}, status=${status}, customerName=${customerName}, drafterName=${drafterName})}">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        
+                        <!-- 上一页 -->
+                        <li class="page-item" th:classappend="${contracts.first} ? 'disabled'">
+                            <a class="page-link" th:href="@{/contracts(page=${contracts.number - 1}, size=${contracts.size}, contractName=${contractName}, contractNumber=${contractNumber}, status=${status}, customerName=${customerName}, drafterName=${drafterName})}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+
+                        <!-- 页码 -->
+                        <li class="page-item" 
+                            th:each="pageNum : ${#numbers.sequence(T(Math).max(0, contracts.number - 2), T(Math).min(contracts.totalPages - 1, contracts.number + 2))}"
+                            th:classappend="${pageNum == contracts.number} ? 'active'">
+                            <a class="page-link" 
+                               th:href="@{/contracts(page=${pageNum}, size=${contracts.size}, contractName=${contractName}, contractNumber=${contractNumber}, status=${status}, customerName=${customerName}, drafterName=${drafterName})}"
+                               th:text="${pageNum + 1}">1</a>
+                        </li>
+
+                        <!-- 下一页 -->
+                        <li class="page-item" th:classappend="${contracts.last} ? 'disabled'">
+                            <a class="page-link" th:href="@{/contracts(page=${contracts.number + 1}, size=${contracts.size}, contractName=${contractName}, contractNumber=${contractNumber}, status=${status}, customerName=${customerName}, drafterName=${drafterName})}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+
+                        <!-- 最后一页 -->
+                        <li class="page-item" th:classappend="${contracts.last} ? 'disabled'">
+                            <a class="page-link" th:href="@{/contracts(page=${contracts.totalPages - 1}, size=${contracts.size}, contractName=${contractName}, contractNumber=${contractNumber}, status=${status}, customerName=${customerName}, drafterName=${drafterName})}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+
+                <!-- 分页信息 -->
+                <div class="text-center mt-3 text-muted">
+                    <small>
+                        第 <span th:text="${contracts.number + 1}">1</span> / <span th:text="${contracts.totalPages}">1</span> 页，
+                        共 <span th:text="${contracts.totalElements}">0</span> 条记录
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script layout:fragment="scripts">
+        // 清除搜索条件
+        function clearSearch() {
+            const form = document.getElementById('searchForm');
+            const inputs = form.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                if (input.type === 'text' || input.type === 'search') {
+                    input.value = '';
+                } else if (input.tagName === 'SELECT') {
+                    input.selectedIndex = 0;
+                }
+            });
+            form.submit();
+        }
+
+        // 快速筛选
+        function quickFilter(status) {
+            const form = document.getElementById('searchForm');
+            const statusSelect = form.querySelector('select[name="status"]');
+            statusSelect.value = status;
+            
+            // 更新活动状态
+            document.querySelectorAll('.filter-chip').forEach(chip => {
+                chip.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            form.submit();
+        }
+
+        // 查看合同
+        function viewContract(contractId) {
+            window.location.href = `/contracts/${contractId}`;
+        }
+
+        // 编辑合同
+        function editContract(contractId) {
+            window.location.href = `/contracts/${contractId}/edit`;
+        }
+
+        // 删除合同
+        function deleteContract(contractId, contractName) {
+            ContractApp.confirm(
+                `确定要删除合同"${contractName}"吗？此操作不可撤销。`,
+                function() {
+                    ContractApp.showLoading();
+                    
+                    fetch(`/api/contracts/${contractId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        ContractApp.hideLoading();
+                        if (response.ok) {
+                            ContractApp.showMessage('合同删除成功', 'success');
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            throw new Error('删除失败');
+                        }
+                    })
+                    .catch(error => {
+                        ContractApp.hideLoading();
+                        ContractApp.showMessage('删除失败: ' + error.message, 'danger');
+                    });
+                }
+            );
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置当前筛选状态
+            const currentStatus = new URLSearchParams(window.location.search).get('status');
+            if (currentStatus) {
+                document.querySelectorAll('.filter-chip').forEach(chip => {
+                    chip.classList.remove('active');
+                    if (chip.textContent.trim() === getStatusText(currentStatus)) {
+                        chip.classList.add('active');
+                    }
+                });
+            } else {
+                document.querySelector('.filter-chip').classList.add('active');
+            }
+
+            // 搜索表单回车提交
+            document.querySelectorAll('.search-input').forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        document.getElementById('searchForm').submit();
+                    }
+                });
+            });
+        });
+
+        function getStatusText(status) {
+            const statusMap = {
+                'ACTIVE': '生效中',
+                'PENDING_APPROVAL': '待审批',
+                'DRAFT': '草稿',
+                'EXPIRED': '已过期'
+            };
+            return statusMap[status] || '全部';
+        }
+    </script>
+</body>
+</html> 
