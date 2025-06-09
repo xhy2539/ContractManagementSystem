@@ -573,22 +573,15 @@ public class ContractServiceImpl implements ContractService {
                 predicates.add(cb.like(cb.lower(contractJoin.get("contractName")), "%" + contractNameSearch.toLowerCase().trim() + "%"));
             }
 
-            // 在此处为 ContractProcess 及其关联应用 JOIN FETCH
-            // 仅当结果类型为 ContractProcess 时才应用（以避免影响计数查询）
+            // 简化JOIN FETCH，避免深层级关联导致的分页性能问题
             if (query.getResultType().equals(ContractProcess.class)) {
-                // 预先加载操作员及其角色和功能
-                Fetch<Object, Object> operatorFetch = root.fetch("operator", JoinType.LEFT);
-                operatorFetch.fetch("roles", JoinType.LEFT)
-                        .fetch("functionalities", JoinType.LEFT); // 也预先加载功能
-
-                // 预先加载合同及其客户和起草人，然后是起草人的角色和功能
+                // 只预先加载第一层关联，避免复杂的多层JOIN导致的性能问题
+                root.fetch("operator", JoinType.LEFT);
                 Fetch<ContractProcess, Contract> contractFetch = root.fetch("contract", JoinType.LEFT);
                 contractFetch.fetch("customer", JoinType.LEFT);
-                Fetch<Contract, User> drafterFetch = contractFetch.fetch("drafter", JoinType.LEFT);
-                drafterFetch.fetch("roles", JoinType.LEFT)
-                        .fetch("functionalities", JoinType.LEFT); // 也预先加载功能
+                contractFetch.fetch("drafter", JoinType.LEFT);
             }
-            query.distinct(true); // 使用多个 fetch 时，防止重复结果至关重要
+            query.distinct(true);
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };

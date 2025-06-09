@@ -1045,6 +1045,18 @@
                 const fileActions = document.createElement('div');
                 fileActions.classList.add('file-actions');
 
+                // 预览按钮（仅对已完成上传的文件显示）
+                const previewBtn = document.createElement('button');
+                previewBtn.classList.add('btn', 'btn-sm', 'btn-outline-info', 'me-2');
+                previewBtn.innerHTML = '<i class="bi bi-eye"></i> 预览';
+                previewBtn.style.display = 'none'; // 初始隐藏，上传完成后显示
+                previewBtn.addEventListener('click', () => {
+                    if (fileEntry.serverFileName) {
+                        handlePreviewFile(fileEntry.serverFileName);
+                    }
+                });
+                fileActions.appendChild(previewBtn);
+
                 const removeBtn = document.createElement('button');
                 removeBtn.classList.add('btn', 'btn-sm', 'btn-danger');
                 removeBtn.innerHTML = '<i class="bi bi-x-circle"></i> 移除';
@@ -1115,6 +1127,7 @@
                     
                     const fileInfo = listItem.querySelector('.file-info');
                     const retryBtn = listItem.querySelector('.btn-warning');
+                    const previewBtn = listItem.querySelector('.btn-outline-info');
                     
                     if (fileInfo) {
                         // 先移除已存在的状态span
@@ -1131,6 +1144,7 @@
                             statusSpan.classList.add('text-success');
                             statusSpan.textContent = '(上传成功)';
                             if (retryBtn) retryBtn.style.display = 'none';
+                            if (previewBtn) previewBtn.style.display = 'inline-block'; // 显示预览按钮
                         } else if (status === 'error') {
                             statusSpan.classList.add('text-danger');
                             statusSpan.textContent = `(上传失败: ${message})`;
@@ -2115,6 +2129,206 @@
                 });
             }
             // --- 模板选择和直接编辑占位符逻辑结束 ---
+
+            // --- 完整预览功能实现 ---
+            function handlePreviewFile(serverFileName) {
+                if (!serverFileName) return;
+                
+                const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+                const fileExtension = serverFileName.toLowerCase().split('.').pop();
+                
+                // 定义各种文件类型的预览支持
+                const previewableInBrowser = {
+                    images: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'],
+                    pdf: ['pdf'],
+                    text: ['txt', 'csv', 'log', 'md', 'json', 'xml', 'html', 'css', 'js'],
+                    audio: ['mp3', 'wav', 'ogg', 'aac', 'm4a'],
+                    video: ['mp4', 'webm', 'ogg', 'mov']
+                };
+                
+                const downloadOnly = {
+                    office: ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'],
+                    archives: ['zip', 'rar', '7z', 'tar', 'gz'],
+                    others: ['exe', 'msi', 'dmg', 'deb', 'rpm']
+                };
+                
+                let canPreview = false;
+                let fileCategory = '';
+                
+                for (const [category, extensions] of Object.entries(previewableInBrowser)) {
+                    if (extensions.includes(fileExtension)) {
+                        canPreview = true;
+                        fileCategory = category;
+                        break;
+                    }
+                }
+                
+                if (canPreview) {
+                    if (fileCategory === 'images') {
+                        openImagePreview(downloadUrl, serverFileName);
+                    } else if (fileCategory === 'pdf') {
+                        const userChoice = confirm(
+                            `PDF文件 "${serverFileName}" 预览选项：\n\n` +
+                            `点击"确定"在新窗口预览PDF\n` +
+                            `点击"取消"下载到本地查看`
+                        );
+                        if (userChoice) {
+                            window.open(downloadUrl, '_blank');
+                        } else {
+                            downloadFileUtil(downloadUrl, serverFileName);
+                        }
+                    } else if (fileCategory === 'text') {
+                        window.open(downloadUrl, '_blank');
+                    } else if (fileCategory === 'audio' || fileCategory === 'video') {
+                        openMediaPreview(downloadUrl, serverFileName, fileCategory);
+                    }
+                } else {
+                    let downloadReason = '';
+                    if (downloadOnly.office.includes(fileExtension)) {
+                        downloadReason = 'Office文档需要使用相应的办公软件打开';
+                    } else if (downloadOnly.archives.includes(fileExtension)) {
+                        downloadReason = '压缩包文件需要解压缩软件打开';
+                    } else {
+                        downloadReason = '此文件类型不支持在浏览器中直接预览';
+                    }
+                    
+                    const userConfirmed = confirm(
+                        `文件 "${serverFileName}" ${downloadReason}。\n\n点击"确定"下载文件到本地查看，点击"取消"关闭此对话框。`
+                    );
+                    if (userConfirmed) {
+                        downloadFileUtil(downloadUrl, serverFileName);
+                    }
+                }
+            }
+            
+            function openImagePreview(imageUrl, fileName) {
+                const modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">图片预览: ${fileName}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <div class="preview-loading" id="imageLoading">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    正在加载图片...
+                                </div>
+                                <img src="${imageUrl}" class="img-fluid" style="max-height: 70vh; display: none;" alt="${fileName}" 
+                                     onload="this.style.display='block'; document.getElementById('imageLoading').style.display='none';"
+                                     onerror="this.onerror=null; this.style.display='none'; document.getElementById('imageLoading').style.display='none'; this.nextElementSibling.style.display='block';">
+                                <div class="alert alert-warning mt-3" style="display: none;">
+                                    <i class="bi bi-exclamation-triangle"></i> 图片加载失败，请尝试下载后查看
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <small class="text-muted me-auto">快捷键: ESC-关闭, D-下载</small>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                                <button type="button" class="btn btn-primary" onclick="downloadFileUtil('${imageUrl}', '${fileName}')">
+                                    <i class="bi bi-download"></i> 下载
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                const bootstrapModal = new bootstrap.Modal(modal);
+                bootstrapModal.show();
+                
+                modal.addEventListener('hidden.bs.modal', () => {
+                    document.body.removeChild(modal);
+                });
+                
+                modal.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        bootstrapModal.hide();
+                    } else if (e.key === 'd' || e.key === 'D') {
+                        downloadFileUtil(imageUrl, fileName);
+                    }
+                });
+            }
+            
+            function openMediaPreview(mediaUrl, fileName, mediaType) {
+                const isVideo = mediaType === 'video';
+                const mediaTag = isVideo ? 'video' : 'audio';
+                const mediaControls = isVideo ? 'controls width="100%" height="400"' : 'controls width="100%"';
+                
+                const modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-${isVideo ? 'camera-video' : 'music-note'}"></i> 
+                                    ${isVideo ? '视频' : '音频'}预览: ${fileName}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <div class="preview-loading" id="mediaLoading">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    正在加载${isVideo ? '视频' : '音频'}...
+                                </div>
+                                <${mediaTag} ${mediaControls} preload="metadata" style="display: none;"
+                                        onloadedmetadata="this.style.display='block'; document.getElementById('mediaLoading').style.display='none';"
+                                        onerror="this.onerror=null; this.style.display='none'; document.getElementById('mediaLoading').style.display='none'; this.nextElementSibling.style.display='block';">
+                                    <source src="${mediaUrl}" type="${mediaType}/${fileName.split('.').pop()}">
+                                    您的浏览器不支持${isVideo ? '视频' : '音频'}播放。
+                                </${mediaTag}>
+                                <div class="alert alert-warning mt-3" style="display: none;">
+                                    <i class="bi bi-exclamation-triangle"></i> ${isVideo ? '视频' : '音频'}加载失败，请尝试下载后查看
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <small class="text-muted me-auto">快捷键: ESC-关闭, D-下载, 空格-播放/暂停</small>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                                <button type="button" class="btn btn-primary" onclick="downloadFileUtil('${mediaUrl}', '${fileName}')">
+                                    <i class="bi bi-download"></i> 下载
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                const bootstrapModal = new bootstrap.Modal(modal);
+                bootstrapModal.show();
+                
+                modal.addEventListener('hidden.bs.modal', () => {
+                    document.body.removeChild(modal);
+                });
+                
+                modal.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        bootstrapModal.hide();
+                    } else if (e.key === 'd' || e.key === 'D') {
+                        downloadFileUtil(mediaUrl, fileName);
+                    } else if (e.key === ' ') {
+                        e.preventDefault();
+                        const mediaElement = modal.querySelector('video, audio');
+                        if (mediaElement) {
+                            if (mediaElement.paused) {
+                                mediaElement.play();
+                            } else {
+                                mediaElement.pause();
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function downloadFileUtil(fileUrl, fileName) {
+                const link = document.createElement('a');
+                link.href = fileUrl;
+                link.setAttribute('download', fileName);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
 
             console.log("DEBUG: draft-contract.html 的内联脚本主要逻辑执行完毕。");
         });
