@@ -1,0 +1,600 @@
+/*
+ * Contract Workflow Enhancement CSS
+ * 专门美化会签、审批、签订界面
+ * 
+ * 安全原则：
+ * 1. 只针对特定页面进行样式增强
+ * 2. 保持所有表单功能和JavaScript不变
+ * 3. 使用高优先级选择器覆盖原有样式
+ * 4. 确保所有业务逻辑完全不受影响
+ */
+
+/* ================================
+   全局变量定义 - 继承系统风格
+   ================================ */
+:root {
+    --workflow-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --workflow-success: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    --workflow-danger: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    --workflow-secondary: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    --workflow-radius: 12px;
+    --workflow-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --workflow-transition: all 0.3s ease;
+}
+
+/* ================================
+   导航栏美化 - 统一风格
+   ================================ */
+
+/* 针对会签、审批、签订页面的导航栏 */
+.navbar {
+    background: var(--workflow-primary) !important;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3) !important;
+    height: 70px !important;
+    padding: 15px 20px !important;
+}
+
+.navbar .brand {
+    font-weight: 700 !important;
+    color: white !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar .user-info {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.navbar .user-info a {
+    color: rgba(255, 255, 255, 0.9) !important;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: var(--workflow-transition);
+    background: rgba(255, 255, 255, 0.1);
+    margin-left: 10px !important;
+    text-decoration: none;
+}
+
+.navbar .user-info a:hover {
+    color: white !important;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ================================
+   页面容器美化
+   ================================ */
+
+/* 美化主容器 */
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%) !important;
+    color: #212529 !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    min-height: 100vh;
+    margin: 0 !important;
+    padding-top: 70px;
+}
+
+.container {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+    border-radius: var(--workflow-radius) !important;
+    box-shadow: var(--workflow-shadow) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    max-width: 1000px !important;
+    margin: 20px auto !important;
+    padding: 2.5rem !important;
+    position: relative;
+    animation: containerFadeIn 0.6s ease-out;
+}
+
+@keyframes containerFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* ================================
+   标题美化
+   ================================ */
+
+h1 {
+    background: var(--workflow-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700 !important;
+    font-size: 2.2rem !important;
+    margin-bottom: 2rem !important;
+    text-align: center;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #eee !important;
+    position: relative;
+}
+
+h1::before {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 2px;
+    background: var(--workflow-primary);
+}
+
+h2 {
+    color: #343a40 !important;
+    font-weight: 600 !important;
+    margin-bottom: 1.5rem !important;
+    font-size: 1.5rem !important;
+    position: relative;
+    padding-left: 1rem;
+}
+
+h2::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 24px;
+    background: var(--workflow-primary);
+    border-radius: 2px;
+}
+
+/* ================================
+   卡片美化 - 统一风格
+   ================================ */
+
+.card {
+    border: none !important;
+    border-radius: var(--workflow-radius) !important;
+    box-shadow: var(--workflow-shadow) !important;
+    margin-bottom: 1.5rem !important;
+    overflow: hidden;
+    transition: var(--workflow-transition);
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+    font-weight: 600 !important;
+    padding: 1.25rem 1.5rem !important;
+    color: #495057 !important;
+    display: flex;
+    align-items: center;
+}
+
+.card-header i {
+    color: #667eea !important;
+    margin-right: 0.75rem !important;
+    font-size: 1.2rem;
+}
+
+.card-body {
+    padding: 1.5rem !important;
+}
+
+/* ================================
+   按钮美化 - 统一系统风格
+   ================================ */
+
+/* 主要操作按钮 */
+.btn-approve, 
+button[name="decision"][value="APPROVED"],
+button[type="submit"]:not(.back-button):not(.btn-reject) {
+    background: var(--workflow-success) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 12px 24px !important;
+    font-weight: 500 !important;
+    color: white !important;
+    transition: var(--workflow-transition);
+    box-shadow: 0 2px 8px rgba(86, 171, 47, 0.3);
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.btn-approve:hover,
+button[name="decision"][value="APPROVED"]:hover,
+button[type="submit"]:not(.back-button):not(.btn-reject):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(86, 171, 47, 0.4) !important;
+    color: white !important;
+}
+
+/* 拒绝/删除按钮 */
+.btn-reject,
+button[name="decision"][value="REJECTED"] {
+    background: var(--workflow-danger) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 12px 24px !important;
+    font-weight: 500 !important;
+    color: white !important;
+    transition: var(--workflow-transition);
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+.btn-reject:hover,
+button[name="decision"][value="REJECTED"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4) !important;
+    color: white !important;
+}
+
+/* 次要按钮 */
+.btn-back,
+.btn-cancel,
+.back-button,
+button[onclick*="history.back"],
+a[href*="history.back"] {
+    background: var(--workflow-secondary) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 12px 24px !important;
+    font-weight: 500 !important;
+    color: white !important;
+    transition: var(--workflow-transition);
+    text-decoration: none !important;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(108, 117, 125, 0.3);
+}
+
+.btn-back:hover,
+.btn-cancel:hover,
+.back-button:hover,
+button[onclick*="history.back"]:hover,
+a[href*="history.back"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4) !important;
+    color: white !important;
+}
+
+/* 按钮组布局 */
+.form-actions,
+.btn-group {
+    display: flex !important;
+    justify-content: center !important;
+    gap: 1rem !important;
+    margin-top: 2rem !important;
+    flex-wrap: wrap;
+}
+
+/* ================================
+   表单美化 - 统一风格
+   ================================ */
+
+/* 表单标签 */
+label,
+.form-label {
+    font-weight: 600 !important;
+    color: #495057 !important;
+    margin-bottom: 0.5rem !important;
+    display: block !important;
+}
+
+/* 文本输入框 */
+input[type="text"],
+input[type="email"],
+input[type="date"],
+.form-control {
+    border: 2px solid #e9ecef !important;
+    border-radius: 8px !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 1rem !important;
+    transition: var(--workflow-transition);
+    background: rgba(255, 255, 255, 0.9) !important;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="date"]:focus,
+.form-control:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+    outline: none !important;
+}
+
+/* 文本域美化 */
+textarea {
+    border: 2px solid #e9ecef !important;
+    border-radius: 8px !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 1rem !important;
+    transition: var(--workflow-transition);
+    background: rgba(255, 255, 255, 0.9) !important;
+    min-height: 120px !important;
+    resize: vertical !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+textarea:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+    outline: none !important;
+}
+
+/* 单选按钮美化 */
+.radio-group {
+    margin: 1rem 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: rgba(102, 126, 234, 0.05);
+    transition: var(--workflow-transition);
+}
+
+.radio-group:hover {
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.radio-group input[type="radio"] {
+    margin-right: 0.75rem !important;
+    transform: scale(1.2) !important;
+    accent-color: #667eea;
+}
+
+.radio-group label {
+    font-size: 1rem !important;
+    color: #495057 !important;
+    cursor: pointer !important;
+    margin-bottom: 0 !important;
+}
+
+/* ================================
+   消息提示美化
+   ================================ */
+
+.alert,
+.alert-error,
+.alert-success,
+.alert-danger {
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 1rem 1.25rem !important;
+    margin-bottom: 1.5rem !important;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.alert::before,
+.alert-error::before,
+.alert-success::before,
+.alert-danger::before {
+    font-family: 'bootstrap-icons';
+    margin-right: 0.75rem;
+    font-size: 1.2rem;
+}
+
+.alert-success::before {
+    content: "\F26A"; /* bi-check-circle-fill */
+    color: #198754;
+}
+
+.alert-error::before,
+.alert-danger::before {
+    content: "\F659"; /* bi-exclamation-triangle-fill */
+    color: #dc3545;
+}
+
+/* ================================
+   评论和意见区域美化
+   ================================ */
+
+.comments-section {
+    margin-top: 2rem !important;
+    padding-top: 2rem !important;
+    border-top: 2px solid #eee !important;
+}
+
+.comment-item {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%) !important;
+    border: none !important;
+    border-left: 4px solid #667eea !important;
+    border-radius: 8px !important;
+    padding: 1.25rem !important;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+    transition: var(--workflow-transition);
+}
+
+.comment-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.comment-item strong {
+    color: #667eea !important;
+    font-weight: 600;
+}
+
+.comment-item .status.approved {
+    color: #198754 !important;
+    font-weight: 600;
+}
+
+.comment-item .status.rejected {
+    color: #dc3545 !important;
+    font-weight: 600;
+}
+
+.comment-item .status.pending {
+    color: #ffc107 !important;
+    font-weight: 600;
+}
+
+.comment-item .meta {
+    font-size: 0.85rem !important;
+    color: #6c757d !important;
+    margin-top: 0.75rem !important;
+}
+
+/* ================================
+   列表组美化
+   ================================ */
+
+.list-group-item {
+    border: none !important;
+    border-radius: 8px !important;
+    margin-bottom: 0.5rem !important;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    transition: var(--workflow-transition);
+    padding: 1rem 1.25rem !important;
+}
+
+.list-group-item:hover {
+    transform: translateX(3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ================================
+   文件附件列表美化
+   ================================ */
+
+.file-list-item {
+    background: rgba(102, 126, 234, 0.05) !important;
+    border: 1px solid rgba(102, 126, 234, 0.1) !important;
+    border-radius: 8px !important;
+    padding: 1rem !important;
+    margin-bottom: 0.75rem !important;
+    transition: var(--workflow-transition);
+}
+
+.file-list-item:hover {
+    background: rgba(102, 126, 234, 0.1) !important;
+    transform: translateY(-1px);
+}
+
+.file-name {
+    font-weight: 600 !important;
+    color: #495057 !important;
+}
+
+.file-status {
+    color: #6c757d !important;
+    font-size: 0.85rem !important;
+}
+
+/* ================================
+   响应式优化
+   ================================ */
+
+@media (max-width: 768px) {
+    .container {
+        margin: 10px !important;
+        padding: 1.5rem !important;
+        border-radius: 8px !important;
+    }
+    
+    .navbar {
+        padding: 10px 15px !important;
+        height: auto !important;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .navbar .brand {
+        font-size: 1.2rem !important;
+    }
+    
+    .navbar .user-info {
+        font-size: 0.85rem !important;
+    }
+    
+    h1 {
+        font-size: 1.8rem !important;
+    }
+    
+    h2 {
+        font-size: 1.3rem !important;
+    }
+    
+    .form-actions,
+    .btn-group {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    
+    .btn-approve,
+    .btn-reject,
+    .btn-back,
+    .btn-cancel,
+    .back-button,
+    button {
+        margin-bottom: 0.5rem !important;
+        text-align: center;
+    }
+    
+    .comment-item:hover {
+        transform: none;
+    }
+    
+    .file-list-item:hover {
+        transform: none;
+    }
+}
+
+/* ================================
+   打印样式保护
+   ================================ */
+
+@media print {
+    .navbar {
+        display: none !important;
+    }
+    
+    .container {
+        margin: 0 !important;
+        padding: 1rem !important;
+        box-shadow: none !important;
+        background: white !important;
+    }
+    
+    .form-actions,
+    .btn-group {
+        display: none !important;
+    }
+    
+    * {
+        color: black !important;
+        background: white !important;
+    }
+}
+
+/* ================================
+   加载动画优化
+   ================================ */
+
+.container {
+    opacity: 0;
+    animation: pageLoad 0.6s ease-out forwards;
+}
+
+@keyframes pageLoad {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+} 

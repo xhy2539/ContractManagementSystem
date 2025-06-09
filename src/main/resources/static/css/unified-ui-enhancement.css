@@ -1,0 +1,1094 @@
+/* ==========================================================================
+   统一界面UI增强样式表
+   解决模态框问题并统一所有界面风格，确保不影响功能
+   ========================================================================== */
+
+/* CSS变量定义 - 统一色彩方案 */
+:root {
+    --primary-color: #0d6efd;
+    --primary-hover: #0b5ed7;
+    --success-color: #198754;
+    --success-hover: #157347;
+    --danger-color: #dc3545;
+    --danger-hover: #bb2d3b;
+    --warning-color: #ffc107;
+    --secondary-color: #6c757d;
+    --light-bg: #f8f9fa;
+    --border-color: #dee2e6;
+    --shadow-light: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-medium: 0 4px 8px rgba(0,0,0,0.15);
+    --border-radius: 8px;
+    --transition: all 0.3s ease;
+}
+
+/* ==========================================================================
+   模态框修复 - 解决基础数据管理和系统管理模块的模态框问题
+   ========================================================================== */
+
+/* 确保模态框正确显示 */
+.modal {
+    z-index: 1050 !important;
+}
+
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+/* 修复模态框内容显示 */
+.modal-dialog {
+    position: relative;
+    width: auto;
+    margin: 0.5rem;
+    pointer-events: none;
+}
+
+.modal-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    pointer-events: auto;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid rgba(0,0,0,.2);
+    border-radius: var(--border-radius);
+    outline: 0;
+    box-shadow: var(--shadow-medium);
+}
+
+/* 确保关闭按钮正常工作 */
+.modal-header .btn-close {
+    position: relative;
+    z-index: 10;
+    padding: 0.5rem;
+    margin: -0.5rem -0.5rem -0.5rem auto;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复编辑按钮问题 */
+.btn-action,
+.btn-outline-primary.btn-action,
+.btn[data-bs-toggle="modal"] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 确保表格行的编辑按钮都能正常工作 */
+tbody tr .btn-action {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 专门修复附件模态框问题 */
+.modal#attachmentListModal {
+    z-index: 1055 !important;
+}
+
+.modal#attachmentListModal .modal-dialog {
+    pointer-events: none;
+}
+
+.modal#attachmentListModal .modal-content {
+    pointer-events: auto !important;
+}
+
+.modal#attachmentListModal .modal-body {
+    pointer-events: auto !important;
+}
+
+.modal#attachmentListModal .modal-footer {
+    pointer-events: auto !important;
+}
+
+/* 修复附件模态框内按钮点击问题 */
+.modal#attachmentListModal .preview-btn,
+.modal#attachmentListModal .btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 修复附件预览按钮的事件处理 */
+#attachmentListContainer .preview-btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+#attachmentListContainer .preview-btn:hover {
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+}
+
+/* 修复触发附件模态框的按钮 */
+button[data-bs-target="#attachmentListModal"] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 确保附件列表容器中的所有元素都能正常交互 */
+#attachmentListContainer * {
+    pointer-events: auto !important;
+}
+
+/* 修复文件列表项的交互问题 */
+.file-list-item {
+    pointer-events: auto !important;
+}
+
+.file-list-item .file-actions {
+    pointer-events: auto !important;
+}
+
+.file-list-item .file-actions button {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 全面修复所有模态框中的交互问题 */
+.modal * {
+    pointer-events: auto !important;
+}
+
+.modal .btn-close {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复模态框打开时的背景遮罩问题 */
+.modal-backdrop {
+    pointer-events: auto !important;
+}
+
+/* 确保模态框内的输入框和按钮都能正常交互 */
+.modal input,
+.modal button,
+.modal select,
+.modal textarea,
+.modal a {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复事件委托问题 - 确保点击事件能正确传播 */
+.modal .preview-btn,
+.modal button[data-action],
+.modal .btn[data-action] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 2;
+}
+
+/* 修复附件列表中的按钮无法点击问题 */
+#attachmentListContainer {
+    pointer-events: auto !important;
+}
+
+#attachmentListContainer .file-list-item {
+    pointer-events: auto !important;
+}
+
+#attachmentListContainer .file-actions {
+    pointer-events: auto !important;
+}
+
+#attachmentListContainer button {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 3;
+}
+
+/* 特别针对预览按钮的修复 */
+.preview-btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* 确保按钮文本和图标都能正常点击 */
+.preview-btn i,
+.preview-btn span {
+    pointer-events: none !important;
+}
+
+/* 修复Bootstrap模态框的显示问题 */
+.modal.show {
+    display: block !important;
+}
+
+.modal.show .modal-dialog {
+    transform: none !important;
+}
+
+/* 安全的模态框修复 - 只修复必要的问题，避免破坏Bootstrap原生功能 */
+
+/* 确保编辑按钮可点击 */
+.btn-outline-primary.btn-action[data-bs-toggle="modal"] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 修复按钮内图标的指针事件 */
+.btn-outline-primary.btn-action i,
+.btn-outline-primary.btn-action span {
+    pointer-events: none !important;
+}
+
+/* 确保客户编辑模态框正确工作 */
+#editCustomerModal,
+#addCustomerModal {
+    z-index: 1055 !important;
+}
+
+/* 美化模态框外观 */
+#editCustomerModal .modal-content,
+#addCustomerModal .modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+/* 确保删除按钮可点击 */
+.btn-outline-danger.btn-action.delete-btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 确保所有模态框都有正确的基础结构和样式 */
+.modal {
+    --bs-modal-zindex: 1055;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: var(--bs-modal-zindex);
+    display: none;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    outline: 0;
+}
+
+.modal-dialog {
+    position: relative;
+    width: auto;
+    margin: 0.5rem;
+    pointer-events: none;
+}
+
+.modal-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    pointer-events: auto;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid rgba(0,0,0,.125);
+    border-radius: 0.5rem;
+    outline: 0;
+}
+
+/* 修复待审批页面的附件模态框问题 */
+#attachmentListModal {
+    z-index: 1055 !important;
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* 当附件模态框显示时确保正确的显示状态 */
+#attachmentListModal.show {
+    display: block !important;
+    opacity: 1 !important;
+}
+
+/* 确保附件模态框的遮罩层正确显示 */
+#attachmentListModal + .modal-backdrop {
+    z-index: 1050 !important;
+    opacity: 0.5 !important;
+}
+
+#attachmentListModal .modal-dialog {
+    pointer-events: none;
+    margin: 1.75rem auto;
+    position: relative;
+    z-index: 1;
+    max-width: 600px;
+    width: 90%;
+}
+
+#attachmentListModal .modal-content {
+    pointer-events: auto !important;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+#attachmentListModal .modal-header,
+#attachmentListModal .modal-body,
+#attachmentListModal .modal-footer {
+    pointer-events: auto !important;
+}
+
+/* 额外的强制修复 - 确保附件模态框完全可交互 */
+#attachmentListModal * {
+    pointer-events: auto !important;
+}
+
+/* 但是附件模态框对话框容器需要阻止事件传播到背景 */
+#attachmentListModal .modal-dialog {
+    pointer-events: none !important;
+}
+
+/* 重新启用附件模态框内容的交互 */
+#attachmentListModal .modal-content * {
+    pointer-events: auto !important;
+}
+
+/* 修复附件模态框关闭按钮 */
+#attachmentListModal .btn-close {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 999;
+}
+
+/* 修复附件列表容器内的预览按钮 */
+#attachmentListModal .preview-btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 10;
+}
+
+#attachmentListModal .file-list-item {
+    pointer-events: auto !important;
+}
+
+#attachmentListModal .file-actions {
+    pointer-events: auto !important;
+}
+
+#attachmentListModal .file-actions button {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 确保模态框在移动设备上的显示 */
+@media (max-width: 576px) {
+    .modal-dialog {
+        margin: 1rem !important;
+        max-width: calc(100% - 2rem) !important;
+    }
+    
+    .modal-lg {
+        max-width: calc(100% - 2rem) !important;
+    }
+}
+
+/* 修复所有模态框的滚动问题 */
+.modal-open {
+    overflow: hidden;
+}
+
+.modal-open .modal {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+/* 确保模态框打开时页面不滚动 */
+body.modal-open {
+    padding-right: 0 !important;
+}
+
+/* 修复模态框中的按钮文本选择问题 */
+.modal button,
+.modal .btn {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* 修复验证状态的显示 */
+.modal .is-invalid {
+    border-color: #dc3545 !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23dc3545' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e") !important;
+}
+
+.modal .invalid-feedback {
+    display: block !important;
+    color: #dc3545 !important;
+}
+
+/* 修复系统管理模块的模态框问题 */
+#userFormModal,
+#assignRolesModal,
+#roleFormModal,
+#templateFormModal {
+    z-index: 1055 !important;
+}
+
+#userFormModal .modal-dialog,
+#assignRolesModal .modal-dialog,
+#roleFormModal .modal-dialog,
+#templateFormModal .modal-dialog {
+    pointer-events: none;
+    margin: 1.75rem auto;
+}
+
+#userFormModal .modal-content,
+#assignRolesModal .modal-content,
+#roleFormModal .modal-content,
+#templateFormModal .modal-content {
+    pointer-events: auto !important;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+/* 修复系统管理模块中的按钮点击问题 */
+#addUserBtn,
+#addRoleBtn,
+#addTemplateBtn,
+.btn-action {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 修复表格中的操作按钮 */
+.action-buttons button,
+.action-buttons .btn {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    margin-right: 5px;
+}
+
+/* 修复复选框组的交互 */
+.role-checkbox-group .form-check,
+.role-checkbox-group .form-check-input,
+.role-checkbox-group .form-check-label {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复延期模态框问题 */
+#adminExtendModal,
+#operatorRequestExtendModal {
+    z-index: 1055 !important;
+}
+
+#adminExtendModal .modal-dialog,
+#operatorRequestExtendModal .modal-dialog {
+    pointer-events: none;
+    margin: 1.75rem auto;
+}
+
+#adminExtendModal .modal-content,
+#operatorRequestExtendModal .modal-content {
+    pointer-events: auto !important;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+/* 修复文件类型帮助模态框 */
+#fileTypeHelpModal {
+    z-index: 1055 !important;
+}
+
+#fileTypeHelpModal .modal-dialog {
+    pointer-events: none;
+    margin: 1.75rem auto;
+}
+
+#fileTypeHelpModal .modal-content {
+    pointer-events: auto !important;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+}
+
+/* 修复富文本编辑器在模态框中的问题 */
+.modal .tox-tinymce,
+.modal .tox-edit-area,
+.modal .tox-toolbar,
+.modal .tox-menubar {
+    pointer-events: auto !important;
+}
+
+/* 确保所有模态框内的链接可以点击 */
+.modal a,
+.modal .btn-link {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复模态框中的下拉菜单 */
+.modal .dropdown-menu {
+    z-index: 1060 !important;
+    pointer-events: auto !important;
+}
+
+.modal .dropdown-toggle {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复模态框中的日期选择器 */
+.modal .datepicker,
+.modal .bootstrap-datepicker-widget {
+    z-index: 1060 !important;
+    pointer-events: auto !important;
+}
+
+/* 修复模态框中的提示框 */
+.modal .tooltip {
+    z-index: 1070 !important;
+}
+
+.modal .popover {
+    z-index: 1070 !important;
+}
+
+/* ==========================================================================
+   统一界面风格 - 会签、审批、签订界面
+   ========================================================================== */
+
+/* 统一页面容器样式 - 修复白框遮盖导航栏问题 */
+/* 只对特定页面的容器应用白色背景，避免遮盖导航栏 */
+.content-container {
+    background-color: #fff;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light);
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 30px;
+}
+
+/* 确保普通容器不会遮盖导航栏 */
+.container,
+.container-fluid {
+    background-color: transparent;
+    padding: 20px;
+    margin-top: 0;
+}
+
+/* 确保布局片段中的容器不会有白色背景 */
+.layout-content .container {
+    background-color: transparent;
+    margin-top: 0;
+    padding-top: 20px;
+}
+
+/* 统一页面标题样式 */
+h1, h2, h3 {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+}
+
+h1 {
+    font-size: 2rem;
+    border-bottom: 2px solid var(--light-bg);
+    padding-bottom: 15px;
+}
+
+h2 {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
+
+/* 统一卡片样式 */
+.card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light);
+    margin-bottom: 1.5rem;
+    transition: var(--transition);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-medium);
+}
+
+.card-header {
+    background-color: var(--light-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 15px 20px;
+    font-weight: 600;
+    color: #333;
+    display: flex;
+    align-items: center;
+}
+
+.card-header i {
+    margin-right: 10px;
+    color: var(--primary-color);
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* 统一表单样式 */
+.form-label {
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.form-control {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px 12px;
+    transition: var(--transition);
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.form-control.bg-light {
+    background-color: var(--light-bg);
+    border-color: #e9ecef;
+}
+
+/* 统一按钮样式 */
+.btn {
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: var(--transition);
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-light);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.btn-success,
+.btn-approve {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+}
+
+.btn-success:hover,
+.btn-approve:hover {
+    background-color: var(--success-hover);
+    border-color: var(--success-hover);
+}
+
+.btn-danger,
+.btn-reject {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+}
+
+.btn-danger:hover,
+.btn-reject:hover {
+    background-color: var(--danger-hover);
+    border-color: var(--danger-hover);
+}
+
+.btn-secondary,
+.btn-cancel,
+.btn-back {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: white;
+    text-decoration: none;
+}
+
+.btn-secondary:hover,
+.btn-cancel:hover,
+.btn-back:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+    color: white;
+    text-decoration: none;
+}
+
+/* 统一导航栏样式 */
+.navbar {
+    background: linear-gradient(135deg, #333 0%, #555 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 0;
+    margin-bottom: 0;
+    box-shadow: var(--shadow-light);
+}
+
+.navbar .brand {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: white;
+}
+
+.navbar .user-info {
+    font-size: 0.9em;
+    color: #f8f9fa;
+}
+
+.navbar a {
+    color: white;
+    text-decoration: none;
+    margin-left: 15px;
+    transition: var(--transition);
+}
+
+.navbar a:hover {
+    color: #ffc107;
+    text-decoration: none;
+}
+
+/* 统一表格样式 */
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background-color: var(--light-bg);
+    color: #333;
+    font-weight: 600;
+    padding: 14px 20px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.table tbody tr {
+    transition: var(--transition);
+}
+
+.table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.table tbody td {
+    padding: 14px 20px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* 统一操作按钮样式 */
+.actions-cell .btn {
+    padding: 6px 12px;
+    margin-left: 5px;
+    font-size: 0.875rem;
+}
+
+/* 统一状态标签样式 */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: white;
+}
+
+/* 统一文件列表样式 */
+.file-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--light-bg);
+    transition: var(--transition);
+}
+
+.file-list-item:hover {
+    background-color: #e9ecef;
+    border-color: var(--primary-color);
+}
+
+.file-info {
+    flex-grow: 1;
+    margin-right: 1rem;
+    overflow: hidden;
+}
+
+.file-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    color: #333;
+}
+
+.file-status {
+    font-size: 0.8em;
+    color: #6c757d;
+}
+
+.file-actions button {
+    margin-left: 0.5rem;
+}
+
+/* 统一评论/意见区域样式 */
+.comments-section,
+.comment-item {
+    margin-top: 20px;
+}
+
+.comment-item {
+    background-color: var(--light-bg);
+    border-left: 4px solid var(--primary-color);
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    transition: var(--transition);
+}
+
+.comment-item:hover {
+    background-color: #e9ecef;
+}
+
+.comment-item strong {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.comment-item .status {
+    font-weight: bold;
+    float: right;
+}
+
+.comment-item .status.approved {
+    color: var(--success-color);
+}
+
+.comment-item .status.rejected {
+    color: var(--danger-color);
+}
+
+.comment-item .status.pending {
+    color: var(--warning-color);
+}
+
+.comment-item .meta {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-top: 8px;
+}
+
+/* 统一表单组样式 */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    min-height: 120px;
+    resize: vertical;
+    transition: var(--transition);
+    font-family: inherit;
+}
+
+.form-group textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    outline: 0;
+}
+
+/* 统一单选按钮组样式 */
+.radio-group {
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+}
+
+.radio-group input[type="radio"] {
+    margin-right: 10px;
+    transform: scale(1.1);
+    cursor: pointer;
+}
+
+.radio-group label {
+    font-size: 1rem;
+    color: #333;
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+/* 统一按钮组样式 */
+.btn-group,
+.form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 统一警告消息样式 */
+.alert {
+    border-radius: 6px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+}
+
+.alert-success {
+    background-color: #d1eddf;
+    border-color: #badbcc;
+    color: #0f5132;
+}
+
+.alert-danger,
+.alert-error {
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    color: #664d03;
+}
+
+/* 响应式增强 */
+@media (max-width: 768px) {
+    .container,
+    .container-fluid {
+        margin: 10px;
+        padding: 20px;
+    }
+    
+    .card-body {
+        padding: 15px;
+    }
+    
+    .btn-group,
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .navbar {
+        padding: 10px 15px;
+    }
+    
+    .navbar .brand {
+        font-size: 1.2em;
+    }
+}
+
+/* 动画增强 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* 加载状态样式 */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 确保所有交互元素都可点击 */
+button,
+.btn,
+[data-bs-toggle],
+[data-bs-target],
+.btn-action {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+/* 修复可能的z-index问题 */
+.table-responsive {
+    position: relative;
+    z-index: 1;
+}
+
+.modal-dialog {
+    z-index: 1060;
+} 

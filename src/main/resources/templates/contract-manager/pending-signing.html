@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="zh">
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}" lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>合同管理系统 - 待签订合同</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <th:block layout:fragment="css-links">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+        <!-- 统一UI风格增强 - 修复模态框问题并统一风格 -->
+        <link rel="stylesheet" type="text/css" th:href="@{/css/unified-ui-enhancement.css}"/>
+    </th:block>
     <style>
         body {
             font-family: sans-serif;
@@ -140,25 +145,8 @@
 </head>
 <body>
 
-<div class="navbar">
-    <div class="brand">合同管理系统</div>
-    <div class="user-info">
-        欢迎, <span sec:authentication="name">用户</span>!
-        <a th:href="@{/perform_logout}" onclick="document.getElementById('logout-form-inline').submit(); return false;">注销</a>
-        <form id="logout-form-inline" th:action="@{/perform_logout}" method="post" style="display: none;">
-        </form>
-    </div>
-</div>
-
+<section layout:fragment="content">
 <div class="container">
-    <div class="page-header">
-        <h1>待签订合同</h1>
-        <a th:href="@{/dashboard}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left-circle me-1"></i>
-            返回仪表盘
-        </a>
-    </div>
-
     <p>以下是您需要签订的合同列表。</p>
 
     <div th:if="${successMessage}" class="alert alert-success">
@@ -251,6 +239,10 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- 客户管理和附件模态框修复脚本 - 采用和系统管理模块一样的处理方法 -->
+<script th:src="@{/js/customer-modal-fix.js}"></script>
+
 <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', function () {
         const attachmentModal = document.getElementById('attachmentListModal');
@@ -325,5 +317,6 @@
     });
 </script>
 
+</section>
 </body>
 </html>
