@@ -249,8 +249,19 @@
                 return false;
             }
             
-            const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-            modal.show();
+            // 手动显示模态框
+            modalEl.style.display = 'block';
+            modalEl.classList.add('show');
+            modalEl.setAttribute('aria-modal', 'true');
+            modalEl.setAttribute('role', 'dialog');
+            
+            // 设置body样式
+            document.body.classList.add('modal-open');
+            document.body.style.overflow = 'hidden';
+            
+            // 移除所有背景遮罩
+            document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+            
             return true;
         }
         

@@ -68,6 +68,8 @@ import java.util.stream.Collectors;
 
 import com.example.contractmanagementsystem.dto.PendingApprovalItemDto;
 
+import org.springframework.transaction.annotation.Transactional;
+import org.hibernate.Hibernate;
 
 @Controller
 @RequestMapping({"/contract-manager", "/contracts"})
@@ -219,6 +221,7 @@ public class ContractController {
 
     @GetMapping("/countersign-form/{contractId}")
     @PreAuthorize("hasAuthority('CON_CSIGN_VIEW')or hasAuthority('CON_CSIGN_SUBMIT')")
+    @Transactional(readOnly = true)
     public String showCountersignForm(
             @PathVariable Long contractId,
             Authentication authentication,
@@ -238,7 +241,10 @@ public class ContractController {
                 return "redirect:/contract-manager/pending-countersign";
             }
             ContractProcess currentProcess = currentProcessOpt.get();
-
+            
+            // 初始化延迟加载的属性
+            Hibernate.initialize(currentProcess.getOperator());
+            Hibernate.initialize(contract.getDrafter());
 
             if (!contractService.canUserCountersignContract(contract.getId(), currentUsername)) {
                 redirectAttributes.addFlashAttribute("errorMessage", "您无权会签此合同或该合同不处于待会签状态。");
@@ -246,6 +252,11 @@ public class ContractController {
             }
 
             List<ContractProcess> allCountersignProcesses = contractService.getAllContractProcessesByContractAndType(contract, ContractProcessType.COUNTERSIGN);
+            
+            // 确保所有会签流程的操作者都被初始化
+            allCountersignProcesses.forEach(process -> {
+                Hibernate.initialize(process.getOperator());
+            });
 
             List<String> attachmentPaths = Collections.emptyList();
             if (contract.getAttachmentPath() != null && !contract.getAttachmentPath().isEmpty()) {

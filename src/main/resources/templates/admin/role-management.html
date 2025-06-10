@@ -32,7 +32,14 @@
     .filter-card .card-body {
       padding: 1rem;
     }
-
+    /* 允许模态框背后的页面滚动 */
+    .modal {
+      overflow-y: auto !important;
+    }
+    .modal-open {
+      overflow: auto !important;
+      padding-right: 0 !important;
+    }
   </style>
 </head>
 <body>
@@ -41,9 +48,6 @@
   <div class="container-fluid mt-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h1><i class="bi bi-shield-lock-fill"></i> 角色管理</h1>
-      <button type="button" id="addRoleBtn" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> 添加角色
-      </button>
     </div>
 
     <div id="globalAlertContainer"></div>
@@ -110,7 +114,7 @@
         <form id="roleForm">
           <div class="modal-header">
             <h5 class="modal-title" id="roleFormModalLabel">角色信息</h5>
-            <button type="button" class="btn-close" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <input type="hidden" id="roleId" name="id">
@@ -129,7 +133,7 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary">关闭</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
             <button type="submit" class="btn btn-primary">保存</button>
           </div>
         </form>

@@ -3,7 +3,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- DOM Element References ---
     const functionalitiesTableBody = document.querySelector('#functionalitiesTable tbody');
     const functionalityFormModalEl = document.getElementById('functionalityFormModal');
-    const functionalityFormModal = new bootstrap.Modal(functionalityFormModalEl);
+    const functionalityFormModal = new bootstrap.Modal(functionalityFormModalEl, {
+        backdrop: false, // 禁用背景遮罩
+        scroll: true    // 允许页面滚动
+    });
     const functionalityForm = document.getElementById('functionalityForm');
     const addFunctionalityBtn = document.getElementById('addFunctionalityBtn');
 
@@ -157,26 +160,30 @@ document.addEventListener('DOMContentLoaded', function () {
         const currentFuncId = functionalityIdInput.value;
         const num = functionalityNumInput.value;
         const name = functionalityNameInput.value;
-        const url = functionalityUrlInput.value;
         const description = functionalityDescriptionInput.value;
 
-        const funcData = { num, name, url, description };
+        const funcData = {
+            num,
+            name,
+            description
+        };
 
-        let apiUrl = API_FUNCTIONALITIES_URL;
+        let url = API_FUNCTIONALITIES_URL;
         let method = 'POST';
 
-        if (currentFuncId) {
-            apiUrl = `${API_FUNCTIONALITIES_URL}/${currentFuncId}`;
+        if (currentFuncId) { // Edit mode
+            url = `${API_FUNCTIONALITIES_URL}/${currentFuncId}`;
             method = 'PUT';
         }
 
         try {
-            await authenticatedFetch(apiUrl, { method, body: funcData }, globalAlertContainerId);
+            await authenticatedFetch(url, { method, body: funcData }, globalAlertContainerId);
             showAlert(currentFuncId ? '功能更新成功！' : '功能创建成功！', 'success', globalAlertContainerId);
             fetchFunctionalities(currentFuncId ? currentPageFunctionality : 0);
             functionalityFormModal.hide();
         } catch (error) {
-            // authenticatedFetch 已处理
+            console.error("保存功能失败:", error);
+            showAlert(currentFuncId ? '功能更新失败，详情请查看控制台。' : '功能创建失败，详情请查看控制台。', 'danger', globalAlertContainerId);
         } finally {
             toggleLoading(false, saveButton);
         }
@@ -189,22 +196,26 @@ document.addEventListener('DOMContentLoaded', function () {
         const funcId = targetButton.dataset.funcId;
 
         if (targetButton.classList.contains('edit-func-btn')) {
+            toggleLoading(true, targetButton);
             try {
-                const func = await authenticatedFetch(`${API_FUNCTIONALITIES_URL}/${funcId}`, {}, globalAlertContainerId);
-                if (func) {
+                const functionality = await authenticatedFetch(`${API_FUNCTIONALITIES_URL}/${funcId}`, {}, globalAlertContainerId);
+                if (functionality) {
                     resetForm(functionalityForm);
                     functionalityFormModalLabel.textContent = '编辑功能';
-                    functionalityIdInput.value = func.id;
-                    functionalityNumInput.value = func.num;
-                    functionalityNameInput.value = func.name;
-                    functionalityUrlInput.value = func.url || '';
-                    functionalityDescriptionInput.value = func.description || '';
-                    functionalityFormModal.show();
+                    functionalityIdInput.value = functionality.id;
+                    functionalityNumInput.value = functionality.num || '';
+                    functionalityNameInput.value = functionality.name;
+                    functionalityUrlInput.value = functionality.url || '';
+                    functionalityDescriptionInput.value = functionality.description || '';
+                    functionalityFormModal.show(); // 使用 Bootstrap Modal 实例的 show() 方法
                 } else {
                     showAlert('无法加载功能信息进行编辑。', 'warning', globalAlertContainerId);
                 }
             } catch (error) {
-                // authenticatedFetch 已处理
+                console.error("编辑功能 - 加载功能信息失败:", error);
+                showAlert('加载功能信息进行编辑失败，详情请查看控制台。', 'danger', globalAlertContainerId);
+            } finally {
+                toggleLoading(false, targetButton);
             }
         } else if (targetButton.classList.contains('delete-func-btn')) {
             const funcName = targetButton.dataset.funcName;

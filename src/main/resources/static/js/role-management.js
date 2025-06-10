@@ -3,6 +3,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- DOM Element References ---
     const rolesTableBody = document.querySelector('#rolesTable tbody');
     const roleFormModalEl = document.getElementById('roleFormModal');
+    const roleFormModal = new bootstrap.Modal(roleFormModalEl, {
+        backdrop: false, // 禁用背景遮罩
+        scroll: true    // 允许页面滚动
+    });
     const roleForm = document.getElementById('roleForm');
     const addRoleBtn = document.getElementById('addRoleBtn');
     const functionalitiesCheckboxesContainer = document.getElementById('functionalitiesCheckboxes');
@@ -186,11 +190,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const name = roleNameInput.value;
         const description = roleDescriptionInput.value;
 
-        // **核心修改：收集功能编号 (num)**
         const selectedFunctionalityNums = Array.from(functionalitiesCheckboxesContainer.querySelectorAll('input[name="functionalityNums"]:checked'))
             .map(cb => cb.value);
 
-        // **核心修改：请求体中发送 functionalityNums**
         const roleData = { name, description, functionalityNums: selectedFunctionalityNums };
 
         let url = API_ROLES_URL;
@@ -205,9 +207,7 @@ document.addEventListener('DOMContentLoaded', function () {
             await authenticatedFetch(url, { method, body: roleData }, globalAlertContainerId);
             showAlert(currentRoleId ? '角色更新成功！' : '角色创建成功！', 'success', globalAlertContainerId);
             fetchRoles(currentRoleId ? currentPageRole : 0);
-            if (window.hideModal) {
-                window.hideModal(roleFormModalEl);
-            }
+            roleFormModal.hide(); // 使用 Bootstrap Modal 实例的 hide() 方法
         } catch (error) {
             console.error("保存角色失败:", error);
             showAlert(currentRoleId ? '角色更新失败，详情请查看控制台。' : '角色创建失败，详情请查看控制台。', 'danger', globalAlertContainerId);
@@ -232,14 +232,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     roleNameInput.value = role.name;
                     roleDescriptionInput.value = role.description || '';
 
-                    // **核心修改：获取当前角色的功能编号列表**
                     const currentFunctionalityNums = role.functionalities && Array.isArray(role.functionalities)
-                        ? role.functionalities.map(f => f.num) // 假设后端返回的 role 对象中 functionalities 包含 num
+                        ? role.functionalities.map(f => f.num)
                         : [];
                     renderFunctionalityCheckboxes(functionalitiesCheckboxesContainer, allFunctionalities, currentFunctionalityNums);
-                    if (window.showModal) {
-                        window.showModal(roleFormModalEl);
-                    }
+                    roleFormModal.show(); // 直接使用 Bootstrap Modal 实例的 show() 方法
                 } else {
                     showAlert('无法加载角色信息进行编辑。', 'warning', globalAlertContainerId);
                 }

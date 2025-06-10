@@ -97,21 +97,25 @@
         <form id="functionalityForm">
           <div class="modal-header">
             <h5 class="modal-title" id="functionalityFormModalLabel">功能信息</h5>
-            <button type="button" class="btn-close" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <input type="hidden" id="functionalityId" name="id">
             <div class="mb-3">
+              <label for="functionalityNum" class="form-label">功能编号 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="functionalityNum" name="num" required>
+            </div>
+            <div class="mb-3">
               <label for="functionalityName" class="form-label">功能名称 <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="functionalityName" name="functionalityName" required>
+              <input type="text" class="form-control" id="functionalityName" name="name" required>
             </div>
             <div class="mb-3">
               <label for="functionalityDescription" class="form-label">功能描述</label>
-              <textarea class="form-control" id="functionalityDescription" name="functionalityDescription" rows="3"></textarea>
+              <textarea class="form-control" id="functionalityDescription" name="description" rows="3"></textarea>
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary">关闭</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
             <button type="submit" class="btn btn-primary">保存</button>
           </div>
         </form>

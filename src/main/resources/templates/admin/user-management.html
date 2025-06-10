@@ -95,13 +95,13 @@
         </nav>
     </div>
 
-    <div class="modal fade" id="userFormModal" tabindex="-1" aria-labelledby="userFormModalLabel" aria-hidden="true">
+    <div class="modal fade" id="userFormModal" tabindex="-1" aria-labelledby="userFormModalLabel" aria-hidden="true" data-bs-backdrop="false">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <form id="userForm">
                     <div class="modal-header">
                         <h5 class="modal-title" id="userFormModalLabel">用户信息</h5>
-                        <button type="button" class="btn-close" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="userId" name="id">
@@ -110,29 +110,34 @@
                             <input type="text" class="form-control" id="username" name="username" required>
                         </div>
                         <div class="mb-3">
-                            <label for="email" class="form-label">邮箱 <span class="text-danger">*</span></label> <input type="email" class="form-control" id="email" name="email" required> </div>
+                            <label for="email" class="form-label">邮箱 <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
                         <div class="mb-3">
                             <label for="realName" class="form-label">真实姓名</label>
                             <input type="text" class="form-control" id="realName" name="realName" maxlength="50">
                         </div>
                         <div class="mb-3" id="passwordGroup">
                             <label for="password" class="form-label">密码 <span id="passwordRequired" class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="password" name="password"> <small id="passwordHelp" class="form-text text-muted">仅在创建用户或修改密码时需要填写。留空则不修改密码。</small>
+                            <input type="password" class="form-control" id="password" name="password">
+                            <small id="passwordHelp" class="form-text text-muted">仅在创建用户或修改密码时需要填写。留空则不修改密码。</small>
                         </div>
                         <div class="mb-3" id="confirmPasswordGroup" style="display: none;">
                             <label for="confirmPassword" class="form-label">确认密码 <span id="confirmPasswordRequired" class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"> </div>
+                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword">
+                        </div>
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="enabled" name="enabled" checked>
                             <label class="form-check-label" for="enabled">启用账户</label>
                         </div>
-                        <div class="mb-3" id="rolesGroupForCreate" style="display: none;"> <label class="form-label">分配角色:</label>
+                        <div class="mb-3" id="rolesGroupForCreate" style="display: none;">
+                            <label class="form-label">分配角色:</label>
                             <div id="rolesCheckboxesCreate" class="d-flex flex-wrap role-checkbox-group">
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary">关闭</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                         <button type="submit" class="btn btn-primary">保存</button>
                     </div>
                 </form>
@@ -140,13 +145,13 @@
         </div>
     </div>
 
-    <div class="modal fade" id="assignRolesModal" tabindex="-1" aria-labelledby="assignRolesModalLabel" aria-hidden="true">
+    <div class="modal fade" id="assignRolesModal" tabindex="-1" aria-labelledby="assignRolesModalLabel" aria-hidden="true" data-bs-backdrop="false">
         <div class="modal-dialog">
             <div class="modal-content">
                 <form id="assignRolesForm">
                     <div class="modal-header">
                         <h5 class="modal-title" id="assignRolesModalLabel">为用户分配角色</h5>
-                        <button type="button" class="btn-close" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="assignRolesUserId">
@@ -155,7 +160,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary">取消</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                         <button type="submit" class="btn btn-primary">确认分配</button>
                     </div>
                 </form>

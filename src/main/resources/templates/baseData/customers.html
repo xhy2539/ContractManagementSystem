@@ -211,13 +211,14 @@
                         <td th:text="${customer.address}">深圳市南山区科技园</td>
                         <td th:text="${#temporals.format(customer.createdAt, 'yyyy-MM-dd HH:mm')}">2023-06-15 10:30</td>
                         <td class="actions-cell text-end">
-                            <button class="btn btn-sm btn-outline-primary btn-action edit-customer-btn"
-                                    th:attr="data-id=${customer.id},
-                                                 data-number=${customer.customerNumber},
-                                                 data-name=${customer.customerName},
-                                                 data-phone=${customer.phoneNumber},
-                                                 data-email=${customer.email},
-                                                 data-address=${customer.address}">
+                            <button class="btn btn-sm btn-outline-primary btn-action"
+                                    data-bs-target="#editCustomerModal"
+                                    th:data-id="${customer.id}"
+                                    th:data-number="${customer.customerNumber}"
+                                    th:data-name="${customer.customerName}"
+                                    th:data-phone="${customer.phoneNumber}"
+                                    th:data-email="${customer.email}"
+                                    th:data-address="${customer.address}">
                                 <i class="bi bi-pencil"></i> 编辑
                             </button>
                             <button class="btn btn-sm btn-outline-danger btn-action delete-btn"
@@ -384,6 +385,8 @@
 <th:block layout:fragment="scripts">
     <!-- 客户管理模态框由 layout.html 中的通用模态框管理器处理 -->
     <script th:src="@{/js/customer-modal-fix.js}"></script>
+    
+    <script th:src="@{/js/customer-management.js}"></script>
     
     <script>
         // 原有客户页面的JavaScript逻辑（仅保留非模态框相关功能）

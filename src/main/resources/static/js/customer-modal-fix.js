@@ -25,7 +25,8 @@ console.log("🚀 客户管理模态框修复启动");
         const modalSelectors = [
             '#editCustomerModal',
             '#addCustomerModal',
-            '#attachmentListModal'
+            '#attachmentListModal',
+            '#customerFormModal'
         ];
         
         modalSelectors.forEach(selector => {
@@ -54,11 +55,11 @@ console.log("🚀 客户管理模态框修复启动");
         modalEl.classList.remove('fade');
         
         // 修复关闭按钮
-        const closeButtons = modalEl.querySelectorAll('.btn-close, button[data-bs-dismiss="modal"]');
+        const closeButtons = modalEl.querySelectorAll('.btn-close, [data-bs-dismiss="modal"], .btn-secondary');
         closeButtons.forEach(btn => {
             btn.removeAttribute('data-bs-dismiss');
-            btn.onclick = null;
             
+            // 使用直接的关闭处理函数
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -67,18 +68,11 @@ console.log("🚀 客户管理模态框修复启动");
             });
         });
         
-        // 修复取消和关闭按钮（通过文本识别）
-        const cancelButtons = modalEl.querySelectorAll('button[type="button"]');
-        cancelButtons.forEach(btn => {
-            const btnText = btn.textContent.trim();
-            if (btnText === '关闭' || btnText === '取消') {
-                btn.onclick = null;
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log(`🔧 点击${btnText}按钮关闭: ${modalId}`);
-                    hideModal(modalEl);
-                });
+        // 点击模态框外部区域关闭
+        modalEl.addEventListener('click', function(e) {
+            if (e.target === modalEl) {
+                console.log(`🔧 点击外部区域，关闭模态框: ${modalId}`);
+                hideModal(modalEl);
             }
         });
     }
@@ -96,7 +90,6 @@ console.log("🚀 客户管理模态框修复启动");
             
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
-                e.stopPropagation();
                 console.log('🎯 点击添加客户按钮');
                 const targetModal = customerFormModal || addCustomerModal;
                 if (targetModal) {
@@ -301,10 +294,16 @@ console.log("🚀 客户管理模态框修复启动");
         const modalId = modalEl.id;
         console.log(`🔧 显示模态框: ${modalId}`);
         
-        // 显示模态框
+        if (window.UnifiedModalManager) {
+            window.UnifiedModalManager.showModal(modalId);
+            return;
+        }
+        
+        // 如果统一管理器不可用，使用备用方案
         modalEl.style.display = 'block';
         modalEl.classList.add('show');
-        modalEl.style.paddingRight = '17px'; // 滚动条补偿
+        modalEl.setAttribute('aria-modal', 'true');
+        modalEl.setAttribute('role', 'dialog');
         
         // 设置背景
         modalEl.style.position = 'fixed';
@@ -316,8 +315,9 @@ console.log("🚀 客户管理模态框修复启动");
         modalEl.style.backgroundColor = 'rgba(0,0,0,0.5)';
         modalEl.style.overflowY = 'auto';
         
-        // 设置body样式
-        document.body.classList.add('modal-open');
+        // 移除body的modal-open类和样式，允许页面滚动
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
         
         // 背景点击关闭
         modalEl.addEventListener('click', function(e) {
@@ -337,7 +337,7 @@ console.log("🚀 客户管理模态框修复启动");
         modalEl._escHandler = escHandler;
         
         // 为第一个输入框设置焦点
-        if (modalId === 'editCustomerModal') {
+        if (modalId === 'editCustomerModal' || modalId === 'customerFormModal') {
             setTimeout(() => {
                 const firstInput = modalEl.querySelector('input:not([type="hidden"])');
                 if (firstInput) {
@@ -353,20 +353,28 @@ console.log("🚀 客户管理模态框修复启动");
         const modalId = modalEl.id;
         console.log(`🔧 隐藏模态框: ${modalId}`);
         
+        // 直接处理模态框关闭
         modalEl.style.display = 'none';
         modalEl.classList.remove('show');
-        modalEl.style.paddingRight = '';
+        modalEl.setAttribute('aria-hidden', 'true');
+        modalEl.removeAttribute('aria-modal');
+        modalEl.removeAttribute('role');
         
-        document.body.classList.remove('modal-open');
+        // 移除背景遮罩
         document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
         
-        // 移除ESC监听器
-        if (modalEl._escHandler) {
-            document.removeEventListener('keydown', modalEl._escHandler);
-            delete modalEl._escHandler;
+        // 重置表单（如果存在）
+        const form = modalEl.querySelector('form');
+        if (form) {
+            form.reset();
+            form.classList.remove('was-validated');
         }
         
-        console.log(`✅ 模态框隐藏成功: ${modalId}`);
+        // 移除所有可能的模态框状态类
+        document.documentElement.classList.remove('modal-open');
+        
+        console.log(`✅ 模态框隐藏完成: ${modalId}`);
     }
     
     // 拦截Bootstrap Modal调用

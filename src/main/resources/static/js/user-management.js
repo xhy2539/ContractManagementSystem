@@ -3,9 +3,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- DOM Element References ---
     const usersTableBody = document.querySelector('#usersTable tbody');
     const userFormModalEl = document.getElementById('userFormModal');
-    const userFormModal = new bootstrap.Modal(userFormModalEl);
+    const userFormModal = new bootstrap.Modal(userFormModalEl, {
+        backdrop: false // 禁用背景遮罩
+    });
     const assignRolesModalEl = document.getElementById('assignRolesModal');
-    const assignRolesModal = new bootstrap.Modal(assignRolesModalEl);
+    const assignRolesModal = new bootstrap.Modal(assignRolesModalEl, {
+        backdrop: false // 禁用背景遮罩
+    });
     const userForm = document.getElementById('userForm');
     const assignRolesForm = document.getElementById('assignRolesForm');
     const addUserBtn = document.getElementById('addUserBtn');
@@ -203,7 +207,6 @@ document.addEventListener('DOMContentLoaded', function () {
         emailInput.required = true;
         passwordInput.required = true;
         if (confirmPasswordInput) confirmPasswordInput.required = true;
-
 
         passwordInput.value = '';
         passwordInput.placeholder = '至少6位字符';
@@ -475,6 +478,35 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleLoading(false, assignButton);
         }
     }
+
+    // 添加模态框关闭事件监听
+    const closeButtons = userFormModalEl.querySelectorAll('[data-bs-dismiss="modal"]');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            userFormModal.hide();
+            // 清理可能残留的背景遮罩
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+            // 重置body状态
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        });
+    });
+
+    // 点击模态框外部关闭
+    userFormModalEl.addEventListener('click', (e) => {
+        if (e.target === userFormModalEl) {
+            userFormModal.hide();
+            // 清理可能残留的背景遮罩
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+            // 重置body状态
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }
+    });
 
     initializePage();
 });
