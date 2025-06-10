@@ -158,24 +158,41 @@ public class CustomerController {
     }
 
     @PostMapping("/delete")
-    public String deleteCustomer(
-            @RequestParam("id") Long id,
-            RedirectAttributes redirectAttributes) {
-
+    public ResponseEntity<String> deleteCustomer(@RequestParam("id") Long id) {
         try {
-            Customer customer = customerService.getCustomerById(id); // 先获取用于显示名称
+            Customer customer = customerService.getCustomerById(id);
             customerService.deleteCustomer(id);
-            redirectAttributes.addFlashAttribute("successMessage",
-                    "客户删除成功: " + customer.getCustomerName());
-            //} catch (CustomerNotFoundException e) {
-            //    redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return ResponseEntity.ok("客户删除成功: " + customer.getCustomerName());
         } catch (Exception e) {
             logger.error("Error deleting customer {}: {}", id, e.getMessage());
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "删除客户失败: " + e.getMessage());
+            
+            // 检查是否是外键约束错误
+            String errorMessage = e.getMessage();
+            Throwable rootCause = getRootCause(e);
+            if (rootCause instanceof org.hibernate.exception.ConstraintViolationException ||
+                (errorMessage != null && (
+                    errorMessage.contains("ConstraintViolationException") ||
+                    errorMessage.contains("foreign key constraint") ||
+                    errorMessage.contains("关联")
+                ))) {
+                return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body("该客户已有关联的合同，无法删除。请先处理相关合同后再尝试删除。");
+            }
+            
+            return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("删除客户失败: " + e.getMessage());
         }
+    }
 
-        return "redirect:/customers";
+    // 获取异常的根本原因
+    private Throwable getRootCause(Throwable throwable) {
+        Throwable rootCause = throwable;
+        while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+            rootCause = rootCause.getCause();
+        }
+        return rootCause;
     }
 
     // 新增：用于起草合同页面动态搜索客户的API

@@ -147,7 +147,7 @@
 <div layout:fragment="content">
     <div class="container main-container">
         <div class="d-flex justify-content-end mb-3">
-                                <button class="btn btn-primary add-customer-btn" id="addCustomerBtn">
+            <button class="btn btn-primary add-customer-btn" data-bs-target="#customerFormModal">
                 <i class="bi bi-plus-circle"></i> 添加新客户
             </button>
         </div>
@@ -383,6 +383,7 @@
 
 <th:block layout:fragment="scripts">
     <!-- 客户管理模态框由 layout.html 中的通用模态框管理器处理 -->
+    <script th:src="@{/js/customer-modal-fix.js}"></script>
     
     <script>
         // 原有客户页面的JavaScript逻辑（仅保留非模态框相关功能）
@@ -396,11 +397,53 @@
                 const customerName = this.getAttribute('data-name');
 
                 if(confirm(`确定要删除客户 "${customerName}" 吗？此操作不可撤销。`)) {
-                    document.getElementById('deleteCustomerId').value = customerId;
-                    document.getElementById('deleteCustomerForm').submit();
+                    // 使用fetch API代替表单提交，以便更好地处理错误
+                    fetch(`/customers/delete?id=${customerId}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                throw new Error(text || '删除失败');
+                            });
+                        }
+                        return response.text();
+                    })
+                    .then(() => {
+                        // 删除成功
+                        showModal('successModal', '删除成功');
+                        // 监听模态框关闭事件
+                        const successModal = document.getElementById('successModal');
+                        successModal.addEventListener('hidden.bs.modal', function () {
+                            window.location.reload();
+                        }, { once: true });
+                    })
+                    .catch(error => {
+                        let errorMessage = error.message;
+                        // 检查是否包含外键约束错误的关键词
+                        if (errorMessage.includes('ConstraintViolationException') || 
+                            errorMessage.includes('foreign key constraint') ||
+                            errorMessage.includes('关联')) {
+                            errorMessage = `无法删除客户"${customerName}"，因为该客户已经有关联的合同。请先处理相关合同后再尝试删除。`;
+                        }
+                        showModal('errorModal', errorMessage);
+                    });
                 }
             });
         });
+
+        // 显示模态框
+        function showModal(modalId, message) {
+            const modal = document.getElementById(modalId);
+            const messageElement = document.getElementById(modalId + 'Message');
+            messageElement.textContent = message;
+            
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        }
 
         // 表单验证
         var forms = document.querySelectorAll('.needs-validation');
@@ -414,8 +457,6 @@
                     form.classList.add('was-validated');
                 }, false);
             });
-
-        // 模态框相关功能已移到 customer-modal-fix.js 中处理
 
         // 自动关闭提示消息
         const alerts = document.querySelectorAll('.alert-dismissible');
@@ -436,29 +477,46 @@
         });
     });
     </script>
+
+    <!-- 错误提示模态框 -->
+    <div class="modal fade" id="errorModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>操作失败
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="errorModalMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成功提示模态框 -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-check-circle-fill me-2"></i>操作成功
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="successModalMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </th:block>
 </body>
-<!-- </html>.forEach(el => el.classList.remove('is-invalid'));
-        });
-
-        // 自动关闭提示消息
-        const alerts = document.querySelectorAll('.alert-dismissible');
-        alerts.forEach(alertNode => {
-            new bootstrap.Alert(alertNode);
-            setTimeout(() => {
-                const alertInstance = bootstrap.Alert.getInstance(alertNode);
-                if (alertInstance) {
-                    alertInstance.close();
-                }
-            }, 7000);
-        });
-
-        // 示例数据填充（仅用于演示）
-        document.querySelectorAll('.stat-card .value').forEach((el, index) => {
-            const values = ['248', '24', '186', '92%'];
-            el.textContent = values[index];
-        });
-    });
-</script>
-</body>
-</html> -->
+</html>

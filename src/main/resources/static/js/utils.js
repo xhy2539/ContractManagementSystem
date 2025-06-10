@@ -328,7 +328,25 @@ function showModal(modalId) {
     try {
         // 使用Bootstrap的Modal API
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            // 从data属性读取配置
+            const backdropAttr = modalElement.getAttribute('data-bs-backdrop');
+            const keyboardAttr = modalElement.getAttribute('data-bs-keyboard');
+            
+            // 转换为正确的类型
+            const backdrop = backdropAttr === 'static' ? 'static' : 
+                           backdropAttr === 'false' ? false : true;
+            const keyboard = keyboardAttr === 'false' ? false : true;
+            
+            // 创建模态框实例
+            const config = {
+                backdrop: backdrop,
+                keyboard: keyboard,
+                focus: true
+            };
+            
+            console.log(`📝 模态框配置 [${modalId}]:`, config);
+            
+            const modal = new bootstrap.Modal(modalElement, config);
             modal.show();
             console.log(`✅ 模态框 ${modalId} 显示成功`);
         } else {
@@ -336,6 +354,7 @@ function showModal(modalId) {
             modalElement.style.display = 'block';
             modalElement.classList.add('show');
             modalElement.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
             
             // 添加背景遮罩
             const backdrop = document.createElement('div');
@@ -377,6 +396,7 @@ function hideModal(modalId) {
             modalElement.style.display = 'none';
             modalElement.classList.remove('show');
             modalElement.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
             
             // 移除背景遮罩
             const backdrop = document.getElementById(`${modalId}-backdrop`);
