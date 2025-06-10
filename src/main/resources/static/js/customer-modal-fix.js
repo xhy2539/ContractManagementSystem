@@ -305,7 +305,7 @@ console.log("🚀 客户管理模态框修复启动");
         modalEl.setAttribute('aria-modal', 'true');
         modalEl.setAttribute('role', 'dialog');
         
-        // 设置背景
+        // 设置模态框样式
         modalEl.style.position = 'fixed';
         modalEl.style.top = '0';
         modalEl.style.left = '0';
@@ -315,9 +315,12 @@ console.log("🚀 客户管理模态框修复启动");
         modalEl.style.backgroundColor = 'rgba(0,0,0,0.5)';
         modalEl.style.overflowY = 'auto';
         
-        // 移除body的modal-open类和样式，允许页面滚动
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
+        // 允许页面和模态框同时滚动
+        document.documentElement.style.overflow = 'auto';
+        document.documentElement.style.paddingRight = '0';
+        document.body.style.overflow = 'auto';
+        document.body.style.paddingRight = '0';
+        document.body.classList.add('modal-scrollable');
         
         // 背景点击关闭
         modalEl.addEventListener('click', function(e) {
@@ -360,9 +363,13 @@ console.log("🚀 客户管理模态框修复启动");
         modalEl.removeAttribute('aria-modal');
         modalEl.removeAttribute('role');
         
-        // 移除背景遮罩
+        // 确保页面可以滚动
+        document.documentElement.style.overflow = '';
+        document.documentElement.style.paddingRight = '';
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
         
         // 重置表单（如果存在）
         const form = modalEl.querySelector('form');
@@ -370,9 +377,6 @@ console.log("🚀 客户管理模态框修复启动");
             form.reset();
             form.classList.remove('was-validated');
         }
-        
-        // 移除所有可能的模态框状态类
-        document.documentElement.classList.remove('modal-open');
         
         console.log(`✅ 模态框隐藏完成: ${modalId}`);
     }
