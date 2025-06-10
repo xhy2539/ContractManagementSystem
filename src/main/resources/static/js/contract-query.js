@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
         'ACTIVE': '有效',
         'COMPLETED': '完成',
         'EXPIRED': '过期',
-        'TERMINATED': '终止',
         'REJECTED': '已拒绝' // 添加已拒绝状态
     };
 
