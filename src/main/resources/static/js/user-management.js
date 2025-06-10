@@ -508,5 +508,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // 添加模态框显示事件处理
+    userFormModalEl.addEventListener('shown.bs.modal', function () {
+        document.body.style.overflow = 'auto';  // 允许背景滚动
+    });
+
+    assignRolesModalEl.addEventListener('shown.bs.modal', function () {
+        document.body.style.overflow = 'auto';  // 允许背景滚动
+    });
+
     initializePage();
 });

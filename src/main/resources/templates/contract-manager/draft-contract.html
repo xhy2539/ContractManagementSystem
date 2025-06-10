@@ -477,7 +477,7 @@
                 const customerSelectModal = bootstrap.Modal.getOrCreateInstance(customerSelectModalEl);
                 const addCustomerFormModal = bootstrap.Modal.getInstance(addCustomerFormModalEl);
 
-                // 监听第二个模态框“完全隐藏”的事件
+                // 监听第二个模态框"完全隐藏"的事件
                 addCustomerFormModalEl.addEventListener('hidden.bs.modal', function onHidden() {
                     console.log('✅ 第二个模态框已完全隐藏，现在安全地显示第一个...');
                     
@@ -2105,7 +2105,9 @@
                     previewBtn.classList.add('btn', 'btn-sm', 'btn-outline-info', 'me-2', 'preview-btn');
                     previewBtn.innerHTML = '<i class="bi bi-eye"></i> 预览';
                     previewBtn.style.display = fileEntry.status === 'completed' ? 'inline-block' : 'none';
-                    previewBtn.addEventListener('click', () => {
+                    previewBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         if (fileEntry.serverFileName) {
                             handlePreviewFile(fileEntry.serverFileName);
                         }

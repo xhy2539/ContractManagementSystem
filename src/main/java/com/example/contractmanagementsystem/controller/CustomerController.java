@@ -130,31 +130,26 @@ public class CustomerController {
     }
 
     @PostMapping("/update")
-    public String updateCustomer(
-            @Valid @ModelAttribute CustomerCreationRequest request, // 明确使用 @ModelAttribute
+    @ResponseBody
+    public ResponseEntity<?> updateCustomer(
+            @Valid @ModelAttribute CustomerCreationRequest request,
             @RequestParam("id") Long id,
-            BindingResult bindingResult,
-            RedirectAttributes redirectAttributes) {
+            BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    bindingResult.getFieldError().getDefaultMessage());
-            return "redirect:/customers";
+            return ResponseEntity.badRequest()
+                    .body(bindingResult.getFieldError().getDefaultMessage());
         }
 
         try {
             Customer updatedCustomer = customerService.updateCustomer(id, request);
-            redirectAttributes.addFlashAttribute("successMessage",
-                    "客户信息更新成功: " + updatedCustomer.getCustomerName());
-            //} catch (CustomerNotFoundException | DuplicateCustomerException e) {
-            //    redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            return ResponseEntity.ok()
+                    .body(updatedCustomer);
         } catch (Exception e) {
             logger.error("Error updating customer {}: {}", id, e.getMessage());
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "更新客户信息失败: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(e.getMessage());
         }
-
-        return "redirect:/customers";
     }
 
     @PostMapping("/delete")
