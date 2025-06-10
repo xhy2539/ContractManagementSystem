@@ -80,4 +80,9 @@ public interface ContractVersionRepository extends JpaRepository<ContractVersion
      */
     @Query("SELECT cv FROM ContractVersion cv WHERE cv.contract.id = :contractId AND cv.versionNumber BETWEEN :fromVersion AND :toVersion ORDER BY cv.versionNumber ASC")
     List<ContractVersion> findVersionsBetween(@Param("contractId") Long contractId, @Param("fromVersion") Integer fromVersion, @Param("toVersion") Integer toVersion);
+
+    /**
+     * 根据合同查找所有版本记录，按创建时间倒序排序
+     */
+    List<ContractVersion> findByContractOrderByCreatedAtDesc(Contract contract);
 } 

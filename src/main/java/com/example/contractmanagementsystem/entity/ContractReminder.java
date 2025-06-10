@@ -1,10 +1,8 @@
 package com.example.contractmanagementsystem.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -15,18 +13,13 @@ import java.time.LocalDateTime;
  * 合同提醒实体
  * 用于存储合同到期提醒、续签提醒等智能提醒信息
  */
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Entity
 @Table(name = "contract_reminders", indexes = {
     @Index(name = "idx_reminder_contract", columnList = "contract_id"),
-    @Index(name = "idx_reminder_type", columnList = "reminder_type"),
-    @Index(name = "idx_reminder_date", columnList = "reminder_date"),
-    @Index(name = "idx_reminder_status", columnList = "status"),
     @Index(name = "idx_reminder_user", columnList = "user_id")
 })
+@Data
+@NoArgsConstructor
 public class ContractReminder {
 
     @Id
@@ -39,51 +32,55 @@ public class ContractReminder {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user; // 提醒的目标用户
+    private User user;
+
+    @Column(name = "title", length = 200)
+    private String title;
+
+    @Lob
+    @Column(name = "message", columnDefinition = "TEXT")
+    private String message;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "reminder_type", nullable = false, length = 30)
     private ReminderType reminderType;
 
     @Column(name = "reminder_date", nullable = false)
-    private LocalDate reminderDate; // 提醒日期
+    private LocalDate reminderDate;
 
     @Column(name = "target_date")
-    private LocalDate targetDate; // 目标日期（如合同到期日期）
+    private LocalDate targetDate;
 
     @Column(name = "days_before")
-    private Integer daysBefore; // 提前多少天提醒
-
-    @Column(name = "title", length = 200)
-    private String title; // 提醒标题
-
-    @Lob
-    @Column(name = "message", columnDefinition = "TEXT")
-    private String message; // 提醒内容
+    private Integer daysBefore;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
-    private ReminderStatus status;
+    private ReminderStatus status = ReminderStatus.PENDING;
 
     @Column(name = "is_sent")
-    private Boolean isSent = false; // 是否已发送
+    private Boolean isSent = false;
 
     @Column(name = "sent_at")
-    private LocalDateTime sentAt; // 发送时间
+    private LocalDateTime sentAt;
 
     @Column(name = "is_read")
-    private Boolean isRead = false; // 是否已读
+    private Boolean isRead = false;
 
     @Column(name = "read_at")
-    private LocalDateTime readAt; // 阅读时间
+    private LocalDateTime readAt;
 
-    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
+    @CreationTimestamp
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     /**
      * 提醒类型枚举

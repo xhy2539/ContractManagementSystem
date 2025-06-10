@@ -54,6 +54,85 @@
         .status-badge.terminated { background-color: #6c757d; }
         .status-badge.rejected { background-color: #dc3545; }
     </style>
+    <style>
+        /* 移除延期模态框背景阴影 */
+        #adminExtendModal, #operatorRequestExtendModal {
+            background-color: transparent !important;
+        }
+        
+        /* 确保模态框内容可以正常交互 */
+        #adminExtendModal .modal-dialog,
+        #operatorRequestExtendModal .modal-dialog {
+            pointer-events: auto !important;
+        }
+        
+        #adminExtendModal .modal-content,
+        #operatorRequestExtendModal .modal-content {
+            pointer-events: auto !important;
+            box-shadow: none !important;
+        }
+        
+        /* 移除fade效果 */
+        #adminExtendModal.fade,
+        #operatorRequestExtendModal.fade {
+            transition: none;
+        }
+        
+        /* 移除backdrop */
+        .modal-backdrop {
+            display: none !important;
+        }
+        
+        /* 允许页面滚动 */
+        body.modal-open {
+            overflow: auto !important;
+            padding-right: 0 !important;
+        }
+        
+        html.modal-open {
+            overflow: auto !important;
+            padding-right: 0 !important;
+        }
+        
+        /* 确保模态框内容可滚动 */
+        #adminExtendModal, #operatorRequestExtendModal {
+            overflow-y: auto !important;
+        }
+        
+        /* 移除模态框对body的影响 */
+        #adminExtendModal, #operatorRequestExtendModal {
+            padding-right: 0 !important;
+        }
+        
+        /* 优化模态框位置 */
+        #adminExtendModal .modal-dialog,
+        #operatorRequestExtendModal .modal-dialog {
+            position: fixed !important;
+            margin: auto !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            max-width: 500px !important;
+            width: 95% !important;
+        }
+        
+        /* 添加模态框动画效果 */
+        #adminExtendModal.show .modal-dialog,
+        #operatorRequestExtendModal.show .modal-dialog {
+            animation: modalFadeIn 0.3s ease-out;
+        }
+        
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -48%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+    </style>
 </head>
 <body>
 <section layout:fragment="content">
@@ -129,10 +208,10 @@
     <div class="modal fade" id="adminExtendModal" tabindex="-1" aria-labelledby="adminExtendModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                                            <form id="adminExtendForm" class="needs-validation" data-auto-reset novalidate>
+                <form id="adminExtendForm" class="needs-validation" data-auto-reset novalidate>
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title" id="adminExtendModalLabel">管理员直接延期合同</h5>
-                        <button type="button" class="btn-close btn-close-white" aria-label="Close"></button>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeAdminExtendModal()" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="adminExtendContractId">
@@ -149,7 +228,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary">取消</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeAdminExtendModal()">取消</button>
                         <button type="submit" class="btn btn-primary">确认延期</button>
                     </div>
                 </form>
@@ -160,10 +239,10 @@
     <div class="modal fade" id="operatorRequestExtendModal" tabindex="-1" aria-labelledby="operatorRequestExtendModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                                            <form id="operatorRequestExtendForm" class="needs-validation" data-auto-reset novalidate>
+                <form id="operatorRequestExtendForm" class="needs-validation" data-auto-reset novalidate>
                     <div class="modal-header bg-warning text-dark">
                         <h5 class="modal-title" id="operatorRequestExtendModalLabel">请求延期合同</h5>
-                        <button type="button" class="btn-close" aria-label="Close"></button>
+                        <button type="button" class="btn-close" onclick="closeOperatorExtendModal()" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="operatorRequestContractId">
@@ -185,7 +264,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary">取消</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeOperatorExtendModal()">取消</button>
                         <button type="submit" class="btn btn-warning">提交延期请求</button>
                     </div>
                 </form>
@@ -763,6 +842,167 @@
             });
 
         });
+
+        // 动态定位模态框位置
+        function showModalNearClick(modalId, clickEvent) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            
+            const modalDialog = modal.querySelector('.modal-dialog');
+            if (!modalDialog) return;
+
+            // 获取点击位置
+            const clickX = clickEvent.clientX;
+            const clickY = clickEvent.clientY;
+            
+            // 获取窗口尺寸
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            // 获取模态框尺寸
+            const modalWidth = modalDialog.offsetWidth;
+            const modalHeight = modalDialog.offsetHeight;
+            
+            // 计算最佳位置（确保不会超出屏幕）
+            let left = clickX;
+            let top = clickY;
+            
+            // 如果模态框会超出右边界，向左偏移
+            if (left + modalWidth > windowWidth) {
+                left = Math.max(0, windowWidth - modalWidth);
+            }
+            
+            // 如果模态框会超出下边界，向上偏移
+            if (top + modalHeight > windowHeight) {
+                top = Math.max(0, windowHeight - modalHeight);
+            }
+            
+            // 应用位置
+            modalDialog.style.position = 'fixed';
+            modalDialog.style.margin = '0';
+            modalDialog.style.left = left + 'px';
+            modalDialog.style.top = top + 'px';
+            modalDialog.style.transform = 'none';
+            
+            // 添加过渡动画
+            modalDialog.style.transition = 'all 0.3s ease-out';
+            
+            // 显示模态框
+            modal.style.display = 'block';
+            modal.classList.add('show');
+        }
+
+        // 为延期按钮添加点击事件处理
+        document.addEventListener('click', function(event) {
+            const adminExtendBtn = event.target.closest('.admin-extend-btn');
+            const operatorExtendBtn = event.target.closest('.operator-extend-btn');
+            
+            if (adminExtendBtn) {
+                event.preventDefault();
+                showModalNearClick('adminExtendModal', event);
+            } else if (operatorExtendBtn) {
+                event.preventDefault();
+                showModalNearClick('operatorRequestExtendModal', event);
+            }
+        });
+
+        // 模态框关闭处理函数
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            
+            // 移除显示类
+            modal.classList.remove('show');
+            modal.style.display = 'none';
+            
+            // 移除模态框背景
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
+            
+            // 重置body样式
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            
+            // 重置模态框对话框位置
+            const dialog = modal.querySelector('.modal-dialog');
+            if (dialog) {
+                dialog.style.position = '';
+                dialog.style.margin = '';
+                dialog.style.left = '';
+                dialog.style.top = '';
+                dialog.style.transform = '';
+            }
+            
+            // 重置表单
+            const form = modal.querySelector('form');
+            if (form) {
+                form.reset();
+                form.classList.remove('was-validated');
+            }
+            
+            // 移除所有可能的事件监听器
+            const closeButtons = modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close, .btn-secondary');
+            closeButtons.forEach(button => {
+                button.removeEventListener('click', closeModalHandler);
+            });
+        }
+
+        // 关闭按钮事件处理函数
+        function closeModalHandler(e) {
+            e.preventDefault();
+            const modal = this.closest('.modal');
+            if (modal) {
+                closeModal(modal.id);
+            }
+        }
+
+        // 初始化模态框关闭功能
+        function initModalClose() {
+            const modals = ['adminExtendModal', 'operatorRequestExtendModal'];
+            
+            modals.forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (!modal) return;
+                
+                // 为所有关闭按钮添加事件监听
+                const closeButtons = modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close, .btn-secondary');
+                closeButtons.forEach(button => {
+                    // 移除旧的事件监听器
+                    button.removeEventListener('click', closeModalHandler);
+                    // 添加新的事件监听器
+                    button.addEventListener('click', closeModalHandler);
+                });
+                
+                // ESC键关闭
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && modal.classList.contains('show')) {
+                        closeModal(modalId);
+                    }
+                });
+                
+                // 点击模态框外部关闭
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeModal(modalId);
+                    }
+                });
+            });
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initModalClose);
+
+        // 导出关闭函数供外部使用
+        window.closeAdminExtendModal = function() {
+            closeModal('adminExtendModal');
+        };
+        
+        window.closeOperatorExtendModal = function() {
+            closeModal('operatorRequestExtendModal');
+        };
     </script>
 </th:block>
 </body>

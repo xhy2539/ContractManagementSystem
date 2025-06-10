@@ -48,10 +48,15 @@
         .modal-dialog {
             z-index: 1055 !important;
             position: relative;
+            margin: 1.75rem auto !important;
+            transform: translate(0, 0) !important;
+            max-width: 500px !important;
+            width: auto !important;
         }
         .modal-content {
             z-index: 1060 !important;
             position: relative;
+            margin: 0 auto !important;
         }
         
         /* 确保模态框内的元素可以交互 */
@@ -71,22 +76,7 @@
         /* 专门为延期模态框强制设置 */
         #adminExtendModal, #operatorRequestExtendModal {
             pointer-events: auto !important;
-        }
-        
-        #adminExtendModal *, #operatorRequestExtendModal * {
-            pointer-events: auto !important;
-        }
-        
-        #adminExtendModal .modal-content,
-        #operatorRequestExtendModal .modal-content {
-            pointer-events: auto !important;
-            z-index: 1065 !important;
-            position: relative;
-        }
-        
-        /* 自定义背景样式 */
-        #custom-backdrop-admin,
-        #custom-backdrop-operator {
+            display: none;
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
@@ -94,7 +84,57 @@
             height: 100% !important;
             background-color: rgba(0, 0, 0, 0.5) !important;
             z-index: 1050 !important;
-            pointer-events: none !important;
+        }
+        
+        #adminExtendModal *, #operatorRequestExtendModal * {
+            pointer-events: auto !important;
+        }
+        
+        #adminExtendModal .modal-dialog,
+        #operatorRequestExtendModal .modal-dialog {
+            position: relative !important;
+            width: auto !important;
+            margin: 1.75rem auto !important;
+            max-width: 500px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+        }
+        
+        #adminExtendModal .modal-content,
+        #operatorRequestExtendModal .modal-content {
+            pointer-events: auto !important;
+            z-index: 1065 !important;
+            position: relative !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+        }
+        
+        /* 移除模态框背景阴影 */
+        #adminExtendModal, #operatorRequestExtendModal {
+            background-color: rgba(0, 0, 0, 0.5) !important;
+        }
+        
+        /* 确保模态框内容可以正常交互 */
+        #adminExtendModal .modal-dialog,
+        #operatorRequestExtendModal .modal-dialog {
+            pointer-events: auto !important;
+        }
+        
+        #adminExtendModal .modal-content,
+        #operatorRequestExtendModal .modal-content {
+            pointer-events: auto !important;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        }
+        
+        /* 移除fade效果 */
+        #adminExtendModal.fade,
+        #operatorRequestExtendModal.fade {
+            transition: none !important;
+        }
+        
+        /* 移除backdrop */
+        .modal-backdrop {
+            display: none !important;
         }
     </style>
 </head>
@@ -619,80 +659,21 @@
                 return;
             }
             
-            // 清理可能的残留状态和强制移除任何阻止交互的样式
-            modalEl.classList.remove('show');
-            modalEl.style.display = '';
-            modalEl.style.pointerEvents = '';
-            
-            // 清除可能存在的旧实例
-            const existingInstance = bootstrap.Modal.getInstance(modalEl);
-            if (existingInstance) {
-                existingInstance.dispose();
-            }
-            
             // 显示模态框
-            console.log('准备显示管理员延期模态框');
-            try {
-                // 尝试最简单的方式：直接显示模态框，去掉所有可能的阻碍
-                modalEl.style.display = 'block';
-                modalEl.classList.add('show');
-                modalEl.setAttribute('aria-modal', 'true');
-                modalEl.setAttribute('role', 'dialog');
-                modalEl.removeAttribute('aria-hidden');
-                
-                // 非常强制地确保可交互
-                modalEl.style.pointerEvents = 'auto';
-                modalEl.style.zIndex = '1060';
-                // 保持Bootstrap默认的模态框定位样式，不强制全屏
-                
-                // 强制设置所有子元素可交互
-                const allElements = modalEl.querySelectorAll('*');
-                allElements.forEach(el => {
-                    el.style.pointerEvents = 'auto';
-                });
-                
-                // 暂时移除背景遮罩，专注解决交互问题
-                console.log('跳过添加背景遮罩，测试交互性');
-                
-                // 移除任何可能存在的背景遮罩
-                const existingBackdrop = document.getElementById('custom-backdrop-admin');
-                if (existingBackdrop) {
-                    existingBackdrop.remove();
+            modalEl.style.display = 'block';
+            modalEl.classList.add('show');
+            modalEl.setAttribute('aria-modal', 'true');
+            modalEl.setAttribute('role', 'dialog');
+            modalEl.removeAttribute('aria-hidden');
+            
+            // 强制聚焦到第一个输入框
+            setTimeout(() => {
+                const firstInput = modalEl.querySelector('input[type="date"]');
+                if (firstInput) {
+                    firstInput.focus();
+                    firstInput.click();
                 }
-                
-                // 强制聚焦到第一个输入框
-                setTimeout(() => {
-                    const firstInput = modalEl.querySelector('input[type="date"]');
-                    if (firstInput) {
-                        firstInput.focus();
-                        firstInput.click(); // 也尝试点击它
-                    }
-                }, 100);
-                
-                // 添加调试信息
-                setTimeout(() => {
-                    console.log('=== 管理员延期模态框调试信息 ===');
-                    console.log('模态框是否可见:', modalEl.offsetWidth > 0 && modalEl.offsetHeight > 0);
-                    console.log('模态框位置:', modalEl.getBoundingClientRect());
-                    console.log('模态框样式:', {
-                        display: modalEl.style.display,
-                        pointerEvents: modalEl.style.pointerEvents,
-                        zIndex: modalEl.style.zIndex,
-                        position: modalEl.style.position
-                    });
-                    
-                    const modalContent = modalEl.querySelector('.modal-content');
-                    if (modalContent) {
-                        console.log('内容区域样式:', modalContent.style.pointerEvents);
-                    }
-                    console.log('=== 调试信息结束 ===');
-                }, 300);
-                
-                console.log('管理员延期模态框显示完成');
-            } catch (error) {
-                console.error('显示管理员延期模态框时出错:', error);
-                showAlert('模态框显示失败', 'danger');
-            }
+            }, 100);
         }
         
         // 处理操作员延期请求按钮点击
@@ -725,80 +706,21 @@
                 return;
             }
             
-            // 清理可能的残留状态和强制移除任何阻止交互的样式
-            modalEl.classList.remove('show');
-            modalEl.style.display = '';
-            modalEl.style.pointerEvents = '';
+            // 显示模态框
+            modalEl.style.display = 'block';
+            modalEl.classList.add('show');
+            modalEl.setAttribute('aria-modal', 'true');
+            modalEl.setAttribute('role', 'dialog');
+            modalEl.removeAttribute('aria-hidden');
             
-            // 清除可能存在的旧实例
-            const existingInstance = bootstrap.Modal.getInstance(modalEl);
-            if (existingInstance) {
-                existingInstance.dispose();
-            }
-            
-                            // 显示模态框
-            console.log('准备显示操作员延期请求模态框');
-            try {
-                // 尝试最简单的方式：直接显示模态框，去掉所有可能的阻碍
-                modalEl.style.display = 'block';
-                modalEl.classList.add('show');
-                modalEl.setAttribute('aria-modal', 'true');
-                modalEl.setAttribute('role', 'dialog');
-                modalEl.removeAttribute('aria-hidden');
-                
-                // 非常强制地确保可交互
-                modalEl.style.pointerEvents = 'auto';
-                modalEl.style.zIndex = '1060';
-                // 保持Bootstrap默认的模态框定位样式，不强制全屏
-                
-                // 强制设置所有子元素可交互
-                const allElements = modalEl.querySelectorAll('*');
-                allElements.forEach(el => {
-                    el.style.pointerEvents = 'auto';
-                });
-                
-                // 暂时移除背景遮罩，专注解决交互问题
-                console.log('跳过添加背景遮罩，测试交互性');
-                
-                // 移除任何可能存在的背景遮罩
-                const existingBackdrop = document.getElementById('custom-backdrop-operator');
-                if (existingBackdrop) {
-                    existingBackdrop.remove();
+            // 强制聚焦到第一个输入框
+            setTimeout(() => {
+                const firstInput = modalEl.querySelector('input[type="date"]');
+                if (firstInput) {
+                    firstInput.focus();
+                    firstInput.click();
                 }
-                
-                // 强制聚焦到第一个输入框
-                setTimeout(() => {
-                    const firstInput = modalEl.querySelector('input[type="date"]');
-                    if (firstInput) {
-                        firstInput.focus();
-                        firstInput.click(); // 也尝试点击它
-                    }
-                }, 100);
-                
-                // 添加调试信息
-                setTimeout(() => {
-                    console.log('=== 操作员延期模态框调试信息 ===');
-                    console.log('模态框是否可见:', modalEl.offsetWidth > 0 && modalEl.offsetHeight > 0);
-                    console.log('模态框位置:', modalEl.getBoundingClientRect());
-                    console.log('模态框样式:', {
-                        display: modalEl.style.display,
-                        pointerEvents: modalEl.style.pointerEvents,
-                        zIndex: modalEl.style.zIndex,
-                        position: modalEl.style.position
-                    });
-                    
-                    const modalContent = modalEl.querySelector('.modal-content');
-                    if (modalContent) {
-                        console.log('内容区域样式:', modalContent.style.pointerEvents);
-                    }
-                    console.log('=== 调试信息结束 ===');
-                }, 300);
-                
-                console.log('操作员延期模态框显示完成');
-            } catch (error) {
-                console.error('显示操作员延期模态框时出错:', error);
-                showAlert('模态框显示失败', 'danger');
-            }
+            }, 100);
         }
 
         // 处理删除按钮点击

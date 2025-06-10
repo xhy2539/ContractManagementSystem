@@ -58,7 +58,12 @@ public interface ContractAnalysisRepository extends JpaRepository<ContractAnalys
     Optional<ContractAnalysis> findFirstByContractIdAndAnalysisTypeOrderByCreatedAtDesc(Long contractId, AnalysisType analysisType);
 
     /**
-     * 删除指定合同的所有分析记录
+     * 根据合同删除所有相关的分析记录
      */
     void deleteByContract(Contract contract);
+
+    /**
+     * 根据合同查找最新的分析记录
+     */
+    ContractAnalysis findFirstByContractOrderByCreatedAtDesc(Contract contract);
 } 

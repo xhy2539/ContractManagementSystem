@@ -10,6 +10,9 @@ import com.example.contractmanagementsystem.repository.ContractProcessRepository
 import com.example.contractmanagementsystem.repository.ContractRepository;
 import com.example.contractmanagementsystem.repository.CustomerRepository;
 import com.example.contractmanagementsystem.repository.UserRepository;
+import com.example.contractmanagementsystem.repository.ReminderRepository;
+import com.example.contractmanagementsystem.repository.ContractAnalysisRepository;
+import com.example.contractmanagementsystem.repository.ContractVersionRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,7 +43,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 
 import java.io.IOException;
@@ -52,6 +57,7 @@ import java.util.*;
 import java.util.regex.Matcher; // 新增导入
 import java.util.regex.Pattern; // 新增导入
 import java.util.stream.Collectors;
+import java.nio.file.Files;
 
 @Service
 public class ContractServiceImpl implements ContractService {
@@ -68,6 +74,9 @@ public class ContractServiceImpl implements ContractService {
     private final ObjectMapper objectMapper;
     private final EmailService emailService;
     private final TemplateService templateService; // 新增注入
+    private final ReminderRepository reminderRepository;
+    private final ContractAnalysisRepository contractAnalysisRepository;
+    private final ContractVersionRepository contractVersionRepository;
 
     @Autowired
     public ContractServiceImpl(ContractRepository contractRepository,
@@ -78,7 +87,10 @@ public class ContractServiceImpl implements ContractService {
                                AttachmentService attachmentService,
                                ObjectMapper objectMapper,
                                EmailService emailService,
-                               TemplateService templateService) { // 新增注入参数
+                               TemplateService templateService,
+                               ReminderRepository reminderRepository,
+                               ContractAnalysisRepository contractAnalysisRepository,
+                               ContractVersionRepository contractVersionRepository) { // 新增注入参数
         this.contractRepository = contractRepository;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
@@ -88,6 +100,9 @@ public class ContractServiceImpl implements ContractService {
         this.objectMapper = objectMapper;
         this.emailService = emailService;
         this.templateService = templateService; // 初始化
+        this.reminderRepository = reminderRepository;
+        this.contractAnalysisRepository = contractAnalysisRepository;
+        this.contractVersionRepository = contractVersionRepository;
     }
 
     @PostConstruct
@@ -1563,38 +1578,49 @@ public class ContractServiceImpl implements ContractService {
         logger.info("开始删除合同 ID: {} - {}", id, contract.getContractName());
 
         try {
-            // 根据日志分析：只有 contract_process 和 contracts 表确实存在
-            // 其他表（contract_analyses, contract_versions, contract_reminders）在数据库中并不存在
-            // 所以只删除确实存在的表，避免任何数据库异常导致事务rollback
-            
-            // 1. 删除合同流程记录 - 必须先删除以避免外键约束
-            int processesDeleted = entityManager.createNativeQuery("DELETE FROM contract_process WHERE contract_id = ?")
+            // 1. 删除合同提醒记录
+            String deleteRemindersSql = "DELETE FROM contract_reminders WHERE contract_id = ?";
+            int deletedReminders = entityManager.createNativeQuery(deleteRemindersSql)
                     .setParameter(1, id)
                     .executeUpdate();
-            logger.debug("已删除 {} 条合同流程记录", processesDeleted);
+            logger.debug("已删除{}条合同提醒记录", deletedReminders);
 
-            // 2. 强制刷新以确保删除操作已执行
-            entityManager.flush();
-
-            // 3. 最后删除合同记录
-            int contractDeleted = entityManager.createNativeQuery("DELETE FROM contracts WHERE id = ?")
+            // 2. 删除合同分析记录
+            String deleteAnalysesSql = "DELETE FROM contract_analyses WHERE contract_id = ?";
+            int deletedAnalyses = entityManager.createNativeQuery(deleteAnalysesSql)
                     .setParameter(1, id)
                     .executeUpdate();
-            logger.debug("已删除 {} 条合同记录", contractDeleted);
+            logger.debug("已删除{}条合同分析记录", deletedAnalyses);
+
+            // 3. 删除合同版本记录
+            String deleteVersionsSql = "DELETE FROM contract_versions WHERE contract_id = ?";
+            int deletedVersions = entityManager.createNativeQuery(deleteVersionsSql)
+                    .setParameter(1, id)
+                    .executeUpdate();
+            logger.debug("已删除{}条合同版本记录", deletedVersions);
+
+            // 4. 删除合同流程记录 - 处理两个表
+            String deleteProcessSql = "DELETE FROM contract_process WHERE contract_id = ?";
+            int deletedProcess = entityManager.createNativeQuery(deleteProcessSql)
+                    .setParameter(1, id)
+                    .executeUpdate();
             
-            logger.info("成功删除合同 ID: {} - {}", id, contract.getContractName());
-            
-            // 记录审计日志
-            String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-            auditLogService.logAction(
-                currentUsername, 
-                "DELETE_CONTRACT", 
-                "删除合同: " + contract.getContractName() + " (ID: " + id + ")"
-            );
-            
+            String deleteProcessesSql = "DELETE FROM contract_processes WHERE contract_id = ?";
+            int deletedProcesses = entityManager.createNativeQuery(deleteProcessesSql)
+                    .setParameter(1, id)
+                    .executeUpdate();
+            logger.debug("已删除{}条contract_process记录和{}条contract_processes记录", deletedProcess, deletedProcesses);
+
+            // 5. 最后删除合同记录
+            String deleteContractSql = "DELETE FROM contracts WHERE id = ?";
+            entityManager.createNativeQuery(deleteContractSql)
+                    .setParameter(1, id)
+                    .executeUpdate();
+            logger.info("成功删除合同 ID: {}", id);
+
         } catch (Exception e) {
             logger.error("删除合同失败 ID: {} - {}", id, contract.getContractName(), e);
-            throw new BusinessLogicException("删除合同失败: " + e.getMessage());
+            throw new RuntimeException("删除合同失败: " + e.getMessage(), e);
         }
     }
 

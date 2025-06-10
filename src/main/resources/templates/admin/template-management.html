@@ -25,6 +25,30 @@
       border: 1px solid #ced4da !important;
       border-radius: 0.25rem !important;
     }
+    
+    /* 禁用模态框背景阴影 */
+    #templateFormModal {
+      background-color: transparent !important;
+    }
+    
+    #templateFormModal .modal-dialog {
+      pointer-events: auto !important;
+    }
+    
+    #templateFormModal .modal-content {
+      pointer-events: auto !important;
+      box-shadow: none !important;
+    }
+    
+    /* 移除fade效果 */
+    #templateFormModal.fade {
+      transition: none;
+    }
+    
+    /* 移除backdrop */
+    .modal-backdrop {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
@@ -103,7 +127,7 @@
                         <form id="templateForm" data-auto-reset>
           <div class="modal-header">
             <h5 class="modal-title" id="templateFormModalLabel">模板信息</h5>
-            <button type="button" class="btn-close" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="window.UnifiedModalManager.hideModal('templateFormModal')" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <input type="hidden" id="templateId" name="id">
@@ -127,7 +151,7 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            <button type="button" class="btn btn-secondary" onclick="window.UnifiedModalManager.hideModal('templateFormModal')">关闭</button>
             <button type="submit" class="btn btn-primary">保存</button>
           </div>
         </form>
@@ -141,7 +165,7 @@
   <script src="https://cdn.tiny.cloud/1/epd4u3q4czck41xhryufu73clhe4jzhzc0bxvnmw9t0z6ayk/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
   <script th:src="@{/js/utils.js}"></script>
   <!-- 模态框由 layout.html 中的通用模态框管理器处理 -->
-  <script>
+  <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', function () {
       // --- DOM Element References ---
               const templatesTableBody = document.querySelector('#templatesTable tbody');
@@ -178,7 +202,7 @@
         // Initialize TinyMCE for the template content textarea
         tinymce.init({
           selector: '#templateContent',
-          plugins: 'advlist autolink lists link image charmap print preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount',
+          plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table help wordcount',
           toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
           height: 300,
           menubar: false,
@@ -414,6 +438,58 @@
 
       // --- Initial Page Load ---
       initializePage();
+
+      // 关闭模态框函数
+      function closeTemplateModal() {
+        const modal = document.getElementById('templateFormModal');
+        if (!modal) return;
+        
+        // 移除显示类
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+        
+        // 移除模态框背景
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) {
+          backdrop.remove();
+        }
+        
+        // 重置body样式
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        
+        // 重置表单
+        const form = document.getElementById('templateForm');
+        if (form) {
+          form.reset();
+        }
+        
+        // 重置TinyMCE编辑器
+        if (window.tinymce && tinymce.get('templateContent')) {
+          tinymce.get('templateContent').setContent('');
+        }
+      }
+
+      // 初始化页面时添加ESC键和点击外部关闭功能
+      document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('templateFormModal');
+        if (!modal) return;
+        
+        // ESC键关闭
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape' && modal.classList.contains('show')) {
+            closeTemplateModal();
+          }
+        });
+        
+        // 点击模态框外部关闭
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) {
+            closeTemplateModal();
+          }
+        });
+      });
     });
   </script>
 </th:block>

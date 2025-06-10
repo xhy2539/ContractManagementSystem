@@ -294,6 +294,13 @@ console.log("🚀 客户管理模态框修复启动");
         const modalId = modalEl.id;
         console.log(`🔧 显示模态框: ${modalId}`);
         
+        // 设置页面可滚动
+        document.documentElement.style.overflow = 'auto';
+        document.documentElement.style.paddingRight = '0';
+        document.body.style.overflow = 'auto';
+        document.body.style.paddingRight = '0';
+        document.body.classList.add('modal-scrollable');
+
         if (window.UnifiedModalManager) {
             window.UnifiedModalManager.showModal(modalId);
             return;
