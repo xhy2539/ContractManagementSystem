@@ -119,11 +119,11 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
      * @return 包含所有统计数据的DTO
      */
     @Query("SELECT new com.example.contractmanagementsystem.dto.DashboardStatsDto(" +
-            "SUM(CASE WHEN c.status = 'ACTIVE' THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN c.status = 'ACTIVE' AND c.endDate BETWEEN :today AND :futureDate THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN c.status = 'EXPIRED' THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN c.status IN :inProcessStatuses THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN c.status = 'PENDING_ASSIGNMENT' THEN 1 ELSE 0 END)) " +
+            "COALESCE(SUM(CASE WHEN c.status = 'ACTIVE' THEN 1L ELSE 0L END), 0L), " +
+            "COALESCE(SUM(CASE WHEN c.status = 'ACTIVE' AND c.endDate BETWEEN :today AND :futureDate THEN 1L ELSE 0L END), 0L), " +
+            "COALESCE(SUM(CASE WHEN c.status = 'EXPIRED' THEN 1L ELSE 0L END), 0L), " +
+            "COALESCE(SUM(CASE WHEN c.status IN :inProcessStatuses THEN 1L ELSE 0L END), 0L), " +
+            "COALESCE(SUM(CASE WHEN c.status = 'PENDING_ASSIGNMENT' THEN 1L ELSE 0L END), 0L)) " +
             "FROM Contract c " +
             // 如果需要根据非管理员用户进行过滤，则添加WHERE子句
             "WHERE :user IS NULL OR c.drafter = :user OR EXISTS (" +
@@ -135,11 +135,11 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
 
     // 为管理员提供一个不过滤用户的版本
     @Query("SELECT new com.example.contractmanagementsystem.dto.DashboardStatsDto(" +
-            "SUM(CASE WHEN c.status = 'ACTIVE' THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN c.status = 'ACTIVE' AND c.endDate BETWEEN :today AND :futureDate THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN c.status = 'EXPIRED' THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN c.status IN :inProcessStatuses THEN 1 ELSE 0 END), " +
-            "SUM(CASE WHEN c.status = 'PENDING_ASSIGNMENT' THEN 1 ELSE 0 END)) " +
+            "COALESCE(SUM(CASE WHEN c.status = 'ACTIVE' THEN 1L ELSE 0L END), 0L), " +
+            "COALESCE(SUM(CASE WHEN c.status = 'ACTIVE' AND c.endDate BETWEEN :today AND :futureDate THEN 1L ELSE 0L END), 0L), " +
+            "COALESCE(SUM(CASE WHEN c.status = 'EXPIRED' THEN 1L ELSE 0L END), 0L), " +
+            "COALESCE(SUM(CASE WHEN c.status IN :inProcessStatuses THEN 1L ELSE 0L END), 0L), " +
+            "COALESCE(SUM(CASE WHEN c.status = 'PENDING_ASSIGNMENT' THEN 1L ELSE 0L END), 0L)) " +
             "FROM Contract c")
     DashboardStatsDto getDashboardStatisticsForAdmin(@Param("today") LocalDate today,
                                                      @Param("futureDate") LocalDate futureDate,
