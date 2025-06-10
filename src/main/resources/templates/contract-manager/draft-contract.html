@@ -352,6 +352,38 @@
 
         <script th:inline="javascript">
 
+            // 强制清理所有模态框状态的函数
+            function forceCleanModalState() {
+                console.log('🧹 开始强制清理模态框状态...');
+                
+                // 强制移除所有背景遮罩
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach((backdrop, index) => {
+                    console.log(`🧹 移除背景遮罩 ${index + 1}:`, backdrop);
+                    backdrop.remove();
+                });
+                
+                // 强制重置body状态
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                document.body.style.marginRight = '';
+                
+                // 移除所有可能的模态框状态类
+                document.documentElement.classList.remove('modal-open');
+                
+                // 确保没有剩余的模态框显示状态
+                const modals = document.querySelectorAll('.modal.show');
+                modals.forEach(modal => {
+                    if (modal.id !== 'customerSelectModal') {
+                        modal.classList.remove('show');
+                        modal.style.display = 'none';
+                    }
+                });
+                
+                console.log('✅ 强制清理完成，body状态已重置');
+            }
+
             // --- 新的、事件驱动的 showAddCustomerModal 函数 ---
             function showAddCustomerModal() {
                 console.log('🚀 [标准嵌套流程] 开始显示"添加客户"模态框...');
@@ -432,7 +464,7 @@
 
             // --- 新的、事件驱动的 backToCustomerSelect 函数 (用于返回按钮) ---
             window.backToCustomerSelect = function() {
-                console.log('🔄 [标准嵌套流程] 准备返回"选择客户"模态框...');
+                console.log('🔄 [返回按钮] 被点击，准备返回"选择客户"模态框...');
 
                 const customerSelectModalEl = document.getElementById('customerSelectModal');
                 const addCustomerFormModalEl = document.getElementById('addCustomerFormModal');
@@ -473,25 +505,40 @@
                     addCustomerFormModalEl.removeEventListener('hidden.bs.modal', onHidden);
                 }, { once: true });
 
-                // 开始执行流程：隐藏第二个模态框
+                // 立即强制清理状态，不等待事件
+                forceCleanModalState();
+
+                // 隐藏添加客户模态框
                 if (addCustomerFormModal) {
-                    console.log('⏳ 正在隐藏第二个模态框，等待它完成后再显示第一个...');
+                    console.log('⏳ 正在隐藏添加客户模态框...');
                     addCustomerFormModal.hide();
-                } else {
-                    console.log('第二个模态框未初始化，直接显示第一个...');
+                }
+
+                // 延迟显示客户选择模态框，确保状态完全清理
+                setTimeout(() => {
+                    // 再次强制清理
+                    forceCleanModalState();
                     
-                    // 清理背景遮罩
-                    const backdrops = document.querySelectorAll('.modal-backdrop');
-                    backdrops.forEach(backdrop => backdrop.remove());
+                    // 销毁现有的模态框实例并重新创建
+                    const existingModal = bootstrap.Modal.getInstance(customerSelectModalEl);
+                    if (existingModal) {
+                        existingModal.dispose();
+                    }
                     
-                    // 重置body状态
-                    document.body.classList.remove('modal-open');
-                    document.body.style.overflow = '';
-                    document.body.style.paddingRight = '';
+                    // 重新创建客户选择模态框实例，确保干净状态
+                    const customerSelectModal = new bootstrap.Modal(customerSelectModalEl, {
+                        backdrop: true,
+                        keyboard: true,
+                        focus: true
+                    });
                     
                     customerSelectModal.show();
+                    
+                    // 重新加载客户数据
                     loadCustomerData('', 0);
-                }
+                    
+                    console.log('✅ 客户选择模态框重新显示完成');
+                }, 300);
             };
 
             // 标准的隐藏"添加客户"模态框函数
@@ -615,19 +662,7 @@
                 
                 // 延迟后自动返回选择客户界面
                 setTimeout(() => {
-                    // 清理背景遮罩，防止遮挡问题
-                    const backdrops = document.querySelectorAll('.modal-backdrop');
-                    backdrops.forEach(backdrop => backdrop.remove());
-                    
-                    // 重置body状态
-                    document.body.classList.remove('modal-open');
-                    document.body.style.overflow = '';
-                    document.body.style.paddingRight = '';
-                    
-                    // 稍微延迟后执行返回操作
-                    setTimeout(() => {
-                        window.backToCustomerSelect();
-                    }, 100);
+                    window.backToCustomerSelect();
                 }, 1500);
             })
             .catch(error => {
@@ -668,6 +703,26 @@
 
                 // 不再监听Bootstrap模态框事件，因为我们使用自定义显示方式
                 console.log('✅ 添加客户模态框使用自定义显示方式，无需Bootstrap事件监听');
+
+                // 页面加载时清理可能的残留状态
+                forceCleanModalState();
+                
+                // 每10秒检查一次是否有残留的背景遮罩（用于调试）
+                setInterval(() => {
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    if (backdrops.length > 0) {
+                        console.log('⚠️ 发现残留的背景遮罩，自动清理...');
+                        forceCleanModalState();
+                    }
+                }, 10000);
+
+                // 添加全局点击事件，如果点击到背景遮罩就强制清理
+                document.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('modal-backdrop')) {
+                        console.log('🔘 点击到背景遮罩，强制清理...');
+                        forceCleanModalState();
+                    }
+                });
             });
         </script>
     </head>
@@ -972,7 +1027,7 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-outline-secondary" id="backToSelectCustomerBtn">
+                            <button type="button" class="btn btn-outline-secondary" id="backToSelectCustomerBtn" onclick="window.backToCustomerSelect()">
                                 <i class="bi bi-arrow-left-short"></i> 返回选择
                             </button>
                                                     <button type="button" class="btn btn-success" id="saveNewCustomerBtn_draft" onclick="submitAddCustomerForm()">
@@ -1026,28 +1081,11 @@
 
                 // 添加新客户的处理函数已移至全局作用域
 
-                // 绑定返回按钮事件 - 使用全局的backToCustomerSelect函数
-                const backToSelectCustomerBtn = document.getElementById('backToSelectCustomerBtn');
-                if (backToSelectCustomerBtn) {
-                    console.log('🔗 绑定返回按钮事件');
-                    backToSelectCustomerBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        console.log('🔘 返回按钮被点击');
-                        // 使用全局作用域的backToCustomerSelect函数
-                        window.backToCustomerSelect();
-                    });
-                } else {
-                    console.log('⚠️ 返回按钮元素未找到');
-                }
+                // 返回按钮现在使用onclick属性，无需JavaScript事件绑定
+                console.log('ℹ️ 返回选择按钮使用onclick属性，无需JavaScript事件绑定');
 
-                // 绑定关闭按钮事件
-                const closeButtons = document.querySelectorAll('#addCustomerFormModal .btn-close');
-                closeButtons.forEach(button => {
-                    button.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        hideAddCustomerModal();
-                    });
-                });
+                // 关闭按钮现在使用onclick属性，无需JavaScript事件绑定
+                console.log('ℹ️ 关闭按钮使用onclick属性，无需JavaScript事件绑定');
 
                             // 绑定添加客户表单提交事件 - 使用AJAX提交避免页面跳转
             const addCustomerForm = document.getElementById('addCustomerFormInModal_draft');
@@ -1388,7 +1426,10 @@
                         if (tbody) {
                             tbody.innerHTML = '';
                             if (data.content && data.content.length > 0) {
-                                data.content.forEach(customer => {
+                                data.content.forEach((customer, index) => {
+                                    console.log(`🔍 客户 ${index + 1} 数据:`, customer);
+                                    console.log(`📞 客户 ${index + 1} 电话:`, customer.phoneNumber);
+                                    console.log(`📧 客户 ${index + 1} 邮箱:`, customer.email);
                                     const row = createCustomerRow(customer);
                                     tbody.appendChild(row);
                                 });
@@ -1416,16 +1457,16 @@
                     row.innerHTML = `
                         <td>${customer.customerNumber || ''}</td>
                         <td>${customer.customerName || ''}</td>
-                        <td>${customer.contactPhone || ''}</td>
-                        <td>${customer.contactEmail || ''}</td>
+                        <td>${customer.phoneNumber || ''}</td>
+                        <td>${customer.email || ''}</td>
                         <td class="text-center">
                             <button type="button" class="btn btn-sm btn-primary select-customer-btn"
                                     data-customer-id="${customer.id}"
                                     data-customer-name="${customer.customerName}"
                                     data-customer-number="${customer.customerNumber}"
-                                    data-customer-phone="${customer.contactPhone}"
-                                    data-customer-email="${customer.contactEmail}"
-                                    data-customer-address="${customer.contactAddress || ''}">
+                                    data-customer-phone="${customer.phoneNumber || ''}"
+                                    data-customer-email="${customer.email || ''}"
+                                    data-customer-address="${customer.address || ''}">
                                 <i class="bi bi-check-circle me-1"></i>选择
                             </button>
                         </td>
@@ -1445,9 +1486,9 @@
                             id: customerId,
                             customerName: customerName,
                             customerNumber: customerNumber,
-                            contactPhone: customerPhone,
-                            contactEmail: customerEmail,
-                            contactAddress: customerAddress
+                            phoneNumber: customerPhone,
+                            email: customerEmail,
+                            address: customerAddress
                         });
                     });
 
@@ -1456,6 +1497,11 @@
 
                 // 选择客户
                 function selectCustomer(customer) {
+                    console.log('🔍 选择客户函数被调用，客户数据:', customer);
+                    console.log('📞 电话号码:', customer.phoneNumber);
+                    console.log('📧 邮箱:', customer.email);
+                    console.log('🏠 地址:', customer.address);
+                    
                     if (selectedCustomerId) selectedCustomerId.value = customer.id;
 
                     if (selectedCustomerInfoPlaceholder) {
@@ -1470,9 +1516,9 @@
                     if (selectedCustomerDetailsCard) {
                         document.getElementById('selectedCustomerNameText').textContent = customer.customerName;
                         document.getElementById('selectedCustomerNumberText').textContent = customer.customerNumber;
-                        document.getElementById('selectedCustomerPhoneText').textContent = customer.contactPhone;
-                        document.getElementById('selectedCustomerEmailText').textContent = customer.contactEmail;
-                        document.getElementById('selectedCustomerAddressText').textContent = customer.contactAddress;
+                        document.getElementById('selectedCustomerPhoneText').textContent = customer.phoneNumber || '无';
+                        document.getElementById('selectedCustomerEmailText').textContent = customer.email || '无';
+                        document.getElementById('selectedCustomerAddressText').textContent = customer.address || '无';
                         selectedCustomerDetailsCard.style.display = 'block';
                     }
 
