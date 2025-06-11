@@ -200,20 +200,33 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 const functionality = await authenticatedFetch(`${API_FUNCTIONALITIES_URL}/${funcId}`, {}, globalAlertContainerId);
                 if (functionality) {
+                    // 确保所有需要的DOM元素都存在
+                    if (!functionalityForm || !functionalityFormModalLabel || !functionalityIdInput || 
+                        !functionalityNumInput || !functionalityNameInput || !functionalityUrlInput || 
+                        !functionalityDescriptionInput) {
+                        throw new Error('必要的DOM元素未找到，请检查页面结构');
+                    }
+
                     resetForm(functionalityForm);
                     functionalityFormModalLabel.textContent = '编辑功能';
-                    functionalityIdInput.value = functionality.id;
+                    functionalityIdInput.value = functionality.id || '';
                     functionalityNumInput.value = functionality.num || '';
-                    functionalityNameInput.value = functionality.name;
+                    functionalityNameInput.value = functionality.name || '';
                     functionalityUrlInput.value = functionality.url || '';
                     functionalityDescriptionInput.value = functionality.description || '';
-                    functionalityFormModal.show(); // 使用 Bootstrap Modal 实例的 show() 方法
+                    
+                    if (functionalityFormModal && typeof functionalityFormModal.show === 'function') {
+                        functionalityFormModal.show();
+                    } else {
+                        console.error('Modal实例未正确初始化');
+                        showAlert('打开编辑窗口失败，请刷新页面重试', 'danger', globalAlertContainerId);
+                    }
                 } else {
                     showAlert('无法加载功能信息进行编辑。', 'warning', globalAlertContainerId);
                 }
             } catch (error) {
                 console.error("编辑功能 - 加载功能信息失败:", error);
-                showAlert('加载功能信息进行编辑失败，详情请查看控制台。', 'danger', globalAlertContainerId);
+                showAlert('加载功能信息进行编辑失败：' + (error.message || '未知错误'), 'danger', globalAlertContainerId);
             } finally {
                 toggleLoading(false, targetButton);
             }

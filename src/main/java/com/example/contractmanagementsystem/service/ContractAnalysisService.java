@@ -103,4 +103,17 @@ public interface ContractAnalysisService {
      * @param contractId 合同ID
      */
     void deleteAnalysisResultsByContract(Long contractId);
+
+    /**
+     * 获取可分析的合同列表
+     * @return 合同列表，每个合同包含id、name等基本信息
+     */
+    List<Map<String, Object>> getAvailableContracts();
+
+    /**
+     * 获取最近的分析记录
+     * @param limit 返回记录的最大数量
+     * @return 最近的分析记录列表
+     */
+    List<ContractAnalysisResultDto> getRecentAnalyses(int limit);
 } 

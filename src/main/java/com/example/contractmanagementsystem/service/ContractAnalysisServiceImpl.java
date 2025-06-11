@@ -20,6 +20,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.domain.Sort.Order;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -276,7 +280,34 @@ public class ContractAnalysisServiceImpl implements ContractAnalysisService {
     public void deleteAnalysisResultsByContract(Long contractId) {
         Contract contract = contractRepository.findById(contractId)
             .orElseThrow(() -> new ResourceNotFoundException("合同不存在: " + contractId));
-        analysisRepository.deleteByContract(contract);
+        analysisRepository.deleteAll(analysisRepository.findByContractOrderByCreatedAtDesc(contract));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getAvailableContracts() {
+        List<Contract> contracts = contractRepository.findAll();
+        return contracts.stream()
+            .map(contract -> {
+                Map<String, Object> contractInfo = new HashMap<>();
+                contractInfo.put("id", contract.getId());
+                contractInfo.put("name", contract.getContractName());
+                contractInfo.put("number", contract.getContractNumber());
+                                  // 暂时移除合同类型，因为Contract实体中没有此字段
+                contractInfo.put("status", contract.getStatus());
+                return contractInfo;
+            })
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContractAnalysisResultDto> getRecentAnalyses(int limit) {
+        Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"));
+        List<ContractAnalysis> analyses = analysisRepository.findRecentAnalyses(pageable);
+        return analyses.stream()
+            .map(this::convertToDto)
+            .collect(Collectors.toList());
     }
 
     // 私有方法：执行风险分析

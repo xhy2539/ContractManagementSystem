@@ -104,6 +104,19 @@ document.addEventListener('DOMContentLoaded', function () {
             noContractSelectedPanel.style.display = 'block';
             assignmentPanel.style.display = 'none';
         }
+
+        // 为所有可选用户列表添加双击事件监听器
+        availableFinalizerUsersSelect.addEventListener('dblclick', () => handleUserDoubleClick(availableFinalizerUsersSelect, assignedFinalizerUsersSelect));
+        assignedFinalizerUsersSelect.addEventListener('dblclick', () => handleUserDoubleClick(assignedFinalizerUsersSelect, availableFinalizerUsersSelect));
+
+        availableCountersignUsersSelect.addEventListener('dblclick', () => handleUserDoubleClick(availableCountersignUsersSelect, assignedCountersignUsersSelect));
+        assignedCountersignUsersSelect.addEventListener('dblclick', () => handleUserDoubleClick(assignedCountersignUsersSelect, availableCountersignUsersSelect));
+
+        availableApprovalUsersSelect.addEventListener('dblclick', () => handleUserDoubleClick(availableApprovalUsersSelect, assignedApprovalUsersSelect));
+        assignedApprovalUsersSelect.addEventListener('dblclick', () => handleUserDoubleClick(assignedApprovalUsersSelect, availableApprovalUsersSelect));
+
+        availableSigningUsersSelect.addEventListener('dblclick', () => handleUserDoubleClick(availableSigningUsersSelect, assignedSigningUsersSelect));
+        assignedSigningUsersSelect.addEventListener('dblclick', () => handleUserDoubleClick(assignedSigningUsersSelect, availableSigningUsersSelect));
     }
 
     // --- Data Fetching and Rendering ---
@@ -249,6 +262,20 @@ document.addEventListener('DOMContentLoaded', function () {
         repopulateUserSelectionLists();
         assignmentPanel.style.display = 'block';
         noContractSelectedPanel.style.display = 'none';
+    }
+
+    // 添加双击事件处理函数
+    function handleUserDoubleClick(sourceSelect, destSelect) {
+        const selectedOptions = Array.from(sourceSelect.selectedOptions);
+        if (selectedOptions.length > 0) {
+            moveOptions(sourceSelect, destSelect);
+        } else if (sourceSelect.options.length > 0) {
+            // 如果没有选中的选项，但双击了某个选项，则移动该选项
+            const clickedOption = sourceSelect.options[sourceSelect.selectedIndex];
+            if (clickedOption) {
+                destSelect.appendChild(clickedOption);
+            }
+        }
     }
 
     function moveOptions(sourceSelect, destSelect) {

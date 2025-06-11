@@ -19,6 +19,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -231,6 +232,39 @@ public class ContractAnalysisController {
         } catch (Exception e) {
             logger.error("重新分析执行失败", e);
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * 获取可分析的合同列表
+     */
+    @GetMapping("/available-contracts")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACT_OPERATOR')")
+    @ResponseBody
+    public List<Map<String, Object>> getAvailableContracts() {
+        logger.info("获取可分析的合同列表");
+        try {
+            return analysisService.getAvailableContracts();
+        } catch (Exception e) {
+            logger.error("获取可分析合同列表失败", e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * 获取最近的分析记录
+     */
+    @GetMapping("/recent-analyses")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTRACT_OPERATOR')")
+    @ResponseBody
+    public List<ContractAnalysisResultDto> getRecentAnalyses(
+            @RequestParam(defaultValue = "10") int limit) {
+        logger.info("获取最近的分析记录，限制数量: {}", limit);
+        try {
+            return analysisService.getRecentAnalyses(limit);
+        } catch (Exception e) {
+            logger.error("获取最近分析记录失败", e);
+            return Collections.emptyList();
         }
     }
 

@@ -66,4 +66,10 @@ public interface ContractAnalysisRepository extends JpaRepository<ContractAnalys
      * 根据合同查找最新的分析记录
      */
     ContractAnalysis findFirstByContractOrderByCreatedAtDesc(Contract contract);
+
+    /**
+     * 查找最近的分析记录
+     */
+    @Query("SELECT ca FROM ContractAnalysis ca ORDER BY ca.createdAt DESC")
+    List<ContractAnalysis> findRecentAnalyses(Pageable pageable);
 } 

@@ -122,6 +122,17 @@
         .tooltip-info {
             cursor: help;
         }
+        
+        .modal-backdrop {
+            opacity: 0.5 !important;
+        }
+        .modal {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        body.modal-open {
+            overflow: hidden;
+            padding-right: 0 !important;
+        }
     </style>
 </head>
 <body>
@@ -343,9 +354,6 @@
                             </label>
                             <select class="form-select" id="contractSelect" required>
                                 <option value="">请选择要分析的合同</option>
-                                <option value="1">销售合同 - CON-2024-001</option>
-                                <option value="2">服务合同 - CON-2024-002</option>
-                                <option value="3">采购合同 - CON-2024-003</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -438,26 +446,24 @@
         </div>
     </div>
 
-    <!-- 增强的分析结果模态框 -->
-    <div class="modal fade" id="analysisResultModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+    <!-- 分析结果区域 -->
+    <div class="modal fade" id="analysisResultModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="analysisResultModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">
-                        <i class="bi bi-graph-up me-2"></i>智能分析结果
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="analysisResultModalLabel">分析结果</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
                 <div class="modal-body" id="analysisResultContent">
-                    <!-- 分析结果将在这里显示 -->
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        <p class="mt-3 text-muted">正在分析，请稍候...</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x-lg me-1"></i>关闭
-                    </button>
-                    <button type="button" class="btn btn-primary" onclick="exportReport()">
-                        <i class="bi bi-download me-1"></i>导出报告
-                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                 </div>
             </div>
         </div>
@@ -479,11 +485,13 @@ let riskChart;
 document.addEventListener('DOMContentLoaded', function() {
     initializeChart();
     initializeTooltips();
+    loadAvailableContracts();
     loadRecentAnalysis();
     updateLastUpdateTime();
     
-    // 每30秒更新一次时间
-    setInterval(updateLastUpdateTime, 30000);
+    // 设置定时刷新
+    setInterval(refreshChart, 300000); // 每5分钟刷新一次
+    setInterval(updateLastUpdateTime, 60000); // 每分钟更新时间
 });
 
 function initializeChart() {
@@ -579,84 +587,111 @@ function updateStatCards(data) {
     document.querySelector('[th\\:text="${riskStats?.get(\'LOW\') ?: 0}"]').textContent = data.LOW || 0;
 }
 
+// 加载最近的分析记录
 function loadRecentAnalysis() {
-    // 模拟加载最近分析记录
-    const mockData = [
-        {
-            contractName: '销售合同-2024001',
-            analysisType: '风险分析',
-            riskLevel: 'HIGH',
-            riskScore: 75,
-            analysisTime: '2024-01-15 14:30'
-        },
-        {
-            contractName: '服务协议-2024002', 
-            analysisType: '合规检查',
-            riskLevel: 'MEDIUM',
-            riskScore: 45,
-            analysisTime: '2024-01-15 12:15'
-        }
-    ];
-    
-    const tbody = document.getElementById('recentAnalysisTable');
-    if (mockData.length > 0) {
-        tbody.innerHTML = mockData.map(item => `
-            <tr>
-                <td><strong>${item.contractName}</strong></td>
-                <td><span class="badge bg-info">${item.analysisType}</span></td>
-                <td>
-                    <span class="badge ${getRiskBadgeClass(item.riskLevel)}">
-                        ${getRiskLevelText(item.riskLevel)}
-                    </span>
-                </td>
-                <td>
-                    <span class="fw-bold ${getRiskScoreClass(item.riskScore)}">${item.riskScore}/100</span>
-                </td>
-                <td><small class="text-muted">${item.analysisTime}</small></td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="viewAnalysisDetail('${item.contractName}')">
-                        <i class="bi bi-eye"></i> 查看
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+    const recentList = document.getElementById('recentAnalysisList');
+    if (!recentList) {
+        console.error('找不到最近分析记录容器');
+        return;
     }
+    
+    // 显示加载状态
+    recentList.innerHTML = `
+        <div class="text-center text-muted py-4">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <p class="mt-2">正在加载分析记录...</p>
+        </div>
+    `;
+    
+    // 发送请求获取分析记录
+    fetch('/contract-analysis/recent')
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(`获取分析记录失败: ${text}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || data.length === 0) {
+                recentList.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox display-4"></i>
+                        <p class="mt-3">暂无分析记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const analysisItems = data.map(item => {
+                try {
+                    const result = formatAnalysisResult(item);
+                    const riskClass = item.riskLevel === 'CRITICAL' ? 'danger' : 
+                                    item.riskLevel === 'HIGH' ? 'warning' : 
+                                    item.riskLevel === 'MEDIUM' ? 'info' : 'success';
+                    
+                    return `
+                        <div class="analysis-item mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <h6 class="mb-0">
+                                            <i class="bi bi-file-text me-2"></i>${item.contractName || '未命名合同'}
+                                        </h6>
+                                        <span class="badge bg-${riskClass} ms-auto">${result.risk}</span>
+                                    </div>
+                                    <p class="text-muted small mb-2">${result.summary || '无分析摘要'}</p>
+                                    <div class="d-flex align-items-center">
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock me-1"></i>${result.timestamp}
+                                        </small>
+                                        <button class="btn btn-sm btn-outline-primary ms-auto" 
+                                                onclick="showAnalysisModal('${item.id}')">
+                                            查看详情
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } catch (err) {
+                    console.error('格式化分析记录失败:', err);
+                    return ''; // 跳过格式化失败的记录
+                }
+            }).filter(Boolean).join('');
+            
+            if (analysisItems) {
+                recentList.innerHTML = analysisItems;
+            } else {
+                recentList.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-exclamation-circle display-4"></i>
+                        <p class="mt-3">无法显示分析记录</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('加载分析记录失败:', error);
+            recentList.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    加载分析记录失败：${error.message}
+                    <button class="btn btn-sm btn-outline-danger ms-3" onclick="refreshRecentAnalysis()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>重试
+                    </button>
+                </div>
+            `;
+        });
 }
 
-function getRiskBadgeClass(riskLevel) {
-    const classes = {
-        'CRITICAL': 'bg-danger',
-        'HIGH': 'bg-warning text-dark',
-        'MEDIUM': 'bg-info',
-        'LOW': 'bg-success'
-    };
-    return classes[riskLevel] || 'bg-secondary';
-}
-
-function getRiskLevelText(riskLevel) {
-    const texts = {
-        'CRITICAL': '严重风险',
-        'HIGH': '高风险', 
-        'MEDIUM': '中风险',
-        'LOW': '低风险'
-    };
-    return texts[riskLevel] || '未知';
-}
-
-function getRiskScoreClass(score) {
-    if (score >= 75) return 'text-danger';
-    if (score >= 50) return 'text-warning';
-    if (score >= 25) return 'text-info';
-    return 'text-success';
-}
-
-function updateLastUpdateTime() {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('zh-CN', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
-    document.getElementById('lastUpdate').textContent = timeStr;
+// 刷新最近分析记录
+function refreshRecentAnalysis() {
+    loadRecentAnalysis();
+    showAlert('正在刷新分析记录...', 'info');
 }
 
 function showAnalysisModal(type) {
@@ -666,7 +701,11 @@ function showAnalysisModal(type) {
         return;
     }
     
-    // 显示增强的加载界面
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('analysisResultModal'));
+    modal.show();
+    
+    // 显示加载界面
     document.getElementById('analysisResultContent').innerHTML = `
         <div class="text-center py-5">
             <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
@@ -680,7 +719,6 @@ function showAnalysisModal(type) {
             </div>
         </div>
     `;
-    showModal('analysisResultModal');
     
     // 调用对应的分析API
     const apiUrl = `/contract-analysis/${type === 'risk' ? 'risk-analysis' : type === 'clause' ? 'clause-check' : 'compliance-check'}/${contractId}`;
@@ -691,7 +729,12 @@ function showAnalysisModal(type) {
             'Content-Type': 'application/json',
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('分析请求失败');
+        }
+        return response.json();
+    })
     .then(data => {
         displayAnalysisResult(data);
     })
@@ -717,21 +760,24 @@ function performQuickAnalysis(event) {
         return;
     }
     
-    // 显示进度条
-    showAnalysisProgress();
-    
-    // 模拟分析进度
-    simulateAnalysisProgress();
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('analysisResultModal'));
+    modal.show();
     
     // 显示加载提示
     document.getElementById('analysisResultContent').innerHTML = `
         <div class="text-center py-5">
-            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">分析中...</span>
+            </div>
             <h5 class="mt-3">正在执行${getAnalysisTypeText(analysisType)}...</h5>
             <p class="text-muted">AI引擎正在深度分析合同内容，请稍候</p>
+            <div class="progress mx-auto" style="width: 300px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     style="width: 100%"></div>
+            </div>
         </div>
     `;
-    showModal('analysisResultModal');
     
     // 调用API
     let apiUrl;
@@ -756,14 +802,19 @@ function performQuickAnalysis(event) {
             'Content-Type': 'application/json',
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('分析请求失败');
+        }
+        return response.json();
+    })
     .then(data => {
-        hideAnalysisProgress();
         displayAnalysisResult(data);
+        // 分析完成后刷新最近分析记录
+        loadRecentAnalysis();
     })
     .catch(error => {
         console.error('分析失败:', error);
-        hideAnalysisProgress();
         document.getElementById('analysisResultContent').innerHTML = `
             <div class="alert alert-danger">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -773,63 +824,30 @@ function performQuickAnalysis(event) {
     });
 }
 
-function showAnalysisProgress() {
-    document.getElementById('analysisProgress').classList.remove('d-none');
-}
-
-function hideAnalysisProgress() {
-    document.getElementById('analysisProgress').classList.add('d-none');
-    document.getElementById('progressBar').style.width = '0%';
-    document.getElementById('progressText').textContent = '0%';
-}
-
-function simulateAnalysisProgress() {
-    let progress = 0;
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    
-    const interval = setInterval(() => {
-        progress += Math.random() * 20;
-        if (progress > 95) progress = 95;
-        
-        progressBar.style.width = progress + '%';
-        progressText.textContent = Math.round(progress) + '%';
-        
-        if (progress >= 95) {
-            clearInterval(interval);
-        }
-    }, 500);
-}
-
-function getAnalysisTypeText(type) {
-    const texts = {
-        'RISK_ANALYSIS': '风险分析',
-        'CLAUSE_CHECK': '条款检查',
-        'COMPLIANCE_CHECK': '合规检查',
-        'FULL': '全面分析'
-    };
-    return texts[type] || '分析';
-}
-
 function displayAnalysisResult(data) {
-    let html = '<div class="analysis-result">';
+    let html = '<div class="analysis-result p-4">';
     
     if (Array.isArray(data)) {
         // 全面分析结果
-        html += '<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>全面分析已完成，以下是详细结果：</div>';
+        html += `
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                全面分析已完成，以下是详细结果：
+            </div>
+        `;
         data.forEach((result, index) => {
-            html += formatSingleResult(result, index + 1);
+            html += formatAnalysisResult(result, index + 1);
         });
     } else {
         // 单个分析结果
-        html += formatSingleResult(data);
+        html += formatAnalysisResult(data);
     }
     
     html += '</div>';
     document.getElementById('analysisResultContent').innerHTML = html;
 }
 
-function formatSingleResult(result, index = null) {
+function formatAnalysisResult(result, index) {
     const riskClass = result.riskLevel === 'CRITICAL' ? 'danger' : 
                      result.riskLevel === 'HIGH' ? 'warning' : 
                      result.riskLevel === 'MEDIUM' ? 'info' : 'success';
@@ -839,36 +857,83 @@ function formatSingleResult(result, index = null) {
                     result.riskLevel === 'MEDIUM' ? 'info-circle-fill' : 'check-circle-fill';
     
     return `
-        <div class="card mb-3 shadow-sm">
-            <div class="card-header bg-${riskClass} text-white">
-                <h6 class="mb-0 d-flex align-items-center">
-                    <i class="bi bi-${riskIcon} me-2"></i>
-                    ${index ? `第${index}项：` : ''}${result.analysisType} - 风险等级: ${result.riskLevel}
-                    <span class="ms-auto badge bg-light text-dark">${result.riskScore}/100分</span>
-                </h6>
+        <div class="card mb-4 border-${riskClass}">
+            <div class="card-header bg-${riskClass} bg-opacity-10">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        ${index ? `分析项目 ${index}：` : ''}
+                        ${getAnalysisTypeText(result.analysisType)}
+                    </h5>
+                    <span class="badge bg-${riskClass}">
+                        <i class="bi bi-${riskIcon} me-1"></i>
+                        ${getRiskLevelText(result.riskLevel)}
+                    </span>
+                </div>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
                         <h6><i class="bi bi-search me-1"></i>分析内容：</h6>
-                        <div class="alert alert-light border">${result.analysisContent || '分析完成'}</div>
+                        <div class="alert alert-light border">
+                            ${result.findings ? formatFindings(result.findings) : '分析完成'}
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <h6><i class="bi bi-lightbulb me-1"></i>专业建议：</h6>
-                        <div class="alert alert-info border">${result.recommendations || '暂无特殊建议'}</div>
+                        <div class="alert alert-info border">
+                            ${result.recommendations ? formatRecommendations(result.recommendations) : '暂无特殊建议'}
+                        </div>
                     </div>
                 </div>
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <small class="text-muted">
-                            <i class="bi bi-clock me-1"></i>分析时间: ${result.createdAt || new Date().toLocaleString()}
-                            <span class="ms-3"><i class="bi bi-cpu me-1"></i>AI引擎版本: v2.0.1</span>
-                        </small>
+                <div class="mt-3">
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-${riskClass}" 
+                             role="progressbar" 
+                             style="width: ${result.riskScore}%"
+                             aria-valuenow="${result.riskScore}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            风险评分：${result.riskScore}/100
+                        </div>
                     </div>
                 </div>
             </div>
+            <div class="card-footer bg-light">
+                <small class="text-muted">
+                    <i class="bi bi-clock me-1"></i>分析时间: ${new Date(result.createdAt).toLocaleString()}
+                    <span class="ms-3"><i class="bi bi-cpu me-1"></i>AI引擎版本: ${result.analyzerVersion || 'v2.0.1'}</span>
+                </small>
+            </div>
         </div>
     `;
+}
+
+function formatFindings(findings) {
+    if (typeof findings === 'string') {
+        try {
+            findings = JSON.parse(findings);
+        } catch (e) {
+            return findings;
+        }
+    }
+    if (Array.isArray(findings)) {
+        return findings.map(finding => `<div>• ${finding}</div>`).join('');
+    }
+    return findings.toString();
+}
+
+function formatRecommendations(recommendations) {
+    if (typeof recommendations === 'string') {
+        try {
+            recommendations = JSON.parse(recommendations);
+        } catch (e) {
+            return recommendations;
+        }
+    }
+    if (Array.isArray(recommendations)) {
+        return recommendations.map(rec => `<div>• ${rec}</div>`).join('');
+    }
+    return recommendations.toString();
 }
 
 function showAlert(message, type = 'info') {
@@ -897,6 +962,136 @@ function viewAnalysisDetail(contractName) {
 
 function exportReport() {
     showAlert('报告导出功能正在开发中...', 'info');
+}
+
+// 加载可分析的合同列表
+function loadAvailableContracts() {
+    fetch('/contract-analysis/available-contracts')
+        .then(response => response.json())
+        .then(contracts => {
+            const select = document.getElementById('contractSelect');
+            // 保留第一个默认选项
+            select.innerHTML = '<option value="">请选择要分析的合同</option>';
+            
+            // 添加合同选项
+            contracts.forEach(contract => {
+                const option = document.createElement('option');
+                option.value = contract.id;
+                option.textContent = `${contract.name} - ${contract.number}`;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('加载合同列表失败:', error);
+            showAlert('加载合同列表失败，请刷新页面重试', 'error');
+        });
+}
+
+// 分析类型转换为中文显示文本
+function getAnalysisTypeText(type) {
+    const typeMap = {
+        'RISK_ANALYSIS': '风险分析',
+        'CLAUSE_CHECK': '条款检查',
+        'LEGAL_REVIEW': '法律审查',
+        'FINANCIAL_ANALYSIS': '财务分析',
+        'COMPLIANCE_CHECK': '合规检查',
+        'FULL': '全面分析'
+    };
+    return typeMap[type] || type;
+}
+
+// 风险等级转换为中文显示文本
+function getRiskLevelText(level) {
+    const levelMap = {
+        'CRITICAL': '严重风险',
+        'HIGH': '高风险',
+        'MEDIUM': '中风险',
+        'LOW': '低风险'
+    };
+    return levelMap[level] || level;
+}
+
+// 格式化分析结果
+function formatAnalysisResult(result) {
+    return {
+        type: getAnalysisTypeText(result.analysisType),
+        risk: getRiskLevelText(result.riskLevel),
+        summary: result.summary,
+        details: result.details || [],
+        suggestions: result.suggestions || [],
+        timestamp: new Date(result.timestamp).toLocaleString()
+    };
+}
+
+// 显示分析结果
+function displayAnalysisResult(data) {
+    const result = formatAnalysisResult(data);
+    const riskClass = data.riskLevel === 'CRITICAL' ? 'danger' : 
+                     data.riskLevel === 'HIGH' ? 'warning' : 
+                     data.riskLevel === 'MEDIUM' ? 'info' : 'success';
+
+    document.getElementById('analysisResultContent').innerHTML = `
+        <div class="analysis-result">
+            <div class="alert alert-${riskClass} mb-4">
+                <h5 class="alert-heading d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <span>分析类型：${result.type}</span>
+                    <span class="ms-auto">风险等级：${result.risk}</span>
+                </h5>
+                <p class="mb-0">${result.summary}</p>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-check me-2"></i>详细分析
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        ${result.details.map(detail => `
+                            <li class="list-group-item">
+                                <i class="bi bi-dot me-2"></i>${detail}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-lightbulb me-2"></i>改进建议
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        ${result.suggestions.map(suggestion => `
+                            <li class="list-group-item">
+                                <i class="bi bi-arrow-right me-2"></i>${suggestion}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="text-muted mt-3 text-end">
+                <small>
+                    <i class="bi bi-clock me-1"></i>分析时间：${result.timestamp}
+                </small>
+            </div>
+        </div>
+    `;
+}
+
+// 更新最后更新时间
+function updateLastUpdateTime() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    document.getElementById('lastUpdate').textContent = timeStr;
 }
 </script>
 </th:block>

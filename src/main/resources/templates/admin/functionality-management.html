@@ -32,35 +32,79 @@
       </button>
     </div>
 
-    <div id="globalAlertContainer"></div> <div class="card filter-card shadow-sm mb-3">
-    <div class="card-header">
-      <i class="bi bi-funnel-fill"></i> 筛选条件
+    <div id="globalAlertContainer"></div>
+
+    <!-- 功能表单Modal -->
+    <div class="modal fade" id="functionalityFormModal" tabindex="-1" aria-labelledby="functionalityFormModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="functionalityFormModalLabel">添加新功能</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="functionalityForm">
+              <input type="hidden" id="functionalityId" name="id">
+              
+              <div class="mb-3">
+                <label for="functionalityNum" class="form-label">功能编号</label>
+                <input type="text" class="form-control" id="functionalityNum" name="num" required>
+              </div>
+              
+              <div class="mb-3">
+                <label for="functionalityName" class="form-label">功能名称</label>
+                <input type="text" class="form-control" id="functionalityName" name="name" required>
+              </div>
+              
+              <div class="mb-3">
+                <label for="functionalityUrl" class="form-label">URL</label>
+                <input type="text" class="form-control" id="functionalityUrl" name="url">
+              </div>
+              
+              <div class="mb-3">
+                <label for="functionalityDescription" class="form-label">描述</label>
+                <textarea class="form-control" id="functionalityDescription" name="description" rows="3"></textarea>
+              </div>
+              
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="card-body">
-      <form id="functionalityFilterForm" class="row g-2 align-items-end">
-        <div class="col-md-3">
-          <label for="funcNumSearch" class="form-label form-label-sm">功能编号</label>
-          <input type="text" class="form-control form-control-sm" id="funcNumSearch" placeholder="按编号搜索...">
-        </div>
-        <div class="col-md-3">
-          <label for="funcNameSearch" class="form-label form-label-sm">功能名称</label>
-          <input type="text" class="form-control form-control-sm" id="funcNameSearch" placeholder="按名称搜索...">
-        </div>
-        <div class="col-md-3">
-          <label for="funcDescriptionSearch" class="form-label form-label-sm">功能描述</label>
-          <input type="text" class="form-control form-control-sm" id="funcDescriptionSearch" placeholder="按描述搜索...">
-        </div>
-        <div class="col-md-3 d-flex justify-content-start align-items-end">
-          <button type="button" id="searchFunctionalityBtn" class="btn btn-sm btn-primary me-2">
-            <i class="bi bi-search"></i> 查询
-          </button>
-          <button type="reset" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-arrow-counterclockwise"></i> 重置
-          </button>
-        </div>
-      </form>
+
+    <div class="card filter-card shadow-sm mb-3">
+      <div class="card-header">
+        <i class="bi bi-funnel-fill"></i> 筛选条件
+      </div>
+      <div class="card-body">
+        <form id="functionalityFilterForm" class="row g-3">
+          <div class="col-md-4">
+            <label for="funcNumSearch" class="form-label">功能编号</label>
+            <input type="text" class="form-control" id="funcNumSearch" placeholder="输入功能编号...">
+          </div>
+          <div class="col-md-4">
+            <label for="funcNameSearch" class="form-label">功能名称</label>
+            <input type="text" class="form-control" id="funcNameSearch" placeholder="输入功能名称...">
+          </div>
+          <div class="col-md-4">
+            <label for="funcDescriptionSearch" class="form-label">描述</label>
+            <input type="text" class="form-control" id="funcDescriptionSearch" placeholder="输入描述关键词...">
+          </div>
+          <div class="col-12">
+            <button type="button" id="searchFunctionalityBtn" class="btn btn-primary me-2">
+              <i class="bi bi-search"></i> 搜索
+            </button>
+            <button type="reset" class="btn btn-secondary">
+              <i class="bi bi-x-circle"></i> 重置
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
     <div id="functionalitiesTableSpinner" class="text-center my-3" style="display:none;">
       <div class="spinner-border text-primary" role="status">
@@ -90,44 +134,10 @@
       </ul>
     </nav>
   </div>
-
-  <div class="modal fade" id="functionalityFormModal" tabindex="-1" aria-labelledby="functionalityFormModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <form id="functionalityForm">
-          <div class="modal-header">
-            <h5 class="modal-title" id="functionalityFormModalLabel">功能信息</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <input type="hidden" id="functionalityId" name="id">
-            <div class="mb-3">
-              <label for="functionalityNum" class="form-label">功能编号 <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="functionalityNum" name="num" required>
-            </div>
-            <div class="mb-3">
-              <label for="functionalityName" class="form-label">功能名称 <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="functionalityName" name="name" required>
-            </div>
-            <div class="mb-3">
-              <label for="functionalityDescription" class="form-label">功能描述</label>
-              <textarea class="form-control" id="functionalityDescription" name="description" rows="3"></textarea>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-            <button type="submit" class="btn btn-primary">保存</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
 </section>
 
 <th:block layout:fragment="scripts">
-  <script th:src="@{/js/utils.js}"></script>
   <script th:src="@{/js/functionality-management.js}"></script>
-  <!-- 模态框由 layout.html 中的通用模态框管理器处理 -->
 </th:block>
 
 </body>
