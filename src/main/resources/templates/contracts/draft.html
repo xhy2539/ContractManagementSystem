@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title>起草合同</title>
+    <style layout:fragment="inline-css">
+        /* 合同起草特定样式 */
+        .draft-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .draft-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .draft-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .draft-subtitle {
+            opacity: 0.9;
+            margin-bottom: 0;
+        }
+
+        .form-section {
+            padding: 2rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .form-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control, .form-select {
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .template-selector {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 1.5rem;
+        }
+
+        .template-option {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .template-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .template-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .template-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .template-desc {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .editor-container {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 1.5rem;
+        }
+
+        .editor-toolbar {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .editor-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: white;
+            color: #374151;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .editor-btn:hover {
+            background: #f3f4f6;
+            border-color: #667eea;
+        }
+
+        .editor-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .content-editor {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            min-height: 400px;
+            padding: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.6;
+            transition: all 0.3s ease;
+        }
+
+        .content-editor:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .customer-search {
+            position: relative;
+        }
+
+        .customer-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .customer-option {
+            padding: 1rem;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .customer-option:hover {
+            background: #f8fafc;
+        }
+
+        .customer-option:last-child {
+            border-bottom: none;
+        }
+
+        .customer-name {
+            font-weight: 500;
+            color: #1f2937;
+        }
+
+        .customer-info {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .date-input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .preview-section {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .preview-content {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            min-height: 300px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .action-buttons {
+            padding: 2rem;
+            background: #f8fafc;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            padding: 0.75rem 2rem;
+            border-radius: 10px;
+            font-weight: 500;
+            border: none;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-preview {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            color: white;
+        }
+
+        .progress-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 2rem 0;
+        }
+
+        .progress-step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            position: relative;
+        }
+
+        .progress-step.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .progress-step.completed {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .progress-line {
+            width: 60px;
+            height: 2px;
+            background: #e5e7eb;
+            margin: 0 1rem;
+        }
+
+        .progress-line.completed {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        @media (max-width: 768px) {
+            .draft-header {
+                padding: 1.5rem;
+            }
+            
+            .draft-title {
+                font-size: 1.5rem;
+            }
+            
+            .form-section {
+                padding: 1.5rem;
+            }
+            
+            .date-input-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                padding: 1.5rem;
+            }
+            
+            .btn-action {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div layout:fragment="content">
+        <div class="draft-container">
+            <!-- 页面标题 -->
+            <div class="draft-header">
+                <h1 class="draft-title">
+                    <i class="bi bi-pencil-square"></i> 起草合同
+                </h1>
+                <p class="draft-subtitle">创建新的合同草稿，填写基本信息并编写合同内容</p>
+            </div>
+
+            <!-- 进度指示器 -->
+            <div class="progress-indicator">
+                <div class="progress-step active" id="step1">1</div>
+                <div class="progress-line" id="line1"></div>
+                <div class="progress-step" id="step2">2</div>
+                <div class="progress-line" id="line2"></div>
+                <div class="progress-step" id="step3">3</div>
+            </div>
+
+            <form id="contractForm">
+                <!-- 第一步：基本信息 -->
+                <div class="form-section" id="section1">
+                    <h3 class="section-title">
+                        <span class="section-icon">
+                            <i class="bi bi-info-circle"></i>
+                        </span>
+                        基本信息
+                    </h3>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="contractName" class="form-label">合同名称 *</label>
+                                <input type="text" class="form-control" id="contractName" name="contractName" 
+                                       placeholder="请输入合同名称" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="contractNumber" class="form-label">合同编号</label>
+                                <input type="text" class="form-control" id="contractNumber" name="contractNumber" 
+                                       placeholder="留空系统自动生成">
+                                <small class="text-muted">如果留空，系统将自动生成合同编号</small>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="customerSearch" class="form-label">客户 *</label>
+                                <div class="customer-search">
+                                    <input type="text" class="form-control" id="customerSearch" 
+                                           placeholder="输入客户名称搜索..." oninput="searchCustomers(this.value)">
+                                    <input type="hidden" id="customerId" name="customerId">
+                                    <div class="customer-dropdown" id="customerDropdown"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="startDate" class="form-label">开始日期 *</label>
+                                <input type="date" class="form-control" id="startDate" name="startDate" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="endDate" class="form-label">结束日期 *</label>
+                                <input type="date" class="form-control" id="endDate" name="endDate" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="button" class="btn btn-primary" onclick="nextStep(2)">
+                            下一步 <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 第二步：选择模板 -->
+                <div class="form-section d-none" id="section2">
+                    <h3 class="section-title">
+                        <span class="section-icon">
+                            <i class="bi bi-file-earmark-code"></i>
+                        </span>
+                        选择模板
+                    </h3>
+
+                    <div class="template-selector">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="template-option" onclick="selectTemplate(null)">
+                                    <div class="template-name">
+                                        <i class="bi bi-file-earmark-plus"></i> 空白模板
+                                    </div>
+                                    <div class="template-desc">从头开始创建合同内容</div>
+                                </div>
+                            </div>
+                            <div th:each="template : ${templates}" class="col-md-6">
+                                <div class="template-option" th:onclick="'selectTemplate(' + ${template.id} + ')'">
+                                    <div class="template-name" th:text="${template.templateName}">模板名称</div>
+                                    <div class="template-desc" th:text="${template.templateType}">模板类型</div>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="templateId" name="templateId">
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep(1)">
+                            <i class="bi bi-arrow-left"></i> 上一步
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep(3)">
+                            下一步 <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 第三步：编写内容 -->
+                <div class="form-section d-none" id="section3">
+                    <h3 class="section-title">
+                        <span class="section-icon">
+                            <i class="bi bi-pencil"></i>
+                        </span>
+                        编写合同内容
+                    </h3>
+
+                    <div class="editor-container">
+                        <div class="editor-toolbar">
+                            <button type="button" class="editor-btn" onclick="formatText('bold')">
+                                <i class="bi bi-type-bold"></i> 粗体
+                            </button>
+                            <button type="button" class="editor-btn" onclick="formatText('italic')">
+                                <i class="bi bi-type-italic"></i> 斜体
+                            </button>
+                            <button type="button" class="editor-btn" onclick="formatText('underline')">
+                                <i class="bi bi-type-underline"></i> 下划线
+                            </button>
+                            <button type="button" class="editor-btn" onclick="insertText('【甲方】')">
+                                插入甲方
+                            </button>
+                            <button type="button" class="editor-btn" onclick="insertText('【乙方】')">
+                                插入乙方
+                            </button>
+                            <button type="button" class="editor-btn" onclick="insertText('【合同金额】')">
+                                插入金额
+                            </button>
+                            <button type="button" class="editor-btn" onclick="insertText('【签订日期】')">
+                                插入日期
+                            </button>
+                        </div>
+                        
+                        <div class="content-editor" contenteditable="true" id="contentEditor" 
+                             placeholder="请输入合同内容..."></div>
+                        <textarea name="content" id="contentTextarea" class="d-none"></textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep(2)">
+                            <i class="bi bi-arrow-left"></i> 上一步
+                        </button>
+                        <button type="button" class="btn btn-info" onclick="togglePreview()">
+                            <i class="bi bi-eye"></i> 预览
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- 预览区域 -->
+            <div class="preview-section d-none" id="previewSection">
+                <h3 class="section-title">
+                    <span class="section-icon">
+                        <i class="bi bi-eye"></i>
+                    </span>
+                    合同预览
+                </h3>
+                <div class="preview-content" id="previewContent"></div>
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-secondary" onclick="togglePreview()">
+                        <i class="bi bi-pencil"></i> 继续编辑
+                    </button>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="action-buttons">
+                <button type="button" class="btn-action btn-save" onclick="saveContract('DRAFT')">
+                    <i class="bi bi-save"></i> 保存草稿
+                </button>
+                <button type="button" class="btn-action btn-preview" onclick="saveContract('PENDING_APPROVAL')">
+                    <i class="bi bi-check-circle"></i> 提交审批
+                </button>
+                <button type="button" class="btn-action btn-reset" onclick="resetForm()">
+                    <i class="bi bi-arrow-clockwise"></i> 重置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script layout:fragment="scripts">
+        let currentStep = 1;
+        let selectedTemplate = null;
+        let customers = [];
+
+        // 下一步
+        function nextStep(step) {
+            if (validateStep(currentStep)) {
+                document.getElementById(`section${currentStep}`).classList.add('d-none');
+                document.getElementById(`section${step}`).classList.remove('d-none');
+                
+                updateProgress(currentStep, step);
+                currentStep = step;
+            }
+        }
+
+        // 上一步
+        function prevStep(step) {
+            document.getElementById(`section${currentStep}`).classList.add('d-none');
+            document.getElementById(`section${step}`).classList.remove('d-none');
+            
+            updateProgress(currentStep, step);
+            currentStep = step;
+        }
+
+        // 更新进度指示器
+        function updateProgress(from, to) {
+            // 更新步骤状态
+            document.getElementById(`step${from}`).classList.remove('active');
+            document.getElementById(`step${from}`).classList.add('completed');
+            document.getElementById(`step${to}`).classList.add('active');
+            
+            // 更新连接线
+            if (from < to) {
+                document.getElementById(`line${from}`).classList.add('completed');
+            }
+        }
+
+        // 验证步骤
+        function validateStep(step) {
+            switch(step) {
+                case 1:
+                    const contractName = document.getElementById('contractName').value;
+                    const customerId = document.getElementById('customerId').value;
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    
+                    if (!contractName || !customerId || !startDate || !endDate) {
+                        ContractApp.showMessage('请填写所有必填字段', 'warning');
+                        return false;
+                    }
+                    
+                    if (new Date(startDate) >= new Date(endDate)) {
+                        ContractApp.showMessage('结束日期必须晚于开始日期', 'warning');
+                        return false;
+                    }
+                    return true;
+                    
+                case 2:
+                    return true; // 模板选择是可选的
+                    
+                case 3:
+                    const content = document.getElementById('contentEditor').innerHTML;
+                    if (!content.trim()) {
+                        ContractApp.showMessage('请输入合同内容', 'warning');
+                        return false;
+                    }
+                    return true;
+                    
+                default:
+                    return true;
+            }
+        }
+
+        // 搜索客户
+        function searchCustomers(keyword) {
+            if (keyword.length < 2) {
+                document.getElementById('customerDropdown').style.display = 'none';
+                return;
+            }
+
+            fetch(`/api/customers/search?keyword=${encodeURIComponent(keyword)}`)
+                .then(response => response.json())
+                .then(data => {
+                    customers = data;
+                    showCustomerDropdown(data);
+                })
+                .catch(error => {
+                    console.error('搜索客户失败:', error);
+                });
+        }
+
+        // 显示客户下拉列表
+        function showCustomerDropdown(customers) {
+            const dropdown = document.getElementById('customerDropdown');
+            dropdown.innerHTML = '';
+            
+            if (customers.length === 0) {
+                dropdown.innerHTML = '<div class="customer-option">未找到匹配的客户</div>';
+            } else {
+                customers.forEach(customer => {
+                    const option = document.createElement('div');
+                    option.className = 'customer-option';
+                    option.innerHTML = `
+                        <div class="customer-name">${customer.customerName}</div>
+                        <div class="customer-info">${customer.contactInfo || '无联系方式'}</div>
+                    `;
+                    option.onclick = () => selectCustomer(customer);
+                    dropdown.appendChild(option);
+                });
+            }
+            
+            dropdown.style.display = 'block';
+        }
+
+        // 选择客户
+        function selectCustomer(customer) {
+            document.getElementById('customerSearch').value = customer.customerName;
+            document.getElementById('customerId').value = customer.id;
+            document.getElementById('customerDropdown').style.display = 'none';
+        }
+
+        // 选择模板
+        function selectTemplate(templateId) {
+            // 清除之前的选择
+            document.querySelectorAll('.template-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // 标记当前选择
+            event.target.closest('.template-option').classList.add('selected');
+            document.getElementById('templateId').value = templateId || '';
+            selectedTemplate = templateId;
+            
+            // 如果选择了模板，加载模板内容
+            if (templateId) {
+                loadTemplate(templateId);
+            } else {
+                document.getElementById('contentEditor').innerHTML = '';
+            }
+        }
+
+        // 加载模板内容
+        function loadTemplate(templateId) {
+            fetch(`/api/templates/${templateId}`)
+                .then(response => response.json())
+                .then(template => {
+                    document.getElementById('contentEditor').innerHTML = template.templateContent || '';
+                })
+                .catch(error => {
+                    console.error('加载模板失败:', error);
+                    ContractApp.showMessage('加载模板失败', 'danger');
+                });
+        }
+
+        // 格式化文本
+        function formatText(command) {
+            document.execCommand(command, false, null);
+            document.getElementById('contentEditor').focus();
+        }
+
+        // 插入文本
+        function insertText(text) {
+            const editor = document.getElementById('contentEditor');
+            editor.focus();
+            document.execCommand('insertText', false, text);
+        }
+
+        // 切换预览
+        function togglePreview() {
+            const previewSection = document.getElementById('previewSection');
+            const section3 = document.getElementById('section3');
+            
+            if (previewSection.classList.contains('d-none')) {
+                // 显示预览
+                const content = document.getElementById('contentEditor').innerHTML;
+                const contractName = document.getElementById('contractName').value;
+                const customerName = document.getElementById('customerSearch').value;
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                
+                let previewHtml = `
+                    <div class="text-center mb-4">
+                        <h3>${contractName}</h3>
+                        <p class="text-muted">甲方：${customerName} | 乙方：[公司名称]</p>
+                        <p class="text-muted">合同期限：${startDate} 至 ${endDate}</p>
+                    </div>
+                    <div class="contract-content">
+                        ${content}
+                    </div>
+                `;
+                
+                document.getElementById('previewContent').innerHTML = previewHtml;
+                section3.classList.add('d-none');
+                previewSection.classList.remove('d-none');
+            } else {
+                // 隐藏预览
+                previewSection.classList.add('d-none');
+                section3.classList.remove('d-none');
+            }
+        }
+
+        // 保存合同
+        function saveContract(status) {
+            // 同步编辑器内容到隐藏的textarea
+            document.getElementById('contentTextarea').value = document.getElementById('contentEditor').innerHTML;
+            
+            const formData = new FormData(document.getElementById('contractForm'));
+            const contractData = {
+                contractName: formData.get('contractName'),
+                contractNumber: formData.get('contractNumber'),
+                customerId: parseInt(formData.get('customerId')),
+                startDate: formData.get('startDate'),
+                endDate: formData.get('endDate'),
+                content: formData.get('content'),
+                templateId: formData.get('templateId') ? parseInt(formData.get('templateId')) : null,
+                status: status
+            };
+
+            // 验证必填字段
+            if (!contractData.contractName || !contractData.customerId || !contractData.startDate || !contractData.endDate || !contractData.content) {
+                ContractApp.showMessage('请填写所有必填字段', 'warning');
+                return;
+            }
+
+            ContractApp.showLoading();
+
+            fetch('/api/contracts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(contractData)
+            })
+            .then(response => {
+                ContractApp.hideLoading();
+                if (response.ok) {
+                    const action = status === 'DRAFT' ? '保存草稿' : '提交审批';
+                    ContractApp.showMessage(`合同${action}成功`, 'success');
+                    setTimeout(() => {
+                        window.location.href = '/contracts';
+                    }, 2000);
+                } else {
+                    throw new Error('操作失败');
+                }
+            })
+            .catch(error => {
+                ContractApp.hideLoading();
+                ContractApp.showMessage('操作失败: ' + error.message, 'danger');
+            });
+        }
+
+        // 重置表单
+        function resetForm() {
+            ContractApp.confirm('确定要重置表单吗？所有已填写的信息将丢失。', function() {
+                document.getElementById('contractForm').reset();
+                document.getElementById('contentEditor').innerHTML = '';
+                
+                // 重置步骤
+                document.querySelectorAll('.form-section').forEach(section => {
+                    section.classList.add('d-none');
+                });
+                document.getElementById('section1').classList.remove('d-none');
+                
+                // 重置进度
+                document.querySelectorAll('.progress-step').forEach(step => {
+                    step.classList.remove('active', 'completed');
+                });
+                document.querySelectorAll('.progress-line').forEach(line => {
+                    line.classList.remove('completed');
+                });
+                document.getElementById('step1').classList.add('active');
+                
+                currentStep = 1;
+                selectedTemplate = null;
+            });
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认日期
+            const today = new Date();
+            const nextMonth = new Date(today);
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            
+            document.getElementById('startDate').value = today.toISOString().split('T')[0];
+            document.getElementById('endDate').value = nextMonth.toISOString().split('T')[0];
+
+            // 点击外部关闭客户下拉列表
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.customer-search')) {
+                    document.getElementById('customerDropdown').style.display = 'none';
+                }
+            });
+
+            // 编辑器内容变化时同步到隐藏的textarea
+            document.getElementById('contentEditor').addEventListener('input', function() {
+                document.getElementById('contentTextarea').value = this.innerHTML;
+            });
+        });
+    </script>
+</body>
+</html> 

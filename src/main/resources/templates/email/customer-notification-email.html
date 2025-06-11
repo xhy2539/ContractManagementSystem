@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; line-height: 1.8; color: #333; }
+        .container { max-width: 600px; margin: 20px auto; padding: 25px; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .header { padding-bottom: 15px; border-bottom: 2px solid #007bff; }
+        .header h2 { color: #007bff; margin: 0; font-size: 24px; }
+        .content { padding: 25px 0; }
+        .content p { margin: 15px 0; }
+        .footer { font-size: 0.9em; color: #777; text-align: center; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; }
+        strong { color: #000; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2 th:text="${companyName} + ' - 合同生效通知'">贵公司 - 合同生效通知</h2>
+    </div>
+    <div class="content">
+        <p>尊敬的 <strong th:text="${customerName}">客户名称</strong>,</p>
+        <p>您好！</p>
+        <p>我们非常荣幸地通知您，您与我方签订的以下合同现已正式生效：</p>
+        <ul>
+            <li><strong>合同名称:</strong> <span th:text="${contractName}"></span></li>
+            <li><strong>合同编号:</strong> <span th:text="${contractNumber}"></span></li>
+            <li><strong>生效日期:</strong> <span th:text="${effectiveDate}"></span></li>
+        </ul>
+        <p>我们期待与您合作愉快！如有任何疑问，请随时与我们联系。</p>
+        <p>顺祝商祺！</p>
+        <br>
+        <p>此致,</p>
+        <p><strong th:text="${companyName}">贵公司</strong></p>
+    </div>
+    <div class="footer">
+        <p>这是一封系统自动发送的通知邮件，请勿直接回复。</p>
+    </div>
+</div>
+</body>
+</html>

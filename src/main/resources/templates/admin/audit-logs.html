@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8"> <title>审计日志管理</title>
+    <th:block layout:fragment="css-links">
+    </th:block>
+    <style layout:fragment="inline-css"> /* 或者直接内联页面特定CSS */
+    .table th, .table td {
+        vertical-align: middle;
+    }
+    .details-column {
+        max-width: 350px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer; /* 提示用户可以点击查看完整内容 */
+    }
+    .filter-card {
+        margin-bottom: 1.5rem;
+    }
+    .pagination .page-link {
+        cursor: pointer;
+    }
+    .pagination .page-item.disabled .page-link {
+        pointer-events: none; /* Bootstrap 5已处理，但明确一下无妨 */
+        /* opacity: 0.65; */ /* Bootstrap 5的样式 */
+    }
+    .action-buttons button {
+        margin-right: 0.5rem;
+    }
+    /* audit-logs.html 特有的内容区样式 */
+    .audit-logs-container {
+        background-color: #ffffff;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.10);
+    }
+    .audit-logs-container h1 {
+        margin-bottom: 1.5rem;
+        color: #343a40;
+    }
+    </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+    <div class="audit-logs-container"> <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1><i class="bi bi-journals"></i> 审计日志管理</h1>
+        <button type="button" id="exportButton" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel"></i> 导出CSV
+        </button>
+    </div>
+
+        <div class="card filter-card shadow-sm">
+            <div class="card-header">
+                <i class="bi bi-funnel-fill"></i> 筛选条件
+            </div>
+            <div class="card-body">
+                <form id="filterForm">
+                    <div class="row g-3">
+                        <div class="col-md-6 col-lg-3">
+                            <label for="usernameFilter" class="form-label">用户名:</label>
+                            <input type="text" id="usernameFilter" name="username" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <label for="actionFilter" class="form-label">操作类型:</label>
+                            <input type="text" id="actionFilter" name="action" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <label for="startDateFilter" class="form-label">开始日期:</label>
+                            <input type="datetime-local" id="startDateFilter" name="startDate" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <label for="endDateFilter" class="form-label">结束日期:</label>
+                            <input type="datetime-local" id="endDateFilter" name="endDate" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div class="mt-3 action-buttons">
+                        <button type="button" id="searchButton" class="btn btn-primary btn-sm">
+                            <i class="bi bi-search"></i> 查询
+                        </button>
+                        <button type="button" id="resetButton" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-counterclockwise"></i> 重置筛选
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="auditLogTable" class="table table-striped table-hover table-bordered caption-top">
+                <caption>审计日志列表</caption>
+                <thead class="table-dark">
+                <tr>
+                    <th scope="col" style="width: 5%;">ID</th>
+                    <th scope="col" style="width: 15%;">操作用户</th>
+                    <th scope="col" style="width: 20%;">操作类型</th>
+                    <th scope="col">操作详情</th>
+                    <th scope="col" style="width: 20%;">时间戳</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-center">
+            <ul class="pagination" id="paginationControls">
+            </ul>
+        </nav>
+    </div>
+</section>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/audit-logs.js}"></script>
+    <script>
+        // 示例：为详情列添加点击展开/提示功能 (如果需要更复杂的交互)
+        document.addEventListener('DOMContentLoaded', function() {
+            const tableBody = document.querySelector('#auditLogTable tbody');
+            if (tableBody) {
+                tableBody.addEventListener('click', function(event) {
+                    const targetCell = event.target.closest('.details-column');
+                    if (targetCell) {
+                        // 简单地用 alert 显示完整内容，或者使用 Bootstrap Popover/Tooltip
+                        alert('完整详情: \n' + targetCell.title);
+                    }
+                });
+            }
+        });
+    </script>
+</th:block>
+
+</body>
+</html>

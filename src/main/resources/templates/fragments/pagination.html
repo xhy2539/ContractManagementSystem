@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<meta charset="UTF-8">
+<nav th:fragment="paginationbar (page, baseUrl, additionalParams)"
+     aria-label="分页导航">
+    <ul class="pagination justify-content-center flex-wrap">
+
+        <!-- 上一页按钮 -->
+        <li class="page-item" th:classappend="${page == null || page.first} ? 'disabled'">
+            <a class="page-link"
+               th:href="${page == null || page.first} ? '#' : @{${baseUrl}(page=${page.number - 1}, size=${page.size}, ${additionalParams})}"
+               aria-label="上一页">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+
+        <!-- 当page为null或只有一页时显示默认内容 -->
+        <th:block th:if="${page == null || page.totalPages <= 1}">
+            <li class="page-item active">
+                <span class="page-link">1</span>
+            </li>
+        </th:block>
+
+        <!-- 分页逻辑计算 (当有多页时) -->
+        <th:block th:if="${page != null && page.totalPages > 1}" th:with="
+            maxVisiblePages=5,
+            currentPageVal=${page.number},
+            totalPagesVal=${page.totalPages},
+            currentPageLong=${T(java.lang.Long).valueOf(currentPageVal)},
+            totalPagesLong=${T(java.lang.Long).valueOf(totalPagesVal)},
+            halfVisible=${T(java.lang.Long).valueOf(T(java.lang.Math).floor((maxVisiblePages - 1) / 2))},
+            idealStartLong=${currentPageLong - halfVisible},
+            maxStartLong=${totalPagesLong - maxVisiblePages},
+            startPageLong=${#numbers.max(0L, #numbers.min(idealStartLong, maxStartLong))},
+            endPageLong=${#numbers.min(totalPagesLong - 1, startPageLong + maxVisiblePages - 1)},
+            showFirstPage=${startPageLong > 0},
+            showFirstEllipsis=${startPageLong > 1},
+            showLastEllipsis=${endPageLong < totalPagesLong - 2},
+            showLastPage=${endPageLong < totalPagesLong - 1}">
+
+            <!-- 第一页链接 -->
+            <li class="page-item"
+                th:if="${showFirstPage}"
+                th:classappend="${currentPageLong == 0} ? 'active'">
+                <a class="page-link"
+                   th:href="@{${baseUrl}(page=0, size=${page.size}, ${additionalParams})}">1</a>
+            </li>
+
+            <!-- 第一个省略号 -->
+            <li class="page-item disabled" th:if="${showFirstEllipsis}">
+                <span class="page-link">...</span>
+            </li>
+
+            <!-- 中间页码范围 -->
+            <li class="page-item"
+                th:each="i : ${#numbers.sequence(startPageLong, endPageLong)}"
+                th:if="${!showFirstPage || i > 0}"
+                th:classappend="${i == currentPageLong} ? 'active'">
+                <a class="page-link"
+                   th:href="@{${baseUrl}(page=${i}, size=${page.size}, ${additionalParams})}"
+                   th:text="${i + 1}"></a>
+            </li>
+
+            <!-- 第二个省略号 -->
+            <li class="page-item disabled" th:if="${showLastEllipsis}">
+                <span class="page-link">...</span>
+            </li>
+
+            <!-- 最后一页链接 -->
+            <li class="page-item"
+                th:if="${showLastPage}"
+                th:classappend="${currentPageLong == totalPagesLong - 1} ? 'active'">
+                <a class="page-link"
+                   th:href="@{${baseUrl}(page=${totalPagesLong - 1}, size=${page.size}, ${additionalParams})}"
+                   th:text="${totalPagesLong}"></a>
+            </li>
+
+        </th:block>
+
+        <!-- 下一页按钮 -->
+        <li class="page-item" th:classappend="${page == null || page.last} ? 'disabled'">
+            <a class="page-link"
+               th:href="${page == null || page.last} ? '#' : @{${baseUrl}(page=${page.number + 1}, size=${page.size}, ${additionalParams})}"
+               aria-label="下一页">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+</body>
+</html>

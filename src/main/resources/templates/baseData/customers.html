@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title layout:title-pattern="$CONTENT_TITLE - 客户管理">客户管理</title>
+    
+    <th:block layout:fragment="css-links">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+        <link href="/css/form-validation.css" rel="stylesheet">
+    </th:block>
+    
+    <style layout:fragment="inline-css">
+
+        h1, h2 {
+            color: #333;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .add-customer-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .search-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #eaeaea;
+        }
+        .table thead th {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-weight: 600;
+            padding: 14px 20px;
+        }
+        .table tbody tr:hover {
+            background-color: #f8fafc;
+        }
+        .table tbody td {
+            padding: 14px 20px;
+            vertical-align: middle;
+        }
+        .actions-cell .btn {
+            padding: 5px 12px;
+            margin-left: 8px;
+            font-size: 0.85rem;
+        }
+        .no-data {
+            color: #64748b;
+            font-style: italic;
+            padding: 30px 0;
+        }
+        .pagination-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            max-width: 400px;
+        }
+        .modal-content {
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            background-color: #f1f5f9;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+        }
+        .modal-title {
+            font-weight: 600;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .modal-footer {
+            border-top: 1px solid #e2e8f0;
+            padding: 15px 20px;
+        }
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-left: 4px solid #3b82f6;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+        .stat-card h3 {
+            font-size: 1.1rem;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .stat-card .trend {
+            font-size: 0.85rem;
+            color: #22c55e;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+<div layout:fragment="content">
+    <div class="container main-container">
+        <div class="d-flex justify-content-end mb-3">
+            <button class="btn btn-primary add-customer-btn" data-bs-target="#customerFormModal">
+                <i class="bi bi-plus-circle"></i> 添加新客户
+            </button>
+        </div>
+
+        <!-- 搜索区域 -->
+        <div class="search-section">
+            <form id="searchForm" th:action="@{/customers}" method="get">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="keyword"
+                                   placeholder="输入客户名称、编号或电话进行搜索..."
+                                   th:value="${keyword}">
+    
+                            <!-- 添加隐藏字段传递分页大小 -->
+                            <input type="hidden" name="size" th:value="${pageSize}">
+    
+                            <button class="btn btn-primary" type="submit">
+                                <i class="bi bi-search me-1"></i> 搜索
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <!-- 重置搜索时保留分页大小 -->
+                        <a class="btn btn-outline-secondary w-100"
+                           th:href="@{/customers(size=${pageSize})}">
+                            <i class="bi bi-arrow-clockwise me-1"></i> 重置搜索
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- 客户列表表格 -->
+        <div class="table-container">
+            <table class="table table-hover align-middle">
+                <!-- 表格内容保持与customers.html一致 -->
+                <thead>
+                    <tr>
+                        <th>客户编号</th>
+                        <th>客户名称</th>
+                        <th>联系电话</th>
+                        <th>邮箱</th>
+                        <th>地址</th>
+                        <th>创建时间</th>
+                        <th class="text-end">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 数据行保持与customers.html一致 -->
+                    <tr th:if="${customers == null or customers.isEmpty()}">
+                        <td colspan="7" class="no-data text-center py-4">
+                            <i class="bi bi-info-circle me-2"></i>暂无客户数据
+                        </td>
+                    </tr>
+                    <tr th:each="customer : ${customers}" th:if="${customers != null}">
+                        <td th:text="${customer.customerNumber}">C-001</td>
+                        <td th:text="${customer.customerName}">深圳市软酷网络科技有限公司</td>
+                        <td th:text="${customer.phoneNumber}">0755-12345678</td>
+                        <td th:text="${customer.email}">contact@ruanko.com</td>
+                        <td th:text="${customer.address}">深圳市南山区科技园</td>
+                        <td th:text="${#temporals.format(customer.createdAt, 'yyyy-MM-dd HH:mm')}">2023-06-15 10:30</td>
+                        <td class="actions-cell text-end">
+                            <button class="btn btn-sm btn-outline-primary btn-action"
+                                    data-bs-target="#editCustomerModal"
+                                    th:data-id="${customer.id}"
+                                    th:data-number="${customer.customerNumber}"
+                                    th:data-name="${customer.customerName}"
+                                    th:data-phone="${customer.phoneNumber}"
+                                    th:data-email="${customer.email}"
+                                    th:data-address="${customer.address}">
+                                <i class="bi bi-pencil"></i> 编辑
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger btn-action delete-btn"
+                                    th:attr="data-id=${customer.id}, data-name=${customer.customerName}">
+                                <i class="bi bi-trash"></i> 删除
+                            </button>
+                        </td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页和模态框保持与customers.html一致 -->
+        <div class="pagination-section" th:if="${totalPages > 1}">
+            <div>
+                <!-- 使用新的 start 和 end 属性 -->
+                显示 <span th:text="${start}">1</span> 到
+                <span th:text="${end}">5</span> 项，共
+                <span th:text="${totalElements}">15</span> 项
+            </div>
+            <nav>
+                <ul class="pagination">
+                    <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled' : ''">
+                        <a class="page-link"
+                           th:href="@{/customers(page=${currentPage - 1}, size=${pageSize}, keyword=${keyword})}">
+                            上一页
+                        </a>
+                    </li>
+    
+                    <!-- 优化分页显示逻辑 -->
+                    <li th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+                        class="page-item"
+                        th:classappend="${i == currentPage} ? 'active' : ''">
+                        <a class="page-link"
+                           th:href="@{/customers(page=${i}, size=${pageSize}, keyword=${keyword})}"
+                           th:text="${i + 1}">1</a>
+                    </li>
+    
+                    <li class="page-item" th:classappend="${currentPage == totalPages - 1} ? 'disabled' : ''">
+                        <a class="page-link"
+                           th:href="@{/customers(page=${currentPage + 1}, size=${pageSize}, keyword=${keyword})}">
+                            下一页
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <div class="modal fade" id="customerFormModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>添加新客户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="addCustomerForm" th:action="@{/customers}" method="post" class="needs-validation" novalidate>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="add_customerNumber" class="form-label">客户编号 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="customerNumber" id="add_customerNumber"
+                                       required >
+                                <div class="invalid-feedback">请输入客户编号 (例如 CUST-XXXX)</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="add_customerName" class="form-label">客户名称 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="customerName" id="add_customerName"
+                                       required >
+                                <div class="invalid-feedback">请输入客户名称</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="add_phoneNumber" class="form-label">联系电话 <span class="text-danger">*</span></label>
+                                <input type="tel" class="form-control" name="phoneNumber" id="add_phoneNumber"
+                                       required >
+                                <div class="invalid-feedback">请输入联系电话</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="add_email" class="form-label">邮箱 <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" name="email" id="add_email"
+                                       required >
+                                <div class="invalid-feedback">请输入有效的邮箱地址</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="add_address" class="form-label">地址</label>
+                                <input type="text" class="form-control" name="address" id="add_address">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">保存客户信息</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="editCustomerModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>编辑客户信息</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editCustomerForm" th:action="@{/customers/update}" method="post" class="needs-validation" novalidate>
+                    <input type="hidden" name="id" id="editCustomerId">
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">客户编号 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="customerNumber"
+                                       required id="editCustomerNumber">
+                                <div class="invalid-feedback">请输入客户编号</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">客户名称 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="customerName"
+                                       required id="editCustomerName">
+                                <div class="invalid-feedback">请输入客户名称</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">联系电话 <span class="text-danger">*</span></label>
+                                <input type="tel" class="form-control" name="phoneNumber"
+                                       required id="editCustomerPhone">
+                                <div class="invalid-feedback">请输入联系电话</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">邮箱 <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" name="email"
+                                       required id="editCustomerEmail">
+                                <div class="invalid-feedback">请输入有效的邮箱地址</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">地址</label>
+                                <input type="text" class="form-control" name="address"
+                                       id="editCustomerAddress">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">更新客户信息</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <form id="deleteCustomerForm" th:action="@{/customers/delete}" method="post">
+        <input type="hidden" name="id" id="deleteCustomerId">
+    </form>
+</div>
+
+<th:block layout:fragment="scripts">
+    <!-- 客户管理模态框由 layout.html 中的通用模态框管理器处理 -->
+    <script th:src="@{/js/customer-modal-fix.js}"></script>
+    
+    <script th:src="@{/js/customer-management.js}"></script>
+    
+    <script>
+        // 原有客户页面的JavaScript逻辑（仅保留非模态框相关功能）
+        document.addEventListener('DOMContentLoaded', function() {
+
+        // 删除按钮点击事件
+        const deleteButtons = document.querySelectorAll('.delete-btn');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const customerId = this.getAttribute('data-id');
+                const customerName = this.getAttribute('data-name');
+
+                if(confirm(`确定要删除客户 "${customerName}" 吗？此操作不可撤销。`)) {
+                    // 使用fetch API代替表单提交，以便更好地处理错误
+                    fetch(`/customers/delete?id=${customerId}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                throw new Error(text || '删除失败');
+                            });
+                        }
+                        return response.text();
+                    })
+                    .then(() => {
+                        // 删除成功
+                        showModal('successModal', '删除成功');
+                        // 监听模态框关闭事件
+                        const successModal = document.getElementById('successModal');
+                        successModal.addEventListener('hidden.bs.modal', function () {
+                            window.location.reload();
+                        }, { once: true });
+                    })
+                    .catch(error => {
+                        let errorMessage = error.message;
+                        // 检查是否包含外键约束错误的关键词
+                        if (errorMessage.includes('ConstraintViolationException') || 
+                            errorMessage.includes('foreign key constraint') ||
+                            errorMessage.includes('关联')) {
+                            errorMessage = `无法删除客户"${customerName}"，因为该客户已经有关联的合同。请先处理相关合同后再尝试删除。`;
+                        }
+                        showModal('errorModal', errorMessage);
+                    });
+                }
+            });
+        });
+
+        // 显示模态框
+        function showModal(modalId, message) {
+            const modal = document.getElementById(modalId);
+            const messageElement = document.getElementById(modalId + 'Message');
+            messageElement.textContent = message;
+            
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        }
+
+        // 表单验证
+        var forms = document.querySelectorAll('.needs-validation');
+        Array.prototype.slice.call(forms)
+            .forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+
+        // 自动关闭提示消息
+        const alerts = document.querySelectorAll('.alert-dismissible');
+        alerts.forEach(alertNode => {
+            new bootstrap.Alert(alertNode);
+            setTimeout(() => {
+                const alertInstance = bootstrap.Alert.getInstance(alertNode);
+                if (alertInstance) {
+                    alertInstance.close();
+                }
+            }, 7000);
+        });
+
+        // 示例数据填充（仅用于演示）
+        document.querySelectorAll('.stat-card .value').forEach((el, index) => {
+            const values = ['248', '24', '186', '92%'];
+            el.textContent = values[index];
+        });
+    });
+    </script>
+
+    <!-- 错误提示模态框 -->
+    <div class="modal fade" id="errorModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>操作失败
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="errorModalMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成功提示模态框 -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-check-circle-fill me-2"></i>操作成功
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="successModalMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>

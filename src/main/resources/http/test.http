@@ -1,0 +1,109 @@
+### 设置基础URL变量（可选，适用于IntelliJ HTTP客户端）
+@baseUrl = http://localhost:8080
+
+### 1. 以管理员身份登录
+# IntelliJ HTTP Client 会自动保存并为后续请求使用来自此响应的 cookie (JSESSIONID)
+POST {{baseUrl}}/perform_login
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=adminpassword
+
+### 2. 创建新的“合同操作员”角色 (ROLE_CONTRACT_OPERATOR) 并分配权限
+# 不需要显式设置 Cookie: {{sessionIdCookie}}，如果客户端正确处理会话
+POST {{baseUrl}}/api/system/roles
+Content-Type: application/json
+# Cookie: {{sessionIdCookie}} # <--- 尝试移除或注释掉这一行
+
+{
+  "name": "ROLE_CONTRACT_OPERATOR",
+  "description": "合同操作员角色，负责合同的具体操作流程",
+  "functionalityNames": [
+    "起草合同",
+    "查看本人起草合同",
+    "查看待会签合同",
+    "提交会签意见",
+    "查看待定稿合同",
+    "提交定稿合同",
+    "查看待审批合同",
+    "提交审批意见",
+    "查看待签订合同",
+    "提交签订信息",
+    "合同信息查询",
+    "查看我的合同流程",
+    "查看个人资料",
+    "修改个人密码"
+  ]
+}
+
+### 3. 更新 ROLE_ADMIN (ID: 1) 的功能
+# 不需要显式设置 Cookie: {{sessionIdCookie}}
+PUT {{baseUrl}}/api/system/roles/1
+Content-Type: application/json
+# Cookie: {{sessionIdCookie}} # <--- 尝试移除或注释掉这一行
+
+{
+  "name": "ROLE_ADMIN",
+  "description": "管理员角色",
+  "functionalityNames": [
+    "修改角色信息",
+    "删除角色",
+    "查看功能列表",
+    "新增功能",
+    "修改功能信息",
+    "删除功能",
+    "查阅审计日志",
+    "导出审计日志",
+    "查看待分配合同",
+    "分配合同处理人员",
+    "起草合同",
+    "提交会签意见",
+    "提交定稿合同",
+    "提交审批意见",
+    "提交签订信息",
+    "查看所有合同(管理)",
+    "删除合同(管理)",
+    "合同信息查询",
+    "查看所有合同流程",
+    "查看客户列表",
+    "新增客户",
+    "修改客户信息",
+    "删除客户",
+    "查询客户",
+    "查看个人资料",
+    "修改个人密码",
+    "查看本人起草合同",
+    "查看待会签合同",
+    "查看待定稿合同",
+    "查看待审批合同",
+    "查看待签订合同"
+  ]
+}
+
+### 4. 更新 ROLE_USER (ID: 2) 的功能
+# 不需要显式设置 Cookie: {{sessionIdCookie}}
+PUT {{baseUrl}}/api/system/roles/2
+Content-Type: application/json
+# Cookie: {{sessionIdCookie}} # <--- 尝试移除或注释掉这一行
+
+{
+  "name": "ROLE_USER",
+  "description": "普通用户角色",
+  "functionalityNames": [
+    "起草合同",
+    "查看本人起草合同",
+    "查看待会签合同",
+    "提交会签意见",
+    "查看待定稿合同",
+    "提交定稿合同",
+    "查看待审批合同",
+    "提交审批意见",
+    "查看待签订合同",
+    "提交签订信息",
+    "合同信息查询",
+    "查看我的合同流程",
+    "查看个人资料",
+    "修改个人密码"
+  ]
+}
+
+###

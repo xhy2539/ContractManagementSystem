@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+    .header { background-color: #007bff; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }
+    .content { padding: 20px; }
+    .footer { font-size: 0.9em; color: #777; text-align: center; margin-top: 20px; }
+    .button { display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h2>合同管理系统 - 待办任务提醒</h2>
+  </div>
+  <div class="content">
+    <p>您好, <strong th:text="${recipientName}">用户</strong>!</p>
+    <p>您有一个新的待办任务需要处理：</p>
+    <ul>
+      <li><strong>任务类型:</strong> <span th:text="${taskType}"></span></li>
+      <li><strong>合同名称:</strong> <span th:text="${contractName}"></span></li>
+    </ul>
+    <p>请点击下面的按钮前往处理：</p>
+    <p style="text-align: center;">
+      <a th:href="${actionUrl}" class="button">立即处理</a>
+    </p>
+    <p>如果您无法点击按钮，请复制以下链接到浏览器地址栏打开：</p>
+    <p><a th:href="${actionUrl}" th:text="${actionUrl}"></a></p>
+  </div>
+  <div class="footer">
+    <p>这是一封系统自动发送的邮件，请勿直接回复。</p>
+  </div>
+</div>
+</body>
+</html>

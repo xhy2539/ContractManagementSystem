@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>用户注册</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/js/css/style.css}"/>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+        h1 { color: #333; margin-bottom: 25px; }
+        label { display: block; text-align: left; margin-bottom: 5px; color: #555; font-size: 0.9em; }
+        input[type="text"], input[type="password"], input[type="email"], select {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button[type="submit"] { background-color: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; width: 100%; margin-top: 10px; }
+        button[type="submit"]:hover { background-color: #0056b3; }
+        .login-link { margin-top: 15px; font-size: 0.9em; }
+        .login-link a { color: #007bff; text-decoration: none; }
+        .login-link a:hover { text-decoration: underline; }
+
+        /* 消息提示样式 */
+        .alert { padding: 10px; margin-bottom: 15px; border-radius: 4px; font-size: 0.9em; }
+        .alert-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>用户注册</h1>
+
+    <div id="messageArea" class="alert" style="display:none;">
+        <p id="messageText"></p>
+    </div>
+
+    <form id="registrationForm">
+        <div>
+            <label for="username">用户名:</label>
+            <input type="text" id="username" name="username" required />
+        </div>
+        <div>
+            <label for="password">密码:</label>
+            <input type="password" id="password" name="password" required />
+        </div>
+        <div>
+            <label for="confirmPassword">确认密码:</label>
+            <input type="password" id="confirmPassword" name="confirmPassword" required />
+        </div>
+        <div>
+            <label for="email">邮箱:</label>
+            <input type="email" id="email" name="email" required />
+        </div>
+        <div>
+            <label for="roleType">选择角色:</label>
+            <select id="roleType" name="roleType" required>
+                <option value="">请选择</option>
+                <option value="USER">普通用户</option>
+                <option value="CONTRACT_OPERATOR">合同操作员</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit">注册</button>
+        </div>
+    </form>
+
+    <div class="login-link">
+        已有账号？ <a th:href="@{/login}">去登录</a>
+    </div>
+</div>
+
+<script>
+    const registrationForm = document.getElementById('registrationForm');
+    const messageArea = document.getElementById('messageArea');
+    const messageText = document.getElementById('messageText');
+    const passwordInput = document.getElementById('password'); // 获取密码输入框
+    const confirmPasswordInput = document.getElementById('confirmPassword'); // 获取确认密码输入框
+
+    function showMessage(text, isSuccess) {
+        messageText.textContent = text;
+        messageArea.className = 'alert ' + (isSuccess ? 'alert-info' : 'alert-danger');
+        messageArea.style.display = 'block';
+    }
+
+    registrationForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const formData = new FormData(registrationForm);
+        const data = {};
+        formData.forEach((value, key) => {
+            data[key] = value;
+        });
+
+        // ⭐ 客户端密码一致性验证 ⭐
+        if (passwordInput.value !== confirmPasswordInput.value) {
+            showMessage('注册失败: 两次输入的密码不一致！', false);
+            return; // 阻止表单提交
+        }
+
+        if (!data.roleType) {
+            showMessage('请选择您的角色！', false);
+            return;
+        }
+
+        // ⭐ 移除确认密码字段，因为后端通常不需要这个字段 ⭐
+        delete data.confirmPassword;
+
+        try {
+            const response = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showMessage('注册成功！用户名: ' + result.username + ', ID: ' + result.userId + ', 角色: ' + result.token, true);
+                registrationForm.reset();
+            } else {
+                let errorMessage = result.message || '未知错误'; // 尝试获取总消息
+
+                if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
+                    errorMessage = '校验失败: ' + result.errors.join('; ');
+                } else if (result.error) {
+                    errorMessage = result.error + ": " + errorMessage;
+                }
+
+                showMessage('注册失败: ' + errorMessage, false);
+            }
+        } catch (error) {
+            console.error('注册请求发送失败:', error);
+            showMessage('网络请求失败，请稍后再试。', false);
+        }
+    });
+</script>
+</body>
+</html>

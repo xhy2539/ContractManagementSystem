@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>支持的文件类型</title>
+</head>
+<body>
+
+<!-- 文件类型帮助模态框 -->
+<div class="modal fade" id="fileTypeHelpModal" data-bs-backdrop="true" data-bs-keyboard="true" tabindex="-1" aria-labelledby="fileTypeHelpModalLabel" aria-hidden="true" th:fragment="file-type-help-modal">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="fileTypeHelpModalLabel">
+                    <i class="bi bi-info-circle-fill me-2"></i>支持的文件类型说明
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary"><i class="bi bi-file-earmark-text"></i> 文档类型</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><span class="badge bg-secondary me-2">PDF</span>便携式文档格式</li>
+                            <li><span class="badge bg-secondary me-2">DOC/DOCX</span>Microsoft Word 文档</li>
+                            <li><span class="badge bg-secondary me-2">XLS/XLSX</span>Microsoft Excel 表格</li>
+                            <li><span class="badge bg-secondary me-2">PPT/PPTX</span>Microsoft PowerPoint 演示文稿</li>
+                            <li><span class="badge bg-secondary me-2">TXT</span>纯文本文件</li>
+                            <li><span class="badge bg-secondary me-2">RTF</span>富文本格式</li>
+                        </ul>
+
+                        <h6 class="text-success"><i class="bi bi-image"></i> 图片类型</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><span class="badge bg-success me-2">JPG/JPEG</span>常用照片格式</li>
+                            <li><span class="badge bg-success me-2">PNG</span>透明背景图片</li>
+                            <li><span class="badge bg-success me-2">GIF</span>动画图片</li>
+                            <li><span class="badge bg-success me-2">BMP</span>位图格式</li>
+                            <li><span class="badge bg-success me-2">WEBP</span>现代Web图片格式</li>
+                            <li><span class="badge bg-success me-2">SVG</span>矢量图形</li>
+                            <li><span class="badge bg-success me-2">TIFF</span>高质量图片</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="text-warning"><i class="bi bi-file-zip"></i> 压缩文件</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><span class="badge bg-warning text-dark me-2">ZIP</span>通用压缩格式</li>
+                            <li><span class="badge bg-warning text-dark me-2">RAR</span>WinRAR压缩格式</li>
+                            <li><span class="badge bg-warning text-dark me-2">7Z</span>7-Zip压缩格式</li>
+                            <li><span class="badge bg-warning text-dark me-2">TAR</span>Unix归档格式</li>
+                            <li><span class="badge bg-warning text-dark me-2">GZIP</span>GNU压缩格式</li>
+                        </ul>
+
+                        <h6 class="text-danger"><i class="bi bi-play-circle"></i> 多媒体文件</h6>
+                        <ul class="list-unstyled mb-4">
+                            <li><span class="badge bg-danger me-2">MP4</span>视频文件</li>
+                            <li><span class="badge bg-danger me-2">AVI</span>视频文件</li>
+                            <li><span class="badge bg-danger me-2">MP3</span>音频文件</li>
+                            <li><span class="badge bg-danger me-2">WAV</span>无损音频</li>
+                        </ul>
+
+                        <h6 class="text-info"><i class="bi bi-code-square"></i> 数据文件</h6>
+                        <ul class="list-unstyled">
+                            <li><span class="badge bg-info me-2">JSON</span>数据交换格式</li>
+                            <li><span class="badge bg-info me-2">XML</span>标记语言</li>
+                            <li><span class="badge bg-info me-2">CSV</span>逗号分隔值文件</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <h6 class="alert-heading"><i class="bi bi-info-circle"></i> 文件大小限制：</h6>
+                    <ul class="mb-0">
+                        <li><strong>普通文件</strong>：最大 10MB</li>
+                        <li><strong>压缩包/多媒体文件</strong>：最大 50MB</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-success mt-3">
+                    <h6 class="alert-heading"><i class="bi bi-check-circle"></i> 支持功能：</h6>
+                    <ul class="mb-0">
+                        <li>✅ 断点续传：网络中断后可继续上传</li>
+                        <li>✅ 自动重试：失败后智能重试机制</li>
+                        <li>✅ 在线预览：PDF、图片、文本、多媒体文件</li>
+                        <li>✅ 安全下载：所有文件类型均可下载</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>关闭
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html> 

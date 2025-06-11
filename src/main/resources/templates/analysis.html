@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>分析报告</title>
+    <style layout:fragment="inline-css">
+        .analytics-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .analytics-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .analytics-header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: all 0.3s ease;
+            border: none;
+            height: 100%;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+
+        .metric-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            color: white;
+            font-size: 2.5rem;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 1.1rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .metric-change {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
+        .metric-change.positive {
+            color: #10b981;
+        }
+
+        .metric-change.negative {
+            color: #ef4444;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-title i {
+            color: #667eea;
+        }
+
+        .filter-section {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .filter-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1rem;
+        }
+
+        .trend-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .trend-up {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+
+        .trend-down {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+        }
+
+        .trend-stable {
+            background: rgba(107, 114, 128, 0.1);
+            color: #4b5563;
+        }
+
+        .insights-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .insight-item {
+            padding: 1.5rem;
+            border-left: 4px solid #667eea;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 0 12px 12px 0;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .insight-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .insight-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .insight-description {
+            color: #6b7280;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .export-section {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .export-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            font-weight: 500;
+            font-size: 1rem;
+            margin: 0 0.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .analytics-header h1 {
+                font-size: 2rem;
+            }
+
+            .metric-value {
+                font-size: 2rem;
+            }
+
+            .metric-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+
+            .chart-container {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+    <div class="container-fluid mt-4">
+        <!-- 页面标题 -->
+        <div class="analytics-header">
+            <h1><i class="bi bi-graph-up"></i> 合同分析报告</h1>
+            <p>全面了解您的合同管理数据和趋势</p>
+        </div>
+
+        <!-- 筛选器 -->
+        <div class="filter-section">
+            <div class="filter-title">
+                <i class="bi bi-funnel"></i> 数据筛选
+            </div>
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">时间范围</label>
+                    <select class="form-select" id="timeRange">
+                        <option value="30">最近30天</option>
+                        <option value="90" selected>最近3个月</option>
+                        <option value="180">最近6个月</option>
+                        <option value="365">最近1年</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">合同状态</label>
+                    <select class="form-select" id="contractStatus">
+                        <option value="all" selected>全部状态</option>
+                        <option value="draft">草稿</option>
+                        <option value="pending">待审批</option>
+                        <option value="active">生效中</option>
+                        <option value="expired">已到期</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">合同类型</label>
+                    <select class="form-select" id="contractType">
+                        <option value="all" selected>全部类型</option>
+                        <option value="purchase">采购合同</option>
+                        <option value="sales">销售合同</option>
+                        <option value="service">服务合同</option>
+                        <option value="lease">租赁合同</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-primary w-100" onclick="refreshAnalytics()">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新数据
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 关键指标 -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="metric-card">
+                    <div class="metric-icon">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </div>
+                    <div class="metric-value" id="totalContracts">0</div>
+                    <div class="metric-label">总合同数量</div>
+                    <div class="metric-change positive">
+                        <i class="bi bi-arrow-up"></i> +12% 本月
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="metric-card">
+                    <div class="metric-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div class="metric-value" id="totalValue">¥0</div>
+                    <div class="metric-label">合同总金额</div>
+                    <div class="metric-change positive">
+                        <i class="bi bi-arrow-up"></i> +8.5% 本月
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="metric-card">
+                    <div class="metric-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                        <i class="bi bi-clock"></i>
+                    </div>
+                    <div class="metric-value" id="avgProcessTime">0</div>
+                    <div class="metric-label">平均处理时间(天)</div>
+                    <div class="metric-change negative">
+                        <i class="bi bi-arrow-down"></i> -2.1% 本月
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="metric-card">
+                    <div class="metric-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                        <i class="bi bi-percent"></i>
+                    </div>
+                    <div class="metric-value" id="approvalRate">0%</div>
+                    <div class="metric-label">审批通过率</div>
+                    <div class="metric-change positive">
+                        <i class="bi bi-arrow-up"></i> +1.8% 本月
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="row">
+            <div class="col-xl-8 mb-4">
+                <div class="chart-container">
+                    <div class="chart-title">
+                        <i class="bi bi-graph-up"></i>
+                        合同趋势分析
+                    </div>
+                    <canvas id="trendChart" height="300"></canvas>
+                </div>
+            </div>
+            <div class="col-xl-4 mb-4">
+                <div class="chart-container">
+                    <div class="chart-title">
+                        <i class="bi bi-pie-chart"></i>
+                        状态分布
+                    </div>
+                    <canvas id="statusChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-xl-6 mb-4">
+                <div class="chart-container">
+                    <div class="chart-title">
+                        <i class="bi bi-bar-chart"></i>
+                        合同类型分布
+                    </div>
+                    <canvas id="typeChart" height="250"></canvas>
+                </div>
+            </div>
+            <div class="col-xl-6 mb-4">
+                <div class="chart-container">
+                    <div class="chart-title">
+                        <i class="bi bi-speedometer2"></i>
+                        处理效率分析
+                    </div>
+                    <canvas id="efficiencyChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 智能洞察 -->
+        <div class="insights-section">
+            <h4 class="mb-3">
+                <i class="bi bi-lightbulb text-warning"></i> 智能洞察
+            </h4>
+            <div class="insight-item">
+                <div class="insight-title">合同处理效率提升</div>
+                <div class="insight-description">
+                    本月平均合同处理时间较上月缩短了2.1天，主要得益于审批流程的优化。建议继续推进数字化审批。
+                </div>
+            </div>
+            <div class="insight-item">
+                <div class="insight-title">合同金额增长趋势</div>
+                <div class="insight-description">
+                    合同总金额呈现稳定增长趋势，本季度同比增长15.2%。服务类合同占比提升，建议加强服务质量管控。
+                </div>
+            </div>
+            <div class="insight-item">
+                <div class="insight-title">风险预警</div>
+                <div class="insight-description">
+                    有5份合同将在30天内到期，建议提前启动续签流程。另有3份合同存在潜在的违约风险，需要重点关注。
+                </div>
+            </div>
+        </div>
+
+        <!-- 导出功能 -->
+        <div class="export-section">
+            <h5 class="mb-3">导出报告</h5>
+            <button class="export-btn" onclick="exportToPDF()">
+                <i class="bi bi-file-pdf"></i> 导出PDF
+            </button>
+            <button class="export-btn" onclick="exportToExcel()">
+                <i class="bi bi-file-excel"></i> 导出Excel
+            </button>
+            <button class="export-btn" onclick="exportToImage()">
+                <i class="bi bi-image"></i> 导出图片
+            </button>
+        </div>
+    </div>
+</section>
+
+<script layout:fragment="scripts">
+    document.addEventListener('DOMContentLoaded', function() {
+        initCharts();
+        loadAnalyticsData();
+    });
+
+    function initCharts() {
+        if (typeof Chart === 'undefined') {
+            loadChartJS().then(() => {
+                createCharts();
+            });
+        } else {
+            createCharts();
+        }
+    }
+
+    function loadChartJS() {
+        return new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+            script.onload = resolve;
+            document.head.appendChild(script);
+        });
+    }
+
+    function createCharts() {
+        // 趋势分析图
+        const trendCtx = document.getElementById('trendChart');
+        if (trendCtx) {
+            new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
+                    datasets: [{
+                        label: '新增合同',
+                        data: [25, 32, 28, 41, 35, 48],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: '完成合同',
+                        data: [18, 28, 25, 35, 30, 42],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // 状态分布图
+        const statusCtx = document.getElementById('statusChart');
+        if (statusCtx) {
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['生效中', '待审批', '草稿', '已到期'],
+                    datasets: [{
+                        data: [45, 12, 8, 5],
+                        backgroundColor: [
+                            '#10b981',
+                            '#f59e0b',
+                            '#6b7280',
+                            '#ef4444'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 合同类型分布
+        const typeCtx = document.getElementById('typeChart');
+        if (typeCtx) {
+            new Chart(typeCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['采购合同', '销售合同', '服务合同', '租赁合同', '其他'],
+                    datasets: [{
+                        label: '合同数量',
+                        data: [22, 18, 15, 8, 7],
+                        backgroundColor: [
+                            '#667eea',
+                            '#10b981',
+                            '#f59e0b',
+                            '#8b5cf6',
+                            '#6b7280'
+                        ],
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // 处理效率分析
+        const efficiencyCtx = document.getElementById('efficiencyChart');
+        if (efficiencyCtx) {
+            new Chart(efficiencyCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['草稿完成', '审批速度', '定稿效率', '签署完成', '归档管理'],
+                    datasets: [{
+                        label: '当前效率',
+                        data: [85, 78, 92, 88, 75],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        pointBackgroundColor: '#667eea',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#667eea'
+                    }, {
+                        label: '目标效率',
+                        data: [90, 85, 95, 90, 85],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#10b981'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function loadAnalyticsData() {
+        // 模拟加载分析数据
+        document.getElementById('totalContracts').textContent = '268';
+        document.getElementById('totalValue').textContent = '¥15,680,000';
+        document.getElementById('avgProcessTime').textContent = '5.2';
+        document.getElementById('approvalRate').textContent = '94.3';
+    }
+
+    function refreshAnalytics() {
+        const timeRange = document.getElementById('timeRange').value;
+        const status = document.getElementById('contractStatus').value;
+        const type = document.getElementById('contractType').value;
+
+        // 显示加载状态
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> 加载中...';
+        btn.disabled = true;
+
+        // 模拟API请求
+        setTimeout(() => {
+            // 这里应该调用实际的API
+            console.log('刷新分析数据', { timeRange, status, type });
+            
+            // 恢复按钮状态
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            
+            // 更新图表和数据
+            loadAnalyticsData();
+        }, 1500);
+    }
+
+    function exportToPDF() {
+        // 模拟PDF导出
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 生成中...';
+        btn.disabled = true;
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            alert('PDF报告生成完成！');
+        }, 2000);
+    }
+
+    function exportToExcel() {
+        // 模拟Excel导出
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 生成中...';
+        btn.disabled = true;
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            alert('Excel报告生成完成！');
+        }, 1500);
+    }
+
+    function exportToImage() {
+        // 模拟图片导出
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 生成中...';
+        btn.disabled = true;
+
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            alert('图片报告生成完成！');
+        }, 1000);
+    }
+</script>
+
+</body>
+</html> 

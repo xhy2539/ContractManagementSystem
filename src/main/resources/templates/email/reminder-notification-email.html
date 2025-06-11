@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>合同提醒通知</title>
+    <style>
+        body {
+            font-family: 'Arial', '微软雅黑', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 300;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .alert-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #f39c12;
+        }
+        .alert-box .title {
+            font-weight: bold;
+            color: #d68910;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .contract-info {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .contract-info .label {
+            font-weight: bold;
+            color: #495057;
+            display: inline-block;
+            width: 100px;
+        }
+        .contract-info .value {
+            color: #333;
+        }
+        .action-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 25px;
+            margin: 20px 0;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+            border-top: 1px solid #dee2e6;
+        }
+        .important {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .date-highlight {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 合同智能提醒</h1>
+        </div>
+        
+        <div class="content">
+            <p class="greeting">
+                尊敬的 <strong th:text="${recipientName}">用户</strong>，您好！
+            </p>
+            
+            <div class="alert-box">
+                <div class="title">⚠️ 重要提醒</div>
+                <p th:text="${reminderMessage}">您有一个重要的合同事项需要处理</p>
+            </div>
+            
+            <div class="contract-info">
+                <h3>📄 合同信息</h3>
+                <p><span class="label">提醒类型：</span><span class="value" th:text="${taskType}">合同到期提醒</span></p>
+                <p><span class="label">合同名称：</span><span class="value" th:text="${contractName}">示例合同</span></p>
+                <p><span class="label">目标日期：</span><span class="value date-highlight" th:text="${#temporals.format(targetDate, 'yyyy年MM月dd日')}">2024年12月31日</span></p>
+            </div>
+            
+            <p>
+                为了确保您能及时处理相关事务，请点击下方按钮查看合同详情：
+            </p>
+            
+            <div style="text-align: center;">
+                <a th:href="${actionUrl}" class="action-button">🔍 查看合同详情</a>
+            </div>
+            
+            <div style="margin-top: 30px; padding: 15px; background: #e3f2fd; border-radius: 6px;">
+                <p style="margin: 0; font-size: 14px;">
+                    <strong>💡 温馨提示：</strong>
+                    为避免错过重要时间节点，建议您及时处理相关事务。如有疑问，请联系系统管理员。
+                </p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>此邮件由合同管理系统自动发送，请勿直接回复。</p>
+            <p>如果您不希望接收此类邮件，请联系系统管理员进行设置。</p>
+            <p style="margin-top: 15px;">
+                发送时间：<span th:text="${#temporals.format(#temporals.createNow(), 'yyyy-MM-dd HH:mm:ss')}">2024-01-01 12:00:00</span>
+            </p>
+        </div>
+    </div>
+</body>
+</html> 

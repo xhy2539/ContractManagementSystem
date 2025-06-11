@@ -1,0 +1,8 @@
+config: 存放配置类，例如安全配置 (SecurityConfig)、Web 配置等。
+controller: 存放 Spring MVC 的 RESTful API 控制器类。
+dto: (Data Transfer Object) 存放用于 API 请求体和响应体的数据传输对象。这有助于解耦API接口和内部实体。
+entity : 存放 JPA 实体类，这些类直接映射到数据库表。
+exception: 存放自定义异常类和全局异常处理器。
+repository: 存放 Spring Data JPA 的 Repository 接口，用于数据访问。
+service: 存放业务逻辑服务接口及其实现类。
+util: 工具类。

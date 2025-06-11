@@ -1,0 +1,354 @@
+/* 
+ * UI Enhancement CSS - 界面风格统一增强
+ * 
+ * 安全原则:
+ * 1. 只添加样式，不覆盖功能性CSS
+ * 2. 保持所有现有JavaScript功能正常
+ * 3. 不修改任何现有HTML结构
+ * 4. 使用高优先级选择器进行增强
+ */
+
+/* ================================
+   CSS变量定义 - 统一设计令牌
+   ================================ */
+:root {
+    /* 主色调 - 基于现有仪表板风格 */
+    --ui-primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --ui-secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --ui-success-gradient: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    --ui-warning-gradient: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+    --ui-danger-gradient: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    
+    /* 卡片样式 */
+    --ui-card-radius: 12px;
+    --ui-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --ui-card-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.15);
+    
+    /* 间距 */
+    --ui-spacing-xs: 0.25rem;
+    --ui-spacing-sm: 0.5rem;
+    --ui-spacing-md: 1rem;
+    --ui-spacing-lg: 1.5rem;
+    --ui-spacing-xl: 2rem;
+    
+    /* 动画 */
+    --ui-transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --ui-transition-normal: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ================================
+   卡片组件统一增强
+   ================================ */
+
+/* 增强现有的filter-card，保持原有功能 */
+.filter-card.shadow-sm {
+    border-radius: var(--ui-card-radius) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: var(--ui-transition-normal);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+.filter-card.shadow-sm:hover {
+    box-shadow: var(--ui-card-shadow-hover) !important;
+    transform: translateY(-2px);
+}
+
+/* 增强搜索卡片 */
+.search-card {
+    border-radius: var(--ui-card-radius) !important;
+    box-shadow: var(--ui-card-shadow) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: var(--ui-transition-normal);
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px);
+}
+
+.search-card:hover {
+    box-shadow: var(--ui-card-shadow-hover) !important;
+    transform: translateY(-1px);
+}
+
+/* 增强其他卡片 */
+.card:not(.risk-header):not(.stats-card):not(.filter-card):not(.dashboard-card) {
+    border-radius: var(--ui-card-radius) !important;
+    box-shadow: var(--ui-card-shadow) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: var(--ui-transition-normal);
+}
+
+.card:not(.risk-header):not(.stats-card):not(.filter-card):not(.dashboard-card):hover {
+    box-shadow: var(--ui-card-shadow-hover) !important;
+    transform: translateY(-1px);
+}
+
+/* ================================
+   表格组件统一增强
+   ================================ */
+
+/* 增强现有表格，保持功能性类名 */
+.table-responsive {
+    border-radius: var(--ui-card-radius);
+    overflow: hidden;
+    box-shadow: var(--ui-card-shadow);
+    background: white;
+}
+
+.table.table-striped.table-hover.table-bordered {
+    margin-bottom: 0 !important;
+    border: none !important;
+}
+
+.table.table-striped.table-hover.table-bordered thead.table-dark th {
+    background: var(--ui-primary-gradient) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.table.table-striped.table-hover.table-bordered tbody tr {
+    transition: var(--ui-transition-fast);
+}
+
+.table.table-striped.table-hover.table-bordered tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05) !important;
+    transform: scale(1.01);
+}
+
+.table.table-striped.table-hover.table-bordered tbody td {
+    border-color: #f1f3f4 !important;
+    vertical-align: middle;
+}
+
+/* ================================
+   按钮组件统一增强
+   ================================ */
+
+/* 增强主要按钮，保持Bootstrap类名功能 */
+.btn.btn-primary:not(.btn-sm):not(.dashboard-card .btn) {
+    background: var(--ui-primary-gradient) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.75rem 1.5rem !important;
+    font-weight: 500;
+    transition: var(--ui-transition-fast);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn.btn-primary:not(.btn-sm):not(.dashboard-card .btn):hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* 增强小按钮 */
+.btn.btn-sm.btn-primary {
+    background: var(--ui-primary-gradient) !important;
+    border: none !important;
+    border-radius: 6px !important;
+    transition: var(--ui-transition-fast);
+}
+
+.btn.btn-sm.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* 增强成功按钮 */
+.btn.btn-success {
+    background: var(--ui-success-gradient) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    transition: var(--ui-transition-fast);
+}
+
+.btn.btn-success:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(86, 171, 47, 0.3);
+}
+
+/* 增强警告按钮 */
+.btn.btn-warning {
+    background: var(--ui-warning-gradient) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: white !important;
+    transition: var(--ui-transition-fast);
+}
+
+.btn.btn-warning:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+/* 增强次要按钮 */
+.btn.btn-secondary, .btn.btn-outline-secondary {
+    border-radius: 8px !important;
+    transition: var(--ui-transition-fast);
+}
+
+.btn.btn-secondary:hover, .btn.btn-outline-secondary:hover {
+    transform: translateY(-1px);
+}
+
+/* ================================
+   模态框组件统一增强  
+   ================================ */
+
+/* 增强模态框，保持现有功能 */
+.modal .modal-dialog {
+    transition: var(--ui-transition-normal);
+}
+
+.modal.show .modal-dialog {
+    transform: translateY(0) scale(1) !important;
+}
+
+.modal .modal-content {
+    border-radius: var(--ui-card-radius) !important;
+    border: none !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2) !important;
+    overflow: hidden;
+}
+
+.modal .modal-header.bg-primary {
+    background: var(--ui-primary-gradient) !important;
+}
+
+.modal .modal-header.bg-warning {
+    background: var(--ui-warning-gradient) !important;
+    color: white !important;
+}
+
+.modal .modal-header.bg-success {
+    background: var(--ui-success-gradient) !important;
+}
+
+.modal .modal-header.bg-danger {
+    background: var(--ui-danger-gradient) !important;
+}
+
+/* ================================
+   分页组件统一增强
+   ================================ */
+
+/* 增强分页，保持Bootstrap功能 */
+.pagination {
+    background: white;
+    border-radius: var(--ui-card-radius);
+    padding: var(--ui-spacing-md);
+    box-shadow: var(--ui-card-shadow);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pagination .page-link {
+    border-radius: 6px !important;
+    border: 1px solid #e9ecef !important;
+    margin: 0 2px;
+    transition: var(--ui-transition-fast);
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--ui-primary-gradient) !important;
+    border-color: transparent !important;
+}
+
+.pagination .page-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+/* ================================
+   表单组件统一增强
+   ================================ */
+
+/* 增强表单控件 */
+.form-control:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+
+.form-select:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+
+/* ================================
+   loading和spinner统一增强
+   ================================ */
+
+/* 增强loading状态 */
+.spinner-border.text-primary {
+    color: #667eea !important;
+}
+
+/* ================================
+   特殊页面兼容性处理
+   ================================ */
+
+/* 保持仪表板原有特殊效果 */
+.dashboard-card {
+    /* 保持原有样式，不做修改 */
+}
+
+/* 保持高风险合同页面的特殊效果 */
+.risk-header, .stats-card, .contract-card {
+    /* 保持原有样式，不做修改 */
+}
+
+/* 保持现有动画库效果 */
+[data-aos] {
+    /* 保持AOS动画效果 */
+}
+
+/* ================================
+   审计日志导出按钮特殊处理
+   ================================ */
+
+/* 确保导出按钮的loading状态正常显示 */
+#exportButton.disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+#exportButton .spinner-border {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* ================================
+   响应式增强
+   ================================ */
+
+@media (max-width: 768px) {
+    :root {
+        --ui-card-radius: 8px;
+        --ui-spacing-lg: 1rem;
+        --ui-spacing-xl: 1.5rem;
+    }
+    
+    .btn:not(.btn-sm) {
+        padding: 0.6rem 1.2rem !important;
+    }
+    
+    .filter-card.shadow-sm:hover,
+    .search-card:hover,
+    .card:hover {
+        transform: none; /* 移动端禁用悬停变换 */
+    }
+}
+
+/* ================================
+   打印样式保护
+   ================================ */
+
+@media print {
+    * {
+        box-shadow: none !important;
+        text-shadow: none !important;
+        background: white !important;
+        color: black !important;
+    }
+} 
