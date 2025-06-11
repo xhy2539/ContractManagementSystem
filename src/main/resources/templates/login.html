@@ -46,7 +46,7 @@
             backdrop-filter: blur(20px);
             border-radius: 25px;
             padding: 3rem;
-            box-shadow: 
+            box-shadow:
                 0 25px 50px rgba(0, 0, 0, 0.2),
                 inset 0 1px 0 rgba(255, 255, 255, 0.3);
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -287,16 +287,16 @@
                 padding: 2rem;
                 margin: 1rem;
             }
-            
+
             .login-title {
                 font-size: 1.7rem;
             }
-            
+
             .form-control {
                 padding: 0.9rem 1rem 0.9rem 2.8rem;
                 height: 3rem;
             }
-            
+
             .input-icon {
                 left: 0.6rem;
             }
@@ -365,29 +365,29 @@
                 <label for="username" class="form-label">用户名</label>
                 <div class="position-relative">
                     <i class="bi bi-person-fill input-icon"></i>
-                    <input type="text" 
-                           id="username" 
-                           name="username" 
-                           class="form-control" 
+                    <input type="text"
+                           id="username"
+                           name="username"
+                           class="form-control"
                            placeholder="请输入用户名"
-                           required 
+                           required
                            autofocus />
                 </div>
             </div>
-            
+
             <div class="form-group">
                 <label for="password" class="form-label">密码</label>
                 <div class="position-relative">
                     <i class="bi bi-lock-fill input-icon"></i>
-                    <input type="password" 
-                           id="password" 
-                           name="password" 
-                           class="form-control" 
+                    <input type="password"
+                           id="password"
+                           name="password"
+                           class="form-control"
                            placeholder="请输入密码"
                            required />
                 </div>
             </div>
-            
+
             <button type="submit" class="login-btn" id="loginButton">
                 <i class="bi bi-box-arrow-in-right me-2"></i>
                 登录系统
@@ -413,7 +413,7 @@
             input.addEventListener('focus', function() {
                 this.closest('.form-group').style.transform = 'scale(1.02)';
             });
-            
+
             input.addEventListener('blur', function() {
                 this.closest('.form-group').style.transform = 'scale(1)';
             });
