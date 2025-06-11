@@ -26,28 +26,44 @@
       border-radius: 0.25rem !important;
     }
     
-    /* 禁用模态框背景阴影 */
-    #templateFormModal {
-      background-color: transparent !important;
+    /* 模态框样式覆盖 */
+    .modal {
+      background: none !important;
+      padding-right: 0 !important;
     }
     
-    #templateFormModal .modal-dialog {
-      pointer-events: auto !important;
+    .modal-backdrop {
+      display: none !important;
     }
     
-    #templateFormModal .modal-content {
-      pointer-events: auto !important;
+    .modal-dialog {
+      margin: 1.75rem auto;
+    }
+    
+    .modal-content {
       box-shadow: none !important;
     }
     
-    /* 移除fade效果 */
-    #templateFormModal.fade {
-      transition: none;
+    /* 确保模态框不会影响背景滚动 */
+    .modal-open {
+      overflow: auto !important;
+      padding-right: 0 !important;
     }
     
-    /* 移除backdrop */
-    .modal-backdrop {
-      display: none !important;
+    /* 移除模态框动画 */
+    .modal.fade {
+      transition: none !important;
+    }
+    
+    .modal.fade .modal-dialog {
+      transition: none !important;
+      transform: none !important;
+    }
+    
+    /* 确保模态框内容可以滚动 */
+    .modal-body {
+      max-height: calc(100vh - 210px);
+      overflow-y: auto;
     }
   </style>
 </head>

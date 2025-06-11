@@ -66,14 +66,30 @@ document.addEventListener('DOMContentLoaded', function () {
         if (addFinalizerUserBtn) addFinalizerUserBtn.addEventListener('click', () => moveOptions(availableFinalizerUsersSelect, assignedFinalizerUsersSelect));
         if (removeFinalizerUserBtn) removeFinalizerUserBtn.addEventListener('click', () => moveOptions(assignedFinalizerUsersSelect, availableFinalizerUsersSelect));
 
+        // 添加双击事件监听器
+        if (availableFinalizerUsersSelect) availableFinalizerUsersSelect.addEventListener('dblclick', () => moveOptions(availableFinalizerUsersSelect, assignedFinalizerUsersSelect));
+        if (assignedFinalizerUsersSelect) assignedFinalizerUsersSelect.addEventListener('dblclick', () => moveOptions(assignedFinalizerUsersSelect, availableFinalizerUsersSelect));
+
         if (addCountersignUserBtn) addCountersignUserBtn.addEventListener('click', () => moveOptions(availableCountersignUsersSelect, assignedCountersignUsersSelect));
         if (removeCountersignUserBtn) removeCountersignUserBtn.addEventListener('click', () => moveOptions(assignedCountersignUsersSelect, availableCountersignUsersSelect));
+
+        // 添加双击事件监听器
+        if (availableCountersignUsersSelect) availableCountersignUsersSelect.addEventListener('dblclick', () => moveOptions(availableCountersignUsersSelect, assignedCountersignUsersSelect));
+        if (assignedCountersignUsersSelect) assignedCountersignUsersSelect.addEventListener('dblclick', () => moveOptions(assignedCountersignUsersSelect, availableCountersignUsersSelect));
 
         if (addApprovalUserBtn) addApprovalUserBtn.addEventListener('click', () => moveOptions(availableApprovalUsersSelect, assignedApprovalUsersSelect));
         if (removeApprovalUserBtn) removeApprovalUserBtn.addEventListener('click', () => moveOptions(assignedApprovalUsersSelect, availableApprovalUsersSelect));
 
+        // 添加双击事件监听器
+        if (availableApprovalUsersSelect) availableApprovalUsersSelect.addEventListener('dblclick', () => moveOptions(availableApprovalUsersSelect, assignedApprovalUsersSelect));
+        if (assignedApprovalUsersSelect) assignedApprovalUsersSelect.addEventListener('dblclick', () => moveOptions(assignedApprovalUsersSelect, availableApprovalUsersSelect));
+
         if (addSigningUserBtn) addSigningUserBtn.addEventListener('click', () => moveOptions(availableSigningUsersSelect, assignedSigningUsersSelect));
         if (removeSigningUserBtn) removeSigningUserBtn.addEventListener('click', () => moveOptions(assignedSigningUsersSelect, availableSigningUsersSelect));
+
+        // 添加双击事件监听器
+        if (availableSigningUsersSelect) availableSigningUsersSelect.addEventListener('dblclick', () => moveOptions(availableSigningUsersSelect, assignedSigningUsersSelect));
+        if (assignedSigningUsersSelect) assignedSigningUsersSelect.addEventListener('dblclick', () => moveOptions(assignedSigningUsersSelect, availableSigningUsersSelect));
 
         if (submitAssignmentBtn) {
             submitAssignmentBtn.addEventListener('click', handleSubmitAssignment);

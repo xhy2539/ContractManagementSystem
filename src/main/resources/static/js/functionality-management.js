@@ -66,6 +66,38 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
         }
+
+        // 添加模态框事件监听
+        const modalElement = document.querySelector('.modal');
+        if (modalElement) {
+            modalElement.addEventListener('show.bs.modal', function () {
+                document.body.style.overflow = 'auto';
+                document.body.style.paddingRight = '0';
+            });
+            
+            modalElement.addEventListener('shown.bs.modal', function () {
+                document.body.style.overflow = 'auto';
+                document.body.style.paddingRight = '0';
+                // 移除 Bootstrap 自动添加的样式
+                document.body.classList.remove('modal-open');
+            });
+
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                document.body.style.overflow = 'auto';
+                document.body.style.paddingRight = '0';
+                document.body.classList.remove('modal-open');
+            });
+        }
+
+        // 初始化功能表单模态框
+        const functionalityFormModalElement = document.getElementById('functionalityFormModal');
+        if (functionalityFormModalElement) {
+            functionalityFormModal = new bootstrap.Modal(functionalityFormModalElement, {
+                backdrop: true,
+                keyboard: true,
+                focus: true
+            });
+        }
     }
 
     // --- Data Fetching and Rendering ---
@@ -144,6 +176,9 @@ document.addEventListener('DOMContentLoaded', function () {
         resetForm(functionalityForm);
         functionalityIdInput.value = '';
         functionalityFormModalLabel.textContent = '添加新功能';
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = 'auto';
+        document.body.style.paddingRight = '0';
         functionalityFormModal.show();
     }
 
@@ -181,6 +216,9 @@ document.addEventListener('DOMContentLoaded', function () {
             showAlert(currentFuncId ? '功能更新成功！' : '功能创建成功！', 'success', globalAlertContainerId);
             fetchFunctionalities(currentFuncId ? currentPageFunctionality : 0);
             functionalityFormModal.hide();
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = 'auto';
+            document.body.style.paddingRight = '0';
         } catch (error) {
             console.error("保存功能失败:", error);
             showAlert(currentFuncId ? '功能更新失败，详情请查看控制台。' : '功能创建失败，详情请查看控制台。', 'danger', globalAlertContainerId);
@@ -209,7 +247,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         functionalityUrlInput.value = functionality.url || '';
                     }
                     functionalityDescriptionInput.value = functionality.description || '';
-                    functionalityFormModal.show(); // 使用 Bootstrap Modal 实例的 show() 方法
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = 'auto';
+                    document.body.style.paddingRight = '0';
+                    functionalityFormModal.show();
                 } else {
                     showAlert('无法加载功能信息进行编辑。', 'warning', globalAlertContainerId);
                 }

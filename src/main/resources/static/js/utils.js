@@ -265,9 +265,26 @@ function renderPaginationControls(pageData, containerId, fetchFunction, defaultP
  * @param {HTMLFormElement} formElement - 要重置的表单元素。
  */
 function resetForm(formElement) {
-    if (formElement && typeof formElement.reset === 'function') {
+    if (!formElement) return;
+
+    // 重置 TinyMCE 编辑器（如果存在）
+    if (window.tinymce) {
+        const editors = tinymce.get();
+        editors.forEach(editor => {
+            try {
+                editor.setContent('');
+            } catch (e) {
+                console.warn('重置 TinyMCE 编辑器内容失败:', e);
+            }
+        });
+    }
+
+    // 重置普通表单元素
+    if (typeof formElement.reset === 'function') {
         formElement.reset();
     }
+
+    // 移除验证状态
     formElement.querySelectorAll('.is-invalid, .is-valid').forEach(el => {
         el.classList.remove('is-invalid', 'is-valid');
     });

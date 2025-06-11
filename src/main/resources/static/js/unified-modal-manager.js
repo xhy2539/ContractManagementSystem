@@ -35,10 +35,8 @@
             const backdropAttr = modalEl.getAttribute('data-bs-backdrop');
             const keyboardAttr = modalEl.getAttribute('data-bs-keyboard');
             
-            // 转换为正确的类型
-            const backdrop = backdropAttr === 'static' ? 'static' : 
-                           backdropAttr === 'false' ? false : true;
-            
+            // 强制禁用背景遮罩
+            const backdrop = false;
             const keyboard = keyboardAttr === 'false' ? false : true;
             
             return {
@@ -128,11 +126,13 @@
             // 修复可能的样式问题
             this.fixModalStyles(modalEl);
             
-            // 移除其他模态框的背景遮罩
+            // 确保页面可以滚动
+            document.body.style.overflow = 'auto';
+            document.body.style.paddingRight = '0';
+            
+            // 移除所有背景遮罩
             document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
-                if (backdrop.getAttribute('data-modal-id') !== modalId) {
-                    backdrop.remove();
-                }
+                backdrop.remove();
             });
         }
         
@@ -142,11 +142,10 @@
         afterShow(modalEl) {
             const modalId = modalEl.id;
             
-            // 确保只有一个背景遮罩
-            const existingBackdrop = document.querySelector('.modal-backdrop');
-            if (existingBackdrop) {
-                existingBackdrop.setAttribute('data-modal-id', modalId);
-            }
+            // 移除模态框打开时的锁定类
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = 'auto';
+            document.body.style.paddingRight = '0';
             
             // 聚焦到第一个可输入元素
             setTimeout(() => {
@@ -176,18 +175,15 @@
         afterHide(modalEl) {
             const modalId = modalEl.id;
             
-            // 移除对应的背景遮罩
-            const backdrop = document.querySelector(`.modal-backdrop[data-modal-id="${modalId}"]`);
-            if (backdrop) {
+            // 移除所有背景遮罩
+            document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
                 backdrop.remove();
-            }
+            });
             
-            // 如果没有活动的模态框，清理body样式
-            if (this.activeModals.size === 0) {
-                document.body.classList.remove('modal-open');
-                document.body.style.paddingRight = '';
-                document.body.style.overflow = '';
-            }
+            // 恢复正常滚动
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = 'auto';
+            document.body.style.paddingRight = '0';
             
             console.log(`✅ 模态框已隐藏: ${modalId}`);
         }
@@ -198,14 +194,24 @@
         fixModalStyles(modalEl) {
             // 确保模态框有正确的z-index
             const baseZIndex = 1050;
-            const activeModalsCount = this.activeModals.size;
-            modalEl.style.zIndex = (baseZIndex + (activeModalsCount * 2)).toString();
+            modalEl.style.zIndex = baseZIndex;
             
-            // 确保背景遮罩在模态框下方
-            const backdrop = document.querySelector('.modal-backdrop');
-            if (backdrop) {
-                backdrop.style.zIndex = (baseZIndex + (activeModalsCount * 2) - 1).toString();
+            // 确保模态框内容可以滚动
+            const modalBody = modalEl.querySelector('.modal-body');
+            if (modalBody) {
+                modalBody.style.maxHeight = 'calc(100vh - 210px)';
+                modalBody.style.overflowY = 'auto';
             }
+            
+            // 移除可能存在的背景遮罩
+            document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+                backdrop.remove();
+            });
+            
+            // 确保页面可以滚动
+            document.body.style.overflow = 'auto';
+            document.body.style.paddingRight = '0';
+            document.body.classList.remove('modal-open');
         }
         
         /**
