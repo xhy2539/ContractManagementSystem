@@ -30,6 +30,12 @@ public interface ContractAnalysisRepository extends JpaRepository<ContractAnalys
     List<ContractAnalysis> findLatestByContractIdAndType(@Param("contractId") Long contractId, @Param("analysisType") AnalysisType analysisType);
 
     /**
+     * 根据多个风险等级查找分析记录
+     */
+    @Query("SELECT ca FROM ContractAnalysis ca WHERE ca.riskLevel IN :riskLevels")
+    Page<ContractAnalysis> findByRiskLevelIn(@Param("riskLevels") List<RiskLevel> riskLevels, Pageable pageable);
+
+    /**
      * 根据风险等级查找分析记录
      */
     Page<ContractAnalysis> findByRiskLevel(RiskLevel riskLevel, Pageable pageable);

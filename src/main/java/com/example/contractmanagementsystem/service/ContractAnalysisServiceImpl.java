@@ -333,7 +333,7 @@ public class ContractAnalysisServiceImpl implements ContractAnalysisService {
             if (!found) {
                 score += 20; // 缺失关键条款，风险分增加较多
                 findings.add(new ContractAnalysisResultDto.AnalysisFinding("条款缺失", "高", "可能缺失 " + entry.getKey(), "合同中未明确提及" + entry.getKey() + "，可能导致未来出现争议时权责不清。", "全文", List.of("建议补充完整的" + entry.getKey() + "。")));
-                recommendations.add("强烈建议补充关于"" + entry.getKey() + ""的详细条款。");
+                recommendations.add("强烈建议补充关于\"" + entry.getKey() + "\"的详细条款。");
             }
         }
         return score;
@@ -341,19 +341,26 @@ public class ContractAnalysisServiceImpl implements ContractAnalysisService {
 
     private int checkRiskyKeywords(String content, List<ContractAnalysisResultDto.AnalysisFinding> findings, List<String> recommendations) {
         int score = 0;
-        Map<String, Integer> riskyKeywords = Map.of(
-            "无限责任", 25, "unlimited liability", 25,
-            "单方面终止", 20, "unilateral termination", 20,
-            "赔偿", 15, "indemnify", 15, "indemnity", 15,
-            "自动续约", 10, "automatic renewal", 10,
-            "排除", 10, "exclude", 10, "disclaim", 10
+        Map<String, Integer> riskyKeywords = Map.ofEntries(
+            Map.entry("无限责任", 25),
+            Map.entry("unlimited liability", 25),
+            Map.entry("单方面终止", 20),
+            Map.entry("unilateral termination", 20),
+            Map.entry("赔偿", 15),
+            Map.entry("indemnify", 15),
+            Map.entry("indemnity", 15),
+            Map.entry("自动续约", 10),
+            Map.entry("automatic renewal", 10),
+            Map.entry("排除", 10),
+            Map.entry("exclude", 10),
+            Map.entry("disclaim", 10)
         );
 
         for (Map.Entry<String, Integer> entry : riskyKeywords.entrySet()) {
             if (content.contains(entry.getKey())) {
                 score += entry.getValue();
-                findings.add(new ContractAnalysisResultDto.AnalysisFinding("高风险词汇", "中", "发现高风险关键词: " + entry.getKey(), "包含"" + entry.getKey() + ""可能对本方不利，需仔细审查相关条款。", "全文", List.of("请法务人员重点审查包含"" + entry.getKey() + ""的条款，评估其潜在影响。")));
-                recommendations.add("重点审查"" + entry.getKey() + ""相关条款，确保其公平合理。");
+                findings.add(new ContractAnalysisResultDto.AnalysisFinding("高风险词汇", "中", "发现高风险关键词: " + entry.getKey(), "包含\"" + entry.getKey() + "\"可能对本方不利，需仔细审查相关条款。", "全文", List.of("请法务人员重点审查包含\"" + entry.getKey() + "\"的条款，评估其潜在影响。")));
+                recommendations.add("重点审查\"" + entry.getKey() + "\"相关条款，确保其公平合理。");
             }
         }
         return score;
