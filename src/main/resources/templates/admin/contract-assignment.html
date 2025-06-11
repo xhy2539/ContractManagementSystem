@@ -68,6 +68,34 @@
     /* .user-list-box h6 .spinner-border-sm { */
     /* vertical-align: middle; */
     /* } */
+    .card-header.bg-primary {
+        color: white !important;
+    }
+    .card-header.bg-primary h4,
+    .card-header.bg-primary span {
+        color: white !important;
+    }
+    @keyframes titleGlow {
+        0% { color: #8A2BE2; }
+        50% { color: #9370DB; }
+        100% { color: #8A2BE2; }
+    }
+    
+    .assignment-header {
+        background-color: white !important;
+        border-bottom: 2px solid #8A2BE2;
+        border-radius: 10px 10px 0 0;
+    }
+    
+    .assignment-title {
+        color: #8A2BE2;
+        animation: titleGlow 2s infinite;
+    }
+    
+    .assignment-title span {
+        color: inherit;
+        font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -139,8 +167,8 @@
 
       <div class="col-lg-7">
         <div id="assignmentPanel" class="card shadow-sm" style="display: none;">
-          <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">为合同 "<span id="selectedContractName" class="fw-bold"></span>" 分配人员</h4>
+          <div class="card-header assignment-header">
+            <h4 class="mb-0 assignment-title">为合同 "<span id="selectedContractName" class="fw-bold"></span>" 分配人员</h4>
             <input type="hidden" id="selectedContractId">
           </div>
           <div class="card-body p-4">
