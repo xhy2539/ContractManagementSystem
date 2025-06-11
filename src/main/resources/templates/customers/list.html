@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title>客户管理</title>
+    <style layout:fragment="inline-css">
+        /* 客户管理特定样式 */
+        .customer-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: none;
+            overflow: hidden;
+        }
+
+        .customer-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .customer-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+
+        .customer-info {
+            flex: 1;
+        }
+
+        .customer-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .customer-meta {
+            font-size: 0.9rem;
+            color: #6b7280;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .customer-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-direction: column;
+        }
+
+        .btn-action {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            border: none;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+
+        .btn-view {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .btn-delete {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .search-bar {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .search-input {
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 0.75rem 1rem 0.75rem 3rem;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        }
+
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .customer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .no-customers {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #6b7280;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .no-customers i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .customer-type-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .type-company {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+        }
+
+        .type-individual {
+            background: rgba(59, 130, 246, 0.1);
+            color: #2563eb;
+        }
+
+        .add-customer-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .add-customer-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .customer-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .customer-actions {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+            
+            .btn-action {
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
+            }
+            
+            .add-customer-btn {
+                bottom: 1rem;
+                right: 1rem;
+                width: 50px;
+                height: 50px;
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div layout:fragment="content">
+        <!-- 页面标题 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">
+                    <i class="bi bi-people"></i> 客户管理
+                </h2>
+                <p class="text-muted mb-0">管理和维护客户信息</p>
+            </div>
+            <div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal"
+                        sec:authorize="hasAuthority('CUSTOMER_CREATE')">
+                    <i class="bi bi-plus-lg"></i> 添加客户
+                </button>
+            </div>
+        </div>
+
+        <!-- 统计信息 -->
+        <div class="stats-grid">
+            <div class="stats-card">
+                <div class="stats-number" th:text="${totalCustomers ?: 0}">0</div>
+                <div class="stats-label">总客户数</div>
+            </div>
+            <div class="stats-card" style="background: linear-gradient(135deg, #10b981, #059669);">
+                <div class="stats-number" th:text="${activeCustomers ?: 0}">0</div>
+                <div class="stats-label">活跃客户</div>
+            </div>
+            <div class="stats-card" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                <div class="stats-number" th:text="${newCustomersThisMonth ?: 0}">0</div>
+                <div class="stats-label">本月新增</div>
+            </div>
+        </div>
+
+        <!-- 搜索栏 -->
+        <div class="search-bar">
+            <div class="search-wrapper">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" class="form-control search-input" 
+                       placeholder="搜索客户名称、联系人或联系方式..." 
+                       th:value="${keyword}" 
+                       oninput="searchCustomers(this.value)">
+            </div>
+        </div>
+
+        <!-- 客户列表 -->
+        <div th:if="${customers != null and customers.hasContent()}">
+            <div class="customer-grid" id="customerGrid">
+                <div th:each="customer : ${customers.content}" class="customer-card">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-start">
+                            <!-- 客户头像 -->
+                            <div class="customer-avatar" th:text="${#strings.substring(customer.customerName, 0, 1)}">A</div>
+                            
+                            <!-- 客户信息 -->
+                            <div class="customer-info">
+                                <div class="customer-name" th:text="${customer.customerName}">客户名称</div>
+                                <div class="customer-meta">
+                                    <span>
+                                        <i class="bi bi-person"></i>
+                                        <span th:text="${customer.contactPerson ?: '未设置'}">联系人</span>
+                                    </span>
+                                    <span>
+                                        <i class="bi bi-telephone"></i>
+                                        <span th:text="${customer.contactInfo ?: '未设置'}">联系方式</span>
+                                    </span>
+                                </div>
+                                <div class="customer-meta mt-2">
+                                    <span>
+                                        <i class="bi bi-geo-alt"></i>
+                                        <span th:text="${customer.address ?: '未设置'}">地址</span>
+                                    </span>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="customer-type-badge" 
+                                          th:classappend="${customer.customerType == 'COMPANY'} ? 'type-company' : 'type-individual'"
+                                          th:text="${customer.customerType == 'COMPANY' ? '企业客户' : '个人客户'}">
+                                        客户类型
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- 操作按钮 -->
+                            <div class="customer-actions">
+                                <a th:href="@{'/customers/' + ${customer.id}}" class="btn-action btn-view">
+                                    <i class="bi bi-eye"></i> 查看
+                                </a>
+                                <button type="button" class="btn-action btn-edit" 
+                                        th:onclick="'editCustomer(' + ${customer.id} + ')'"
+                                        sec:authorize="hasAuthority('CUSTOMER_EDIT')">
+                                    <i class="bi bi-pencil"></i> 编辑
+                                </button>
+                                <button type="button" class="btn-action btn-delete" 
+                                        th:onclick="'deleteCustomer(' + ${customer.id} + ', \'' + ${customer.customerName} + '\')''"
+                                        sec:authorize="hasAuthority('CUSTOMER_DELETE')">
+                                    <i class="bi bi-trash"></i> 删除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分页 -->
+            <nav th:if="${customers.totalPages > 1}" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <!-- 第一页 -->
+                    <li class="page-item" th:classappend="${customers.first} ? 'disabled'">
+                        <a class="page-link" th:href="@{/customers(page=0, size=${customers.size}, keyword=${keyword})}">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
+                    </li>
+                    
+                    <!-- 上一页 -->
+                    <li class="page-item" th:classappend="${customers.first} ? 'disabled'">
+                        <a class="page-link" th:href="@{/customers(page=${customers.number - 1}, size=${customers.size}, keyword=${keyword})}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+
+                    <!-- 页码 -->
+                    <li class="page-item" 
+                        th:each="pageNum : ${#numbers.sequence(T(Math).max(0, customers.number - 2), T(Math).min(customers.totalPages - 1, customers.number + 2))}"
+                        th:classappend="${pageNum == customers.number} ? 'active'">
+                        <a class="page-link" 
+                           th:href="@{/customers(page=${pageNum}, size=${customers.size}, keyword=${keyword})}"
+                           th:text="${pageNum + 1}">1</a>
+                    </li>
+
+                    <!-- 下一页 -->
+                    <li class="page-item" th:classappend="${customers.last} ? 'disabled'">
+                        <a class="page-link" th:href="@{/customers(page=${customers.number + 1}, size=${customers.size}, keyword=${keyword})}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+
+                    <!-- 最后一页 -->
+                    <li class="page-item" th:classappend="${customers.last} ? 'disabled'">
+                        <a class="page-link" th:href="@{/customers(page=${customers.totalPages - 1}, size=${customers.size}, keyword=${keyword})}">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                </ul>
+                
+                <!-- 分页信息 -->
+                <div class="text-center mt-3 text-muted">
+                    <small>
+                        第 <span th:text="${customers.number + 1}">1</span> / <span th:text="${customers.totalPages}">1</span> 页，
+                        共 <span th:text="${customers.totalElements}">0</span> 位客户
+                    </small>
+                </div>
+            </nav>
+        </div>
+
+        <!-- 无客户提示 -->
+        <div th:if="${customers == null or !customers.hasContent()}" class="no-customers">
+            <i class="bi bi-people"></i>
+            <h5>暂无客户数据</h5>
+            <p>还没有添加任何客户，点击右下角按钮添加第一位客户</p>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal"
+                    sec:authorize="hasAuthority('CUSTOMER_CREATE')">
+                <i class="bi bi-plus-lg"></i> 添加客户
+            </button>
+        </div>
+
+        <!-- 浮动添加按钮 -->
+        <button class="add-customer-btn" data-bs-toggle="modal" data-bs-target="#addCustomerModal"
+                title="添加客户" sec:authorize="hasAuthority('CUSTOMER_CREATE')">
+            <i class="bi bi-plus"></i>
+        </button>
+    </div>
+
+    <!-- 添加/编辑客户模态框 -->
+    <div class="modal fade" id="addCustomerModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-person-plus"></i> <span id="modalTitle">添加客户</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="customerForm" data-auto-reset>
+                        <input type="hidden" id="customerId" name="id">
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="customerName" class="form-label">客户名称 *</label>
+                                <input type="text" class="form-control" id="customerName" name="customerName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="customerType" class="form-label">客户类型 *</label>
+                                <select class="form-select" id="customerType" name="customerType" required>
+                                    <option value="">请选择客户类型</option>
+                                    <option value="COMPANY">企业客户</option>
+                                    <option value="INDIVIDUAL">个人客户</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="contactPerson" class="form-label">联系人</label>
+                                <input type="text" class="form-control" id="contactPerson" name="contactPerson">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="contactInfo" class="form-label">联系方式</label>
+                                <input type="text" class="form-control" id="contactInfo" name="contactInfo" 
+                                       placeholder="电话、邮箱或其他联系方式">
+                            </div>
+                            <div class="col-12">
+                                <label for="address" class="form-label">地址</label>
+                                <textarea class="form-control" id="address" name="address" rows="3"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label for="description" class="form-label">备注</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCustomer()">
+                        <i class="bi bi-check"></i> 保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script layout:fragment="scripts">
+        let searchTimeout;
+
+        // 搜索客户
+        function searchCustomers(keyword) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const url = new URL(window.location);
+                url.searchParams.set('keyword', keyword);
+                url.searchParams.set('page', '0'); // 重置到第一页
+                window.location.href = url.toString();
+            }, 500);
+        }
+
+        // 编辑客户
+        function editCustomer(customerId) {
+            fetch(`/api/customers/${customerId}`)
+                .then(response => response.json())
+                .then(customer => {
+                    document.getElementById('modalTitle').textContent = '编辑客户';
+                    document.getElementById('customerId').value = customer.id;
+                    document.getElementById('customerName').value = customer.customerName;
+                    document.getElementById('customerType').value = customer.customerType;
+                    document.getElementById('contactPerson').value = customer.contactPerson || '';
+                    document.getElementById('contactInfo').value = customer.contactInfo || '';
+                    document.getElementById('address').value = customer.address || '';
+                    document.getElementById('description').value = customer.description || '';
+                    
+                    showModal('addCustomerModal');
+                })
+                .catch(error => {
+                    ContractApp.showMessage('获取客户信息失败: ' + error.message, 'danger');
+                });
+        }
+
+        // 删除客户
+        function deleteCustomer(customerId, customerName) {
+            ContractApp.confirm(
+                `确定要删除客户"${customerName}"吗？此操作不可撤销。`,
+                function() {
+                    ContractApp.showLoading();
+                    
+                    fetch(`/api/customers/${customerId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => {
+                        ContractApp.hideLoading();
+                        if (response.ok) {
+                            ContractApp.showMessage('客户删除成功', 'success');
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            throw new Error('删除失败');
+                        }
+                    })
+                    .catch(error => {
+                        ContractApp.hideLoading();
+                        ContractApp.showMessage('删除失败: ' + error.message, 'danger');
+                    });
+                }
+            );
+        }
+
+        // 保存客户
+        function saveCustomer() {
+            const form = document.getElementById('customerForm');
+            const formData = new FormData(form);
+            const customerId = formData.get('id');
+            
+            const customerData = {
+                customerName: formData.get('customerName'),
+                customerType: formData.get('customerType'),
+                contactPerson: formData.get('contactPerson'),
+                contactInfo: formData.get('contactInfo'),
+                address: formData.get('address'),
+                description: formData.get('description')
+            };
+
+            // 验证必填字段
+            if (!customerData.customerName || !customerData.customerType) {
+                ContractApp.showMessage('请填写客户名称和客户类型', 'warning');
+                return;
+            }
+
+            ContractApp.showLoading();
+
+            const url = customerId ? `/api/customers/${customerId}` : '/api/customers';
+            const method = customerId ? 'PUT' : 'POST';
+
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(customerData)
+            })
+            .then(response => {
+                ContractApp.hideLoading();
+                if (response.ok) {
+                    const action = customerId ? '更新' : '添加';
+                    ContractApp.showMessage(`客户${action}成功`, 'success');
+                    hideModal('addCustomerModal');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    throw new Error('操作失败');
+                }
+            })
+            .catch(error => {
+                ContractApp.hideLoading();
+                ContractApp.showMessage('操作失败: ' + error.message, 'danger');
+            });
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 重置表单当模态框关闭时
+            document.getElementById('addCustomerModal').addEventListener('hidden.bs.modal', function() {
+                document.getElementById('customerForm').reset();
+                document.getElementById('customerId').value = '';
+                document.getElementById('modalTitle').textContent = '添加客户';
+            });
+
+            // 表单验证
+            document.getElementById('customerForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveCustomer();
+            });
+        });
+    </script>
+</body>
+</html> 

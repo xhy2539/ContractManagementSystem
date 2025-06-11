@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>错误</title>
+</head>
+<body>
+<h1>发生了一个错误</h1>
+<p th:if="${errorMessage}" th:text="${errorMessage}">系统遇到未知问题，请联系管理员。</p>
+<a th:href="@{/dashboard}">返回仪表盘</a>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title>合同智能分析</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4><i class="bi bi-brain"></i> 合同智能分析中心</h4>
+                </div>
+                <div class="card-body">
+                    <h5>欢迎使用智能分析功能</h5>
+                    <p>系统正在加载中...</p>
+                    
+                    <!-- 简单的统计显示 -->
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-danger">严重风险</h5>
+                                    <h2 class="text-danger">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-warning">高风险</h5>
+                                    <h2 class="text-warning">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-info">中风险</h5>
+                                    <h2 class="text-info">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title text-success">低风险</h5>
+                                    <h2 class="text-success">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="/contract-analysis/risk-statistics" class="btn btn-primary">测试API</a>
+                        <a href="/contract-analysis/high-risk" class="btn btn-warning">高风险合同</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html> 

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>合同详情</title>
+    <th:block layout:fragment="css-links">
+        <!-- 导航栏样式现在统一由 layout.html 管理 -->
+    </th:block>
+    <style layout:fragment="inline-css">
+        .contract-detail-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .section-title {
+            color: #333;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .detail-label {
+            width: 120px;
+            color: #666;
+            font-weight: 500;
+        }
+        .detail-value {
+            flex: 1;
+        }
+        .contract-content {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        .status-DRAFT { background-color: #ffc107; color: #000; }
+        .status-PENDING_ASSIGNMENT { background-color: #6610f2; color: #fff; }
+        .status-PENDING_COUNTERSIGN { background-color: #fd7e14; color: #fff; }
+        .status-PENDING_FINALIZATION { background-color: #e83e8c; color: #fff; }
+        .status-PENDING_APPROVAL { background-color: #20c997; color: #fff; }
+        .status-PENDING_SIGNING { background-color: #17a2b8; color: #fff; }
+        .status-ACTIVE { background-color: #007bff; color: #fff; }
+        .status-COMPLETED { background-color: #28a745; color: #fff; }
+        .status-EXPIRED { background-color: #dc3545; color: #fff; }
+        .status-TERMINATED { background-color: #6c757d; color: #fff; }
+        .attachment-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .btn-download {
+            display: inline-block;
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .btn-download:hover {
+            background-color: #0056b3;
+            text-decoration: none;
+            color: white;
+        }
+        .process-history {
+            margin-top: 20px;
+        }
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+        .timeline-item {
+            padding-left: 30px;
+            position: relative;
+            margin-bottom: 15px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #007bff;
+        }
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 12px;
+            bottom: -27px;
+            width: 2px;
+            background-color: #e9ecef;
+        }
+        .timeline-item:last-child::after {
+            display: none;
+        }
+        .timeline-date {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .timeline-content {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+<section layout:fragment="content">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>合同详情</h1>
+            <a href="javascript:history.back()" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> 返回
+            </a>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同编号</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractNumber ?: '-'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">合同名称</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractName ?: '-'}"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">开始日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">结束日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">合同状态</label>
+                        <div class="form-control form-control-sm bg-light">
+                            <span th:if="${contract.status != null}"
+                                  th:text="${contract.status.description}"
+                                  class="status-badge"
+                                  th:classappend="'status-' + ${contract.status.name()}"></span>
+                            <span th:unless="${contract.status != null}">-</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">起草人</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.drafter != null ? contract.drafter.username : '-'}"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">创建时间</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">最后更新</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-person-badge-fill me-2"></i>客户信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">签约客户</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.customer != null ? contract.customer.customerName : '-'}"></div>
+                </div>
+                <div class="card mt-2" th:if="${contract.customer != null}">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1 small"><strong th:text="${contract.customer?.customerName ?: '-'}"></strong></h6>
+                        <p class="card-text mb-0 small">
+                            <strong>编号:</strong> <span th:text="${contract.customer?.customerNumber ?: '-'}"></span> <br>
+                            <strong>电话:</strong> <span th:text="${contract.customer?.phoneNumber ?: '-'}"></span> <br>
+                            <strong>邮箱:</strong> <span th:text="${contract.customer?.email ?: '-'}"></span> <br>
+                            <strong>地址:</strong> <span th:text="${contract.customer?.address ?: '-'}"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-file-text-fill me-2"></i>合同条款与附件
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同主要内容</label>
+                    <div class="form-control form-control-sm bg-light" style="min-height: 150px; white-space: pre-wrap;" th:text="${contract.content ?: '暂无内容'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">上传合同附件</label>
+                    <div class="attachment-section" th:if="${contract.attachmentPath != null}">
+                        <a th:href="@{'/attachments/' + ${contract.attachmentPath}}"
+                           class="btn btn-outline-info btn-sm"
+                           target="_blank">
+                            <i class="bi bi-download"></i> 下载附件
+                        </a>
+                    </div>
+                    <div th:unless="${contract.attachmentPath != null}" class="text-muted">无附件</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm" th:if="${!#lists.isEmpty(contractProcesses)}">
+            <div class="card-header bg-light">
+                <i class="bi bi-clock-history me-2"></i>处理记录
+            </div>
+            <div class="card-body">
+                <ul class="timeline">
+                    <li th:each="process : ${contractProcesses}" class="timeline-item">
+                        <div class="timeline-date" th:text="${#temporals.format(process.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></div>
+                        <div class="timeline-content">
+                            <strong th:text="${process.type.description + ' - ' + process.state.description}">处理类型 - 状态</strong>
+                            <div th:if="${process.operator != null}">
+                                处理人：<span th:text="${process.operator.username}">操作人</span>
+                            </div>
+                            <div th:if="${process.opinion != null && !process.opinion.isEmpty()}">
+                                处理意见：<span th:text="${process.opinion}">处理意见</span>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+</body>
+</html> 

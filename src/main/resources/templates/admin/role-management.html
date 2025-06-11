@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+  <meta charset="UTF-8">
+  <title>角色管理</title>
+  <th:block layout:fragment="css-links">
+    <!-- 导航栏样式现在统一由 layout.html 管理 -->
+  </th:block>
+  <style layout:fragment="inline-css">
+    .action-buttons button {
+      margin-right: 5px;
+    }
+    .functionality-checkbox-group .form-check {
+      margin-bottom: 0.5rem; /* 功能复选框之间的间距 */
+      /* 使复选框和标签在较长文本时能良好对齐和换行 */
+      display: flex;
+      align-items: flex-start;
+    }
+    .functionality-checkbox-group .form-check-input {
+      margin-top: 0.4rem; /* 微调复选框的垂直对齐 */
+    }
+    .functionality-checkbox-group .form-check-label {
+      margin-left: 0.25rem;
+    }
+    .filter-card .card-header {
+      padding: 0.5rem 1rem;
+    }
+    .filter-card .card-body {
+      padding: 1rem;
+    }
+    /* 允许模态框背后的页面滚动 */
+    .modal {
+      overflow-y: auto !important;
+    }
+    .modal-open {
+      overflow: auto !important;
+      padding-right: 0 !important;
+    }
+  </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+  <div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h1><i class="bi bi-shield-lock-fill"></i> 角色管理</h1>
+    </div>
+
+    <div id="globalAlertContainer"></div>
+
+    <div class="card filter-card shadow-sm mb-3">
+      <div class="card-header">
+        <i class="bi bi-funnel-fill"></i> 筛选条件
+      </div>
+      <div class="card-body">
+        <form id="roleFilterForm" class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label for="roleNameSearch" class="form-label form-label-sm">角色名称</label>
+            <input type="text" class="form-control form-control-sm" id="roleNameSearch" placeholder="按角色名称搜索...">
+          </div>
+          <div class="col-md-4">
+            <label for="roleDescriptionSearch" class="form-label form-label-sm">角色描述</label>
+            <input type="text" class="form-control form-control-sm" id="roleDescriptionSearch" placeholder="按描述搜索...">
+          </div>
+          <div class="col-md-4 d-flex justify-content-start align-items-end">
+            <button type="button" id="searchRoleBtn" class="btn btn-sm btn-primary me-2">
+              <i class="bi bi-search"></i> 查询
+            </button>
+            <button type="reset" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-arrow-counterclockwise"></i> 重置
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+
+    <div id="rolesTableSpinner" class="text-center my-3" style="display:none;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">加载中...</span>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table id="rolesTable" class="table table-striped table-hover table-bordered caption-top">
+        <caption>角色列表</caption>
+        <thead class="table-dark">
+        <tr>
+          <th scope="col" style="width: 5%;">ID</th>
+          <th scope="col" style="width: 20%;">角色名称</th>
+          <th scope="col" style="width: 30%;">描述</th>
+          <th scope="col">拥有功能</th>
+          <th scope="col" style="width: 15%;">操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+
+    <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-center">
+      <ul class="pagination" id="paginationControlsRole">
+      </ul>
+    </nav>
+  </div>
+
+  <div class="modal fade" id="roleFormModal" tabindex="-1" aria-labelledby="roleFormModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <form id="roleForm">
+          <div class="modal-header">
+            <h5 class="modal-title" id="roleFormModalLabel">角色信息</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="roleId" name="id">
+            <div class="mb-3">
+              <label for="roleName" class="form-label">角色名称 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="roleName" name="roleName" required>
+            </div>
+            <div class="mb-3">
+              <label for="roleDescription" class="form-label">角色描述</label>
+              <textarea class="form-control" id="roleDescription" name="roleDescription" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">功能权限：</label>
+              <div id="functionalitiesCheckboxes" class="d-flex flex-wrap">
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<th:block layout:fragment="scripts">
+  <script th:src="@{/js/utils.js}"></script>
+  <script th:src="@{/js/role-management.js}"></script>
+  <!-- 模态框由 layout.html 中的通用模态框管理器处理 -->
+</th:block>
+
+</body>
+</html>

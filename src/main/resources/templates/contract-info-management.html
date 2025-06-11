@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>合同信息管理</title>
+    <style layout:fragment="inline-css">
+        .search-form {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+            border-radius: 0.375rem;
+        }
+        .contract-table {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+    <div class="container-fluid mt-4">
+
+        <h2 class="mb-3">合同信息管理</h2>
+
+        <!-- 搜索表单 -->
+        <div class="search-form">
+            <form th:action="@{/contract-info-management}" method="get">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-3">
+                        <label for="contractNumber" class="form-label">合同编号</label>
+                        <input type="text" class="form-control" id="contractNumber" name="contractNumber" th:value="${#request.getParameter('contractNumber')}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="contractName" class="form-label">合同名称</label>
+                        <input type="text" class="form-control" id="contractName" name="contractName" th:value="${#request.getParameter('contractName')}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary mt-4">搜索</button>
+                        <a th:href="@{/contract-info-management}" class="btn btn-outline-secondary mt-4 ms-2">重置</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- 合同信息表格 -->
+        <div class="card contract-table">
+            <div class="card-header">
+                <i class="bi bi-file-contract-fill me-2"></i>合同列表
+                <a th:href="@{/contract-info-management/new}" class="btn btn-sm btn-success float-end">新增合同</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>合同编号</th>
+                            <th>合同名称</th>
+                            <th>签订日期</th>
+                            <th>有效期至</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="contract : ${contracts}">
+                            <td th:text="${contract.contractNumber}"></td>
+                            <td th:text="${contract.contractName}"></td>
+                            <td th:text="${#temporals.format(contract.signDate, 'yyyy-MM-dd')}"></td>
+                            <td th:text="${#temporals.format(contract.expireDate, 'yyyy-MM-dd')}"></td>
+                            <td>
+                                <span th:class="${contract.status == 'ACTIVE' ? 'badge bg-success' : 'badge bg-secondary'}"
+                                      th:text="${contract.status}"></span>
+                            </td>
+                            <td>
+                                <a th:href="@{/contract-info-management/edit/{id}(id=${contract.id})}" class="btn btn-sm btn-outline-primary">编辑</a>
+                                <button type="button" class="btn btn-sm btn-outline-danger ms-1" th:onclick="deleteContract(' + ${contract.id} + ')">删除</button>
+                            </td>
+                        </tr>
+                        <tr th:if="#lists.isEmpty(contracts)">
+                            <td colspan="6" class="text-center text-muted">无合同信息</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 分页 -->
+        <div class="mt-3" th:if="${totalPages > 1}">
+            <nav aria-label="合同信息分页">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item" th:class="${currentPage == 1} ? 'disabled' : ''">
+                        <a class="page-link" th:href="@{/contract-info-management(page=1)}" aria-label="首页">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item" th:each="pageNum : ${#numbers.sequence(1, totalPages)}"
+                        th:class="${pageNum == currentPage} ? 'active' : ''">
+                        <a class="page-link" th:href="@{/contract-info-management(page=${pageNum})}" th:text="${pageNum}"></a>
+                    </li>
+                    <li class="page-item" th:class="${currentPage == totalPages} ? 'disabled' : ''">
+                        <a class="page-link" th:href="@{/contract-info-management(page=${totalPages})}" aria-label="末页">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+    </div>
+</section>
+
+<script th:inline="javascript">
+    function deleteContract(id) {
+        if (confirm('确定要删除该合同吗？删除后无法恢复！')) {
+            window.location.href = '/contract-info-management/delete/' + id;
+        }
+    }
+</script>
+
+</body>
+</html>

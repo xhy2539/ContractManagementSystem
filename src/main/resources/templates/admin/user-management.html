@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理</title>
+    <th:block layout:fragment="css-links">
+            <!-- 导航栏样式现在统一由 layout.html 管理 -->
+    </th:block>
+    <style layout:fragment="inline-css">
+        .action-buttons button {
+            margin-right: 5px;
+        }
+        .role-checkbox-group .form-check {
+            margin-right: 15px; /* 复选框之间的间距 */
+        }
+        .filter-card .card-header {
+            padding: 0.5rem 1rem;
+        }
+        .filter-card .card-body {
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+    <div class="container-fluid mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h1><i class="bi bi-people-fill"></i> 用户管理</h1>
+            <button type="button" id="addUserBtn" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> 添加用户
+            </button>
+        </div>
+
+        <div id="globalAlertContainer"></div>
+
+        <div class="card filter-card shadow-sm mb-3">
+            <div class="card-header">
+                <i class="bi bi-funnel-fill"></i> 筛选条件
+            </div>
+            <div class="card-body">
+                <form id="userFilterForm" class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label for="usernameSearch" class="form-label form-label-sm">用户名</label>
+                        <input type="text" class="form-control form-control-sm" id="usernameSearch" placeholder="按用户名搜索...">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="emailSearch" class="form-label form-label-sm">邮箱</label>
+                        <input type="text" class="form-control form-control-sm" id="emailSearch" placeholder="按邮箱搜索...">
+                    </div>
+                    <div class="col-md-4 d-flex justify-content-start align-items-end">
+                        <button type="button" id="searchUserBtn" class="btn btn-sm btn-primary me-2">
+                            <i class="bi bi-search"></i> 查询
+                        </button>
+                        <button type="reset" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-counterclockwise"></i> 重置
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+
+        <div id="usersTableSpinner" class="text-center my-3" style="display:none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table id="usersTable" class="table table-striped table-hover table-bordered caption-top">
+                <caption>用户列表</caption>
+                <thead class="table-dark">
+                <tr>
+                    <th scope="col" style="width: 5%;">ID</th>
+                    <th scope="col" style="width: 20%;">用户名</th>
+                    <th scope="col" style="width: 25%;">邮箱</th>
+                    <th scope="col" style="width: 10%;">启用</th>
+                    <th scope="col">角色</th>
+                    <th scope="col" style="width: 20%;">操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-center">
+            <ul class="pagination" id="paginationControlsUser">
+            </ul>
+        </nav>
+    </div>
+
+    <div class="modal fade" id="userFormModal" tabindex="-1" aria-labelledby="userFormModalLabel" aria-hidden="true" data-bs-backdrop="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form id="userForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="userFormModalLabel">用户信息</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="userId" name="id">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">用户名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">邮箱 <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="realName" class="form-label">真实姓名</label>
+                            <input type="text" class="form-control" id="realName" name="realName" maxlength="50">
+                        </div>
+                        <div class="mb-3" id="passwordGroup">
+                            <label for="password" class="form-label">密码 <span id="passwordRequired" class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="password" name="password">
+                            <small id="passwordHelp" class="form-text text-muted">仅在创建用户或修改密码时需要填写。留空则不修改密码。</small>
+                        </div>
+                        <div class="mb-3" id="confirmPasswordGroup" style="display: none;">
+                            <label for="confirmPassword" class="form-label">确认密码 <span id="confirmPasswordRequired" class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="enabled" name="enabled" checked>
+                            <label class="form-check-label" for="enabled">启用账户</label>
+                        </div>
+                        <div class="mb-3" id="rolesGroupForCreate" style="display: none;">
+                            <label class="form-label">分配角色:</label>
+                            <div id="rolesCheckboxesCreate" class="d-flex flex-wrap role-checkbox-group">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="assignRolesModal" tabindex="-1" aria-labelledby="assignRolesModalLabel" aria-hidden="true" data-bs-backdrop="false">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="assignRolesForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="assignRolesModalLabel">为用户分配角色</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="assignRolesUserId">
+                        <p>用户: <strong id="assignRolesUsername"></strong></p>
+                        <div id="rolesCheckboxesAssign" class="role-checkbox-group">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">确认分配</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<th:block layout:fragment="scripts">
+    <script th:src="@{/js/utils.js}"></script>
+    <script th:src="@{/js/user-management.js}"></script>
+    <!-- 模态框由 layout.html 中的通用模态框管理器处理 -->
+</th:block>
+
+</body>
+</html>

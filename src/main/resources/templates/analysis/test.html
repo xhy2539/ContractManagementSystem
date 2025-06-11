@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <title>智能分析测试</title>
+</head>
+<body>
+<div layout:fragment="content">
+    <h2>智能分析测试页面</h2>
+    <p>如果能看到这个页面，说明基本路由工作正常。</p>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">风险统计测试</div>
+                <div class="card-body">
+                    <p>严重风险：<span th:text="${riskStats?.CRITICAL ?: '数据未加载'}">0</span></p>
+                    <p>高风险：<span th:text="${riskStats?.HIGH ?: '数据未加载'}">0</span></p>
+                    <p>中风险：<span th:text="${riskStats?.MEDIUM ?: '数据未加载'}">0</span></p>
+                    <p>低风险：<span th:text="${riskStats?.LOW ?: '数据未加载'}">0</span></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">快速测试</div>
+                <div class="card-body">
+                    <a href="/contract-analysis/risk-statistics" class="btn btn-primary">测试API</a>
+                    <a href="/contract-analysis/high-risk" class="btn btn-warning">高风险合同</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html> 

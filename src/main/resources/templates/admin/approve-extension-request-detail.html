@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>审批延期请求</title>
+    <th:block layout:fragment="css-links"></th:block>
+    <style layout:fragment="inline-css">
+        .contract-detail-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 25px;
+        }
+        .section-title {
+            color: #333;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 15px;
+            font-size: 1.05rem;
+        }
+        .detail-label {
+            width: 150px; /* 调整宽度 */
+            color: #666;
+            font-weight: 500;
+        }
+        .detail-value {
+            flex: 1;
+            /* 确保内容不会溢出，并且自动换行 */
+            word-wrap: break-word;
+            word-break: break-all;
+        }
+        .approval-form-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 25px;
+            margin-top: 20px;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        .btn-group {
+            margin-top: 20px;
+        }
+        /* 新增：请求原因/备注卡片样式 */
+        .request-details-card {
+            background-color: #f8f9fa; /* 浅灰色背景 */
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .request-details-card h5 {
+            color: #495057;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed #e9ecef;
+            padding-bottom: 10px;
+        }
+        .request-details-card p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .request-details-card strong {
+            color: #343a40;
+        }
+    </style>
+</head>
+<body>
+<section layout:fragment="content">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">审批延期请求</h1>
+            <div>
+                <a th:href="@{/admin/approve-extension-request}" class="btn btn-secondary me-2">
+                    <i class="bi bi-arrow-left"></i> 返回列表
+                </a>
+                <a th:if="${contract != null and contract.id != null}"
+                   th:href="@{/contracts/{id}/detail(id=${contract.id})}"
+                   class="btn btn-info" title="查看合同详情">
+                    <i class="bi bi-eye"></i> 查看合同
+                </a>
+            </div>
+        </div>
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div th:if="${requestProcess == null}" class="alert alert-warning text-center py-4" role="alert">
+            <h5 class="alert-heading"><i class="bi bi-exclamation-octagon-fill me-2"></i>请求信息缺失</h5>
+            <p class="mb-0">未能加载延期请求的详细信息。</p>
+        </div>
+
+        <div th:unless="${requestProcess == null}">
+            <div class="contract-detail-card">
+                <h2 class="section-title">延期请求详情</h2>
+                <div class="detail-row">
+                    <span class="detail-label">请求ID：</span>
+                    <span class="detail-value" th:text="${requestProcess.id ?: '-'}"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">合同编号：</span>
+                    <span class="detail-value" th:text="${contract?.contractNumber ?: '-'}"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">合同名称：</span>
+                    <span class="detail-value" th:text="${contract?.contractName ?: '-'}"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">客户名称：</span>
+                    <span class="detail-value" th:text="${contract?.customer?.customerName ?: '-'}"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">原到期日期：</span>
+                    <span class="detail-value" th:text="${contract?.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">请求人：</span>
+                    <span class="detail-value" th:text="${requestProcess.operatorUsername ?: '-'}"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">请求时间：</span>
+                    <span class="detail-value" th:text="${requestProcess.createdAt != null ? #temporals.format(requestProcess.createdAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">期望新日期：</span>
+                    <span class="detail-value" th:text="${requestProcess.requestedNewEndDate != null ? #temporals.format(requestProcess.requestedNewEndDate, 'yyyy-MM-dd') : '-'}"></span>
+                </div>
+
+                <div class="request-details-card">
+                    <h5><i class="bi bi-chat-left-text me-2"></i>请求原因与备注</h5>
+                    <div class="detail-row">
+                        <span class="detail-label">延期原因：</span>
+                        <span class="detail-value">
+                            <p th:text="${requestProcess.requestReason ?: '-'}"></p>
+                        </span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">附加备注：</span>
+                        <span class="detail-value">
+                            <p th:text="${requestProcess.requestAdditionalComments ?: '-'}"></p>
+                        </span>
+                    </div>
+                    <div th:if="${requestProcess.state.name() == 'APPROVED' or requestProcess.state.name() == 'REJECTED'}" class="detail-row">
+                        <span class="detail-label">审批意见：</span>
+                        <span class="detail-value">
+                            <p th:text="${requestProcess.adminApprovalComments ?: '无'}"></p>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="approval-form-card" th:if="${requestProcess.state.name() == 'PENDING'}">
+                <h2 class="section-title">审批操作</h2>
+                <form th:action="@{/admin/approve-extension-request/{processId}(processId=${requestProcess.id})}" method="post">
+                    <div class="mb-3">
+                        <label class="form-label">审批决定：</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="decision" id="approveRadio" value="APPROVED" required>
+                            <label class="form-check-label" for="approveRadio">
+                                批准
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="decision" id="rejectRadio" value="REJECTED">
+                            <label class="form-check-label" for="rejectRadio">
+                                拒绝
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="comments" class="form-label">审批意见 (可选)：</label>
+                        <textarea class="form-control" id="comments" name="comments" rows="4"></textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">提交审批</button>
+                        <a th:href="@{/admin/approve-extension-request}" class="btn btn-outline-secondary ms-2">取消</a>
+                    </div>
+                </form>
+            </div>
+            <div th:unless="${requestProcess.state.name() == 'PENDING'}" class="alert alert-info text-center mt-4">
+                <i class="bi bi-info-circle-fill me-2"></i> 该请求已处理，无需再次审批。
+            </div>
+        </div>
+    </div>
+</section>
+
+<th:block layout:fragment="scripts">
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            var alertList = document.querySelectorAll('.alert-dismissible');
+            alertList.forEach(function (alertNode) {
+                new bootstrap.Alert(alertNode);
+                setTimeout(function () {
+                    if (bootstrap.Alert.getInstance(alertNode)) {
+                        bootstrap.Alert.getInstance(alertNode).close();
+                    }
+                }, 7000);
+            });
+        });
+    </script>
+</th:block>
+</body>
+</html>

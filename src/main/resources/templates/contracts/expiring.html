@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}">
+<head>
+    <meta charset="UTF-8">
+    <title>即将到期合同</title>
+    <style layout:fragment="inline-css">
+        .expiring-header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .expiring-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .expiring-header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .urgency-tabs {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .urgency-tab {
+            background: #f8f9fa;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .urgency-tab.active {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+        }
+
+        .urgency-tab:hover:not(.active) {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .contract-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border-left: 5px solid #f59e0b;
+        }
+
+        .contract-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .contract-card.urgent {
+            border-left-color: #ef4444;
+        }
+
+        .contract-card.critical {
+            border-left-color: #dc2626;
+            background: linear-gradient(135deg, #fef2f2 0%, #fefefe 100%);
+        }
+
+        .contract-card.warning {
+            border-left-color: #f59e0b;
+        }
+
+        .contract-card.normal {
+            border-left-color: #10b981;
+        }
+
+        .contract-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .contract-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .contract-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .contract-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .urgency-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-left: auto;
+        }
+
+        .urgency-critical {
+            background: rgba(220, 38, 38, 0.1);
+            color: #dc2626;
+        }
+
+        .urgency-high {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .urgency-medium {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+
+        .urgency-low {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .days-remaining {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-right: 1rem;
+        }
+
+        .days-remaining.critical {
+            color: #dc2626;
+        }
+
+        .days-remaining.urgent {
+            color: #ef4444;
+        }
+
+        .days-remaining.warning {
+            color: #f59e0b;
+        }
+
+        .days-remaining.normal {
+            color: #10b981;
+        }
+
+        .contract-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: none;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn.extend {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .action-btn.extend:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .action-btn.renew {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .action-btn.renew:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .action-btn.view {
+            background: #f8f9fa;
+            color: #6b7280;
+            border: 1px solid #e5e7eb;
+        }
+
+        .action-btn.view:hover {
+            background: #e5e7eb;
+        }
+
+        .stats-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-number.critical {
+            color: #dc2626;
+        }
+
+        .stat-number.urgent {
+            color: #ef4444;
+        }
+
+        .stat-number.warning {
+            color: #f59e0b;
+        }
+
+        .stat-number.normal {
+            color: #10b981;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .filter-bar {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .batch-actions {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .batch-actions.show {
+            display: block;
+        }
+
+        .extension-modal .modal-dialog {
+            max-width: 600px;
+        }
+
+        .renewal-modal .modal-dialog {
+            max-width: 700px;
+        }
+
+        @media (max-width: 768px) {
+            .expiring-header h1 {
+                font-size: 2rem;
+            }
+
+            .contract-header {
+                flex-direction: column;
+            }
+
+            .urgency-badge {
+                margin-left: 0;
+                align-self: flex-start;
+                margin-top: 0.5rem;
+            }
+
+            .contract-actions {
+                justify-content: flex-start;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+    <div class="container-fluid mt-4">
+        <!-- 页面标题 -->
+        <div class="expiring-header">
+            <h1><i class="bi bi-exclamation-triangle"></i> 即将到期合同</h1>
+            <p>及时处理即将到期的合同，避免业务中断</p>
+        </div>
+
+        <!-- 统计概览 -->
+        <div class="stats-section">
+            <h4 class="mb-3">
+                <i class="bi bi-graph-up"></i> 到期统计
+            </h4>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number critical">8</div>
+                    <div class="stat-label">7天内到期</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number urgent">15</div>
+                    <div class="stat-label">30天内到期</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number warning">23</div>
+                    <div class="stat-label">60天内到期</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number normal">41</div>
+                    <div class="stat-label">90天内到期</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 紧急程度标签 -->
+        <div class="urgency-tabs">
+            <button class="urgency-tab active" data-urgency="all">
+                全部 <span class="badge bg-secondary ms-1">87</span>
+            </button>
+            <button class="urgency-tab" data-urgency="critical">
+                紧急 <span class="badge bg-danger ms-1">8</span>
+            </button>
+            <button class="urgency-tab" data-urgency="urgent">
+                重要 <span class="badge bg-warning ms-1">15</span>
+            </button>
+            <button class="urgency-tab" data-urgency="warning">
+                提醒 <span class="badge bg-info ms-1">23</span>
+            </button>
+            <button class="urgency-tab" data-urgency="normal">
+                正常 <span class="badge bg-success ms-1">41</span>
+            </button>
+        </div>
+
+        <!-- 筛选栏 -->
+        <div class="filter-bar">
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">到期时间范围</label>
+                    <select class="form-select" id="expireRange">
+                        <option value="7">7天内</option>
+                        <option value="30" selected>30天内</option>
+                        <option value="60">60天内</option>
+                        <option value="90">90天内</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">合同类型</label>
+                    <select class="form-select" id="contractType">
+                        <option value="all" selected>全部类型</option>
+                        <option value="purchase">采购合同</option>
+                        <option value="sales">销售合同</option>
+                        <option value="service">服务合同</option>
+                        <option value="lease">租赁合同</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">负责人</label>
+                    <select class="form-select" id="assignee">
+                        <option value="all" selected>全部负责人</option>
+                        <option value="me">我负责的</option>
+                        <option value="team">团队负责的</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary w-100" onclick="applyFilters()">
+                        <i class="bi bi-funnel"></i> 应用筛选
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 批量操作栏 -->
+        <div class="batch-actions" id="batchActions">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    已选择 <strong id="selectedCount">0</strong> 份合同
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary" onclick="batchExtend()">
+                        <i class="bi bi-calendar-plus"></i> 批量延期
+                    </button>
+                    <button class="btn btn-outline-success" onclick="batchRenew()">
+                        <i class="bi bi-arrow-repeat"></i> 批量续签
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="exportSelected()">
+                        <i class="bi bi-download"></i> 导出清单
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 合同列表 -->
+        <div class="contract-list" id="contractList">
+            <!-- 紧急 - 7天内到期 -->
+            <div class="contract-card critical">
+                <div class="contract-header">
+                    <div class="d-flex align-items-center">
+                        <input type="checkbox" class="form-check-input me-3" value="1">
+                        <div class="days-remaining critical">3</div>
+                        <div>
+                            <div class="small text-muted">天后到期</div>
+                        </div>
+                    </div>
+                    <div class="urgency-badge urgency-critical">
+                        <i class="bi bi-exclamation-triangle"></i> 紧急
+                    </div>
+                </div>
+                <div class="contract-title">ABC公司软件维护服务合同</div>
+                <div class="contract-meta">
+                    <span><i class="bi bi-building"></i> ABC软件科技有限公司</span>
+                    <span><i class="bi bi-calendar"></i> 2024-01-15 到期</span>
+                    <span><i class="bi bi-currency-dollar"></i> ¥500,000</span>
+                    <span><i class="bi bi-person"></i> 张三</span>
+                </div>
+                <div class="contract-actions">
+                    <button class="action-btn extend" onclick="showExtensionModal(1)">
+                        <i class="bi bi-calendar-plus"></i> 申请延期
+                    </button>
+                    <button class="action-btn renew" onclick="showRenewalModal(1)">
+                        <i class="bi bi-arrow-repeat"></i> 续签合同
+                    </button>
+                    <button class="action-btn view" onclick="viewContract(1)">
+                        <i class="bi bi-eye"></i> 查看详情
+                    </button>
+                </div>
+            </div>
+
+            <!-- 重要 - 15天内到期 -->
+            <div class="contract-card urgent">
+                <div class="contract-header">
+                    <div class="d-flex align-items-center">
+                        <input type="checkbox" class="form-check-input me-3" value="2">
+                        <div class="days-remaining urgent">12</div>
+                        <div>
+                            <div class="small text-muted">天后到期</div>
+                        </div>
+                    </div>
+                    <div class="urgency-badge urgency-high">
+                        <i class="bi bi-exclamation-circle"></i> 重要
+                    </div>
+                </div>
+                <div class="contract-title">XYZ公司设备租赁合同</div>
+                <div class="contract-meta">
+                    <span><i class="bi bi-building"></i> XYZ设备租赁公司</span>
+                    <span><i class="bi bi-calendar"></i> 2024-01-24 到期</span>
+                    <span><i class="bi bi-currency-dollar"></i> ¥120,000</span>
+                    <span><i class="bi bi-person"></i> 李四</span>
+                </div>
+                <div class="contract-actions">
+                    <button class="action-btn extend" onclick="showExtensionModal(2)">
+                        <i class="bi bi-calendar-plus"></i> 申请延期
+                    </button>
+                    <button class="action-btn renew" onclick="showRenewalModal(2)">
+                        <i class="bi bi-arrow-repeat"></i> 续签合同
+                    </button>
+                    <button class="action-btn view" onclick="viewContract(2)">
+                        <i class="bi bi-eye"></i> 查看详情
+                    </button>
+                </div>
+            </div>
+
+            <!-- 提醒 - 45天内到期 -->
+            <div class="contract-card warning">
+                <div class="contract-header">
+                    <div class="d-flex align-items-center">
+                        <input type="checkbox" class="form-check-input me-3" value="3">
+                        <div class="days-remaining warning">45</div>
+                        <div>
+                            <div class="small text-muted">天后到期</div>
+                        </div>
+                    </div>
+                    <div class="urgency-badge urgency-medium">
+                        <i class="bi bi-info-circle"></i> 提醒
+                    </div>
+                </div>
+                <div class="contract-title">DEF公司原材料采购合同</div>
+                <div class="contract-meta">
+                    <span><i class="bi bi-building"></i> DEF原材料有限公司</span>
+                    <span><i class="bi bi-calendar"></i> 2024-02-28 到期</span>
+                    <span><i class="bi bi-currency-dollar"></i> ¥2,500,000</span>
+                    <span><i class="bi bi-person"></i> 王五</span>
+                </div>
+                <div class="contract-actions">
+                    <button class="action-btn extend" onclick="showExtensionModal(3)">
+                        <i class="bi bi-calendar-plus"></i> 申请延期
+                    </button>
+                    <button class="action-btn renew" onclick="showRenewalModal(3)">
+                        <i class="bi bi-arrow-repeat"></i> 续签合同
+                    </button>
+                    <button class="action-btn view" onclick="viewContract(3)">
+                        <i class="bi bi-eye"></i> 查看详情
+                    </button>
+                </div>
+            </div>
+
+            <!-- 正常 - 80天内到期 -->
+            <div class="contract-card normal">
+                <div class="contract-header">
+                    <div class="d-flex align-items-center">
+                        <input type="checkbox" class="form-check-input me-3" value="4">
+                        <div class="days-remaining normal">80</div>
+                        <div>
+                            <div class="small text-muted">天后到期</div>
+                        </div>
+                    </div>
+                    <div class="urgency-badge urgency-low">
+                        <i class="bi bi-check-circle"></i> 正常
+                    </div>
+                </div>
+                <div class="contract-title">GHI公司办公楼租赁合同</div>
+                <div class="contract-meta">
+                    <span><i class="bi bi-building"></i> GHI房地产开发有限公司</span>
+                    <span><i class="bi bi-calendar"></i> 2024-04-15 到期</span>
+                    <span><i class="bi bi-currency-dollar"></i> ¥800,000</span>
+                    <span><i class="bi bi-person"></i> 赵六</span>
+                </div>
+                <div class="contract-actions">
+                    <button class="action-btn extend" onclick="showExtensionModal(4)">
+                        <i class="bi bi-calendar-plus"></i> 申请延期
+                    </button>
+                    <button class="action-btn renew" onclick="showRenewalModal(4)">
+                        <i class="bi bi-arrow-repeat"></i> 续签合同
+                    </button>
+                    <button class="action-btn view" onclick="viewContract(4)">
+                        <i class="bi bi-eye"></i> 查看详情
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分页 -->
+        <div class="d-flex justify-content-center mt-4">
+            <nav aria-label="合同分页">
+                <ul class="pagination">
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1">上一页</a>
+                    </li>
+                    <li class="page-item active">
+                        <a class="page-link" href="#">1</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">2</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">3</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">下一页</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- 延期申请模态框 -->
+    <div class="modal fade extension-modal" id="extensionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">申请合同延期</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="extensionForm" data-auto-reset>
+                        <div class="mb-3">
+                            <label class="form-label">合同名称</label>
+                            <input type="text" class="form-control" id="contractName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">当前到期时间</label>
+                            <input type="date" class="form-control" id="currentExpiry" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">申请延期至</label>
+                            <input type="date" class="form-control" id="newExpiry" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">延期原因</label>
+                            <select class="form-select" id="extensionReason" required>
+                                <option value="">请选择延期原因</option>
+                                <option value="negotiation">合同条款重新协商</option>
+                                <option value="approval">等待内部审批</option>
+                                <option value="technical">技术实施延期</option>
+                                <option value="legal">法务审查延期</option>
+                                <option value="other">其他原因</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">详细说明</label>
+                            <textarea class="form-control" id="extensionDescription" rows="3" placeholder="请详细说明延期的具体原因和必要性..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">附件上传</label>
+                            <input type="file" class="form-control" id="extensionAttachments" multiple>
+                            <div class="form-text">支持上传相关证明文件（PDF、Word、图片等）</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-warning" onclick="submitExtension()">
+                        <i class="bi bi-send"></i> 提交申请
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 续签合同模态框 -->
+    <div class="modal fade renewal-modal" id="renewalModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">合同续签</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="renewalForm" data-auto-reset>
+                        <div class="mb-3">
+                            <label class="form-label">原合同名称</label>
+                            <input type="text" class="form-control" id="originalContractName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">新合同名称</label>
+                            <input type="text" class="form-control" id="newContractName" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">续签开始时间</label>
+                                    <input type="date" class="form-control" id="renewalStartDate" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">续签结束时间</label>
+                                    <input type="date" class="form-control" id="renewalEndDate" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">合同金额</label>
+                            <input type="number" class="form-control" id="renewalAmount" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">续签条款变更</label>
+                            <textarea class="form-control" id="renewalTerms" rows="4" placeholder="请说明与原合同相比的主要变更内容..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="autoApprove">
+                                <label class="form-check-label" for="autoApprove">
+                                    使用自动审批流程（适用于标准续签）
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">合同模板</label>
+                            <select class="form-select" id="renewalTemplate">
+                                <option value="">选择合同模板</option>
+                                <option value="standard">标准服务合同模板</option>
+                                <option value="purchase">采购合同模板</option>
+                                <option value="lease">租赁合同模板</option>
+                                <option value="custom">自定义模板</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" onclick="submitRenewal()">
+                        <i class="bi bi-arrow-repeat"></i> 创建续签合同
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script layout:fragment="scripts">
+    document.addEventListener('DOMContentLoaded', function() {
+        // 初始化标签页
+        initUrgencyTabs();
+        
+        // 初始化复选框事件
+        initCheckboxEvents();
+        
+        // 加载到期合同数据
+        loadExpiringContracts();
+    });
+
+    function initUrgencyTabs() {
+        const tabs = document.querySelectorAll('.urgency-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // 移除所有active类
+                tabs.forEach(t => t.classList.remove('active'));
+                // 添加active类到当前标签
+                this.classList.add('active');
+                
+                // 根据选择的紧急程度筛选合同
+                const urgency = this.dataset.urgency;
+                filterContractsByUrgency(urgency);
+            });
+        });
+    }
+
+    function initCheckboxEvents() {
+        const checkboxes = document.querySelectorAll('.contract-card input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateBatchActions);
+        });
+    }
+
+    function updateBatchActions() {
+        const checkedBoxes = document.querySelectorAll('.contract-card input[type="checkbox"]:checked');
+        const batchActions = document.getElementById('batchActions');
+        const selectedCount = document.getElementById('selectedCount');
+        
+        if (checkedBoxes.length > 0) {
+            batchActions.classList.add('show');
+            selectedCount.textContent = checkedBoxes.length;
+        } else {
+            batchActions.classList.remove('show');
+        }
+    }
+
+    function filterContractsByUrgency(urgency) {
+        const cards = document.querySelectorAll('.contract-card');
+        cards.forEach(card => {
+            if (urgency === 'all') {
+                card.style.display = 'block';
+            } else {
+                const cardUrgency = card.classList.contains(urgency);
+                card.style.display = cardUrgency ? 'block' : 'none';
+            }
+        });
+    }
+
+    function showExtensionModal(contractId) {
+        // 填充合同信息
+        document.getElementById('contractName').value = 'ABC公司软件维护服务合同';
+        document.getElementById('currentExpiry').value = '2024-01-15';
+        document.getElementById('newExpiry').value = '';
+        document.getElementById('extensionReason').value = '';
+        document.getElementById('extensionDescription').value = '';
+        
+        showModal('extensionModal');
+    }
+
+    function showRenewalModal(contractId) {
+        // 填充合同信息
+        document.getElementById('originalContractName').value = 'ABC公司软件维护服务合同';
+        document.getElementById('newContractName').value = 'ABC公司软件维护服务合同（续签）';
+        document.getElementById('renewalStartDate').value = '2024-01-16';
+        document.getElementById('renewalEndDate').value = '2025-01-15';
+        document.getElementById('renewalAmount').value = '500000';
+        
+        showModal('renewalModal');
+    }
+
+    function submitExtension() {
+        const form = document.getElementById('extensionForm');
+        const formData = new FormData(form);
+        
+        // 验证表单
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        // 显示加载状态
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 提交中...';
+        btn.disabled = true;
+        
+        // 模拟API调用
+        setTimeout(() => {
+            // 关闭模态框
+            hideModal('extensionModal');
+            
+            // 显示成功消息
+            showNotification('延期申请已提交，等待审批', 'success');
+            
+            // 恢复按钮状态
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            
+            // 重新加载数据
+            loadExpiringContracts();
+        }, 2000);
+    }
+
+    function submitRenewal() {
+        const form = document.getElementById('renewalForm');
+        const formData = new FormData(form);
+        
+        // 验证表单
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        // 显示加载状态
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 创建中...';
+        btn.disabled = true;
+        
+        // 模拟API调用
+        setTimeout(() => {
+            // 关闭模态框
+            hideModal('renewalModal');
+            
+            // 显示成功消息
+            showNotification('续签合同已创建，进入审批流程', 'success');
+            
+            // 恢复按钮状态
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            
+            // 重新加载数据
+            loadExpiringContracts();
+        }, 2000);
+    }
+
+    function viewContract(contractId) {
+        // 跳转到合同详情页
+        window.location.href = `/contracts/${contractId}`;
+    }
+
+    function batchExtend() {
+        const selectedContracts = getSelectedContracts();
+        if (selectedContracts.length === 0) {
+            showNotification('请先选择要延期的合同', 'warning');
+            return;
+        }
+        
+        showNotification(`正在为 ${selectedContracts.length} 份合同申请延期...`, 'info');
+        
+        // 这里可以打开批量延期模态框
+        setTimeout(() => {
+            showNotification('批量延期申请已提交', 'success');
+        }, 2000);
+    }
+
+    function batchRenew() {
+        const selectedContracts = getSelectedContracts();
+        if (selectedContracts.length === 0) {
+            showNotification('请先选择要续签的合同', 'warning');
+            return;
+        }
+        
+        showNotification(`正在为 ${selectedContracts.length} 份合同创建续签...`, 'info');
+        
+        setTimeout(() => {
+            showNotification('批量续签合同已创建', 'success');
+        }, 2000);
+    }
+
+    function exportSelected() {
+        const selectedContracts = getSelectedContracts();
+        if (selectedContracts.length === 0) {
+            showNotification('请先选择要导出的合同', 'warning');
+            return;
+        }
+        
+        showNotification(`正在导出 ${selectedContracts.length} 份合同清单...`, 'info');
+        
+        setTimeout(() => {
+            showNotification('导出完成！', 'success');
+        }, 1500);
+    }
+
+    function getSelectedContracts() {
+        const checkedBoxes = document.querySelectorAll('.contract-card input[type="checkbox"]:checked');
+        return Array.from(checkedBoxes).map(cb => cb.value);
+    }
+
+    function applyFilters() {
+        const filters = {
+            expireRange: document.getElementById('expireRange').value,
+            contractType: document.getElementById('contractType').value,
+            assignee: document.getElementById('assignee').value
+        };
+        
+        showNotification('正在应用筛选条件...', 'info');
+        
+        // 模拟筛选处理
+        setTimeout(() => {
+            showNotification('筛选完成', 'success');
+            loadExpiringContracts();
+        }, 1000);
+    }
+
+    function loadExpiringContracts() {
+        // 模拟加载到期合同数据
+        console.log('加载即将到期的合同数据');
+    }
+
+    function showNotification(message, type) {
+        // 创建通知元素
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'success' ? 'success' : type === 'warning' ? 'warning' : type === 'error' ? 'danger' : 'info'} alert-dismissible fade show position-fixed`;
+        notification.style.top = '100px';
+        notification.style.right = '20px';
+        notification.style.zIndex = '9999';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // 3秒后自动消失
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
+    }
+</script>
+
+</body>
+</html> 

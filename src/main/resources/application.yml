@@ -1,0 +1,41 @@
+# 性能优化配置
+spring:
+  jpa:
+    properties:
+      hibernate:
+        # 二级缓存暂时禁用（避免依赖问题）
+        # cache:
+        #   use_second_level_cache: true
+        # 批量插入优化
+        jdbc:
+          batch_size: 20
+          order_inserts: true
+          order_updates: true
+        # 查询优化
+        default_batch_fetch_size: 16
+        # 统计信息暂时禁用
+        # generate_statistics: true
+    # 懒加载优化
+    open-in-view: false
+  
+  # HTTP压缩
+  server:
+    compression:
+      enabled: true
+      mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+      min-response-size: 1024
+  
+  # 连接池优化
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+# 日志级别优化
+logging:
+  level:
+    org.springframework.web: INFO
+    com.example.contractmanagementsystem: INFO 

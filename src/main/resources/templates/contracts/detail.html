@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>合同详情</title>
+    <th:block layout:fragment="css-links">
+        <!-- 导航栏样式现在统一由 layout.html 管理 -->
+    </th:block>
+    <style layout:fragment="inline-css">
+        .contract-detail-card { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; padding: 25px; }
+        .section-title { color: #333; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 20px; font-size: 1.5rem; }
+        .detail-row { display: flex; margin-bottom: 15px; font-size: 1.05rem; }
+        .detail-label { width: 120px; color: #666; font-weight: 500; }
+        .detail-value { flex: 1; }
+        .contract-content { background-color: #f9f9f9; border: 1px solid #eee; border-radius: 4px; padding: 15px; margin-top: 10px; white-space: pre-wrap; min-height: 150px; }
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 4px; font-size: 0.9em; font-weight: 500; color: #fff; }
+        .status-DRAFT { background-color: #ffc107; color: #000; }
+        .status-PENDING_ASSIGNMENT { background-color: #6610f2; }
+        .status-PENDING_COUNTERSIGN { background-color: #fd7e14; }
+        .status-PENDING_FINALIZATION { background-color: #e83e8c; }
+        .status-PENDING_APPROVAL { background-color: #20c997; }
+        .status-PENDING_SIGNING { background-color: #17a2b8; }
+        .status-ACTIVE { background-color: #007bff; }
+        .status-COMPLETED { background-color: #28a745; }
+        .status-EXPIRED { background-color: #dc3545; }
+        .status-TERMINATED { background-color: #6c757d; }
+        .attachment-section { margin-top: 20px; }
+        .timeline { position: relative; padding: 20px 0; list-style: none; }
+        .timeline-item { padding-left: 30px; position: relative; margin-bottom: 25px; }
+        .timeline-item::before { content: ''; position: absolute; left: 0; top: 5px; width: 12px; height: 12px; border-radius: 50%; background-color: #0d6efd; border: 2px solid white; box-shadow: 0 0 0 2px #0d6efd; }
+        .timeline-item::after { content: ''; position: absolute; left: 5px; top: 17px; bottom: -25px; width: 2px; background-color: #e9ecef; }
+        .timeline-item:last-child::after { display: none; }
+        .timeline-date { color: #6c757d; font-size: 0.9em; margin-bottom: 5px; }
+        .timeline-content { background-color: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #e9ecef; }
+        .timeline-item.state-APPROVED::before, .timeline-item.state-COMPLETED::before { background-color: #28a745; box-shadow: 0 0 0 2px #28a745; }
+        .timeline-item.state-REJECTED::before { background-color: #dc3545; box-shadow: 0 0 0 2px #dc3545; }
+        .timeline-item.type-EXTENSION_REQUEST.state-PENDING::before { background-color: #ffc107; box-shadow: 0 0 0 2px #ffc107; }
+        .timeline-item.state-PENDING::before { background-color: #0d6efd; box-shadow: 0 0 0 2px #0d6efd; }
+        .timeline-item.type-EXTENSION.state-COMPLETED::before { background-color: #6f42c1; box-shadow: 0 0 0 2px #6f42c1; }
+        /* Attachment List Styles */
+        .file-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; border: 1px solid #dee2e6; border-radius: 0.25rem; background-color: #f8f9fa; }
+        .file-info { flex-grow: 1; margin-right: 1rem; overflow: hidden; }
+        .file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .file-status { font-size: 0.8em; color: #6c757d; }
+        .file-actions button { margin-left: 0.5rem; }
+        /* Signature preview style */
+        .signature-display {
+            max-width: 200px; /* 调整签名显示的最大宽度 */
+            height: auto;
+            border: 1px solid #ddd;
+            margin-top: 5px;
+            display: block; /* 确保占据一行 */
+        }
+    </style>
+</head>
+<body>
+<section layout:fragment="content">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items:center mb-4">
+            <h1>合同详情</h1>
+            <div>
+                <a href="javascript:history.back()" class="btn btn-secondary me-2">
+                    <i class="bi bi-arrow-left"></i> 返回
+                </a>
+            </div>
+        </div>
+
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同编号</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractNumber ?: '-'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">合同名称</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractName ?: '-'}"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">开始日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">结束日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">合同状态</label>
+                        <div class="form-control form-control-sm bg-light">
+                            <span th:if="${contract.status}"
+                                  th:text="${contract.status.description}"
+                                  class="status-badge"
+                                  th:classappend="'status-' + ${contract.status.name()}"></span>
+                            <span th:unless="${contract.status}">-</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">起草人</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.drafter?.username ?: '-'}"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">创建时间</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">最后更新</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.updatedAt != null ? #temporals.format(contract.updatedAt, 'yyyy-MM-dd HH:mm:ss') : '-'}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-person-badge-fill me-2"></i>客户信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">签约客户</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.customer?.customerName ?: '-'}"></div>
+                </div>
+                <div class="card mt-2" th:if="${contract.customer != null}">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1 small"><strong th:text="${contract.customer?.customerName ?: '-'}"></strong></h6>
+                        <p class="card-text mb-0 small">
+                            <strong>编号:</strong> <span th:text="${contract.customer?.customerNumber ?: '-'}"></span> <br>
+                            <strong>电话:</strong> <span th:text="${contract.customer?.phoneNumber ?: '-'}"></span> <br>
+                            <strong>邮箱:</strong> <span th:text="${contract.customer?.email ?: '-'}"></span> <br>
+                            <strong>地址:</strong> <span th:text="${contract.customer?.address ?: '-'}"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-file-text-fill me-2"></i>合同条款与附件
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同主要内容</label>
+                    <div class="form-control form-control-sm bg-light" style="min-height: 150px; white-space: pre-wrap;" th:text="${contract.content ?: '暂无内容'}"></div>
+                </div>
+            </div>
+        </div>
+
+                <div class="mb-3">
+                    <label class="form-label">甲方签字</label>
+                    <div class="card">
+                        <div class="card-body">
+                            <img th:if="${contract.signatureDataPartyA != null and !contract.signatureDataPartyA.isEmpty()}"
+                                 th:src="${contract.signatureDataPartyA}"
+                                 alt="甲方签名" class="signature-display"/>
+                            <span th:unless="${contract.signatureDataPartyA != null and !contract.signatureDataPartyA.isEmpty()}" class="text-muted">无签名</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">乙方签字</label>
+                    <div class="card">
+                        <div class="card-body">
+                            <img th:if="${contract.signatureDataPartyB != null and !contract.signatureDataPartyB.isEmpty()}"
+                                 th:src="${contract.signatureDataPartyB}"
+                                 alt="乙方签名" class="signature-display"/>
+                            <span th:unless="${contract.signatureDataPartyB != null and !contract.signatureDataPartyB.isEmpty()}" class="text-muted">无签名</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">上传合同附件</label>
+                    <div class="attachment-section">
+                        <div id="attachmentListContainer"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <div class="card mb-4 shadow-sm" th:if="${!#lists.isEmpty(contractProcesses)}">
+            <div class="card-header bg-light">
+                <i class="bi bi-clock-history me-2"></i>处理记录
+            </div>
+            <div class="card-body">
+            <ul class="timeline">
+                <li th:each="process : ${contractProcesses}"
+                    th:classappend="${'type-' + process.type.name()} + ' ' + ${'state-' + process.state.name()}"
+                    class="timeline-item">
+                    <div class="timeline-date" th:text="${(process.processedAt != null ? #temporals.format(process.processedAt, 'yyyy-MM-dd HH:mm:ss') : #temporals.format(process.createdAt, 'yyyy-MM-dd HH:mm:ss'))}"></div>
+                    <div class="timeline-content">
+                        <strong>
+                            <span th:text="${process.type.description}">处理类型</span>
+                            <span th:if="${process.state != null && (process.state.name() != 'PENDING' || process.type.name() == 'EXTENSION_REQUEST')}" th:text="'- ' + ${process.state.description}">- 状态</span>
+                        </strong>
+                        <div th:if="${process.operator != null}">
+                            处理人：<span th:text="${process.operator.username}"></span>
+                        </div>
+
+                        <th:block th:if="${process.type.name() == 'EXTENSION_REQUEST'}">
+                            <div th:if="${process.requestedNewEndDate != null}">
+                                请求延期至：<span th:text="${#temporals.format(process.requestedNewEndDate, 'yyyy-MM-dd')}"></span>
+                            </div>
+                            <div th:if="${process.requestReason != null and !process.requestReason.isEmpty()}">
+                                原因：<span th:text="${process.requestReason}"></span>
+                            </div>
+                            <div th:if="${process.requestAdditionalComments != null and !process.requestAdditionalComments.isEmpty()}">
+                                附加备注：<span th:text="${process.requestAdditionalComments}"></span>
+                            </div>
+                            <div th:if="${process.state.name() == 'APPROVED' or process.state.name() == 'REJECTED'}" class="mt-2">
+                                审批意见：<span th:text="${process.adminApprovalComments != null ? process.adminApprovalComments : '无'}"></span>
+                            </div>
+                        </th:block>
+
+                        <div th:unless="${process.type.name() == 'EXTENSION_REQUEST'}"
+                             th:if="${process.comments != null and !process.comments.isEmpty()}">
+                            处理意见：<span th:text="${process.comments}"></span>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+            </div>
+        </div>
+    </div>
+
+</section>
+</body>
+<th:block layout:fragment="scripts">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-dismiss alerts
+            const alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(alertNode => {
+                new bootstrap.Alert(alertNode);
+                setTimeout(() => {
+                    const alertInstance = bootstrap.Alert.getInstance(alertNode);
+                    if (alertInstance) {
+                        alertInstance.close();
+                    }
+                }, 7000);
+            });
+
+            // --- NEW AND IMPROVED ATTACHMENT LOGIC ---
+            const attachmentContainer = document.getElementById('attachmentListContainer');
+            const attachmentsJson = /*[[${contract?.attachmentPath}]]*/ null;
+
+            function addExistingFileToUI(serverFileName) {
+                if (!attachmentContainer) return;
+                const safeId = `existing-${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}`;
+                const fileItemHTML = `
+                <div class="file-list-item" id="${safeId}">
+                    <div class="file-info">
+                        <span class="file-name" title="${serverFileName}">${serverFileName}</span>
+                    </div>
+                    <div class="file-actions">
+                        <button type="button" class="btn btn-sm btn-outline-info preview-btn" title="在新标签页中预览/下载">
+                            <i class="bi bi-eye"></i> 预览
+                        </button>
+                    </div>
+                </div>`;
+                attachmentContainer.insertAdjacentHTML('beforeend', fileItemHTML);
+
+                const newElement = document.getElementById(safeId);
+                if (newElement) {
+                    const previewBtn = newElement.querySelector('.preview-btn');
+                    previewBtn.addEventListener('click', () => handlePreviewFile(serverFileName));
+                }
+            }
+
+            // --- ENHANCED handlePreviewFile FUNCTION ---
+            function handlePreviewFile(serverFileName) {
+                if (!serverFileName) return;
+                const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
+                const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+
+                if (isPreviewable) {
+                    window.open(downloadUrl, '_blank');
+                } else {
+                    const userAgreedToDownload = confirm(
+                        `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击“确定”将尝试下载该文件。`
+                    );
+
+                    if (userAgreedToDownload) {
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.setAttribute('download', serverFileName);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }
+                }
+            }
+
+            try {
+                if (attachmentsJson && attachmentsJson !== '[]') {
+                    const attachmentFiles = JSON.parse(attachmentsJson);
+                    if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
+                        attachmentContainer.innerHTML = '';
+                        attachmentFiles.forEach(fileName => addExistingFileToUI(fileName));
+                    } else {
+                        attachmentContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+                    }
+                } else {
+                    attachmentContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+                }
+            } catch (e) {
+                console.error('解析附件JSON失败:', e, "JSON string was:", attachmentsJson);
+                if(attachmentContainer) attachmentContainer.innerHTML = '<p class="text-danger small">加载附件列表失败。</p>';
+            }
+        });
+    </script>
+</th:block>
+</html>

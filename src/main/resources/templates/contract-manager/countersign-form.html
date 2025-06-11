@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{fragments/layout}" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title th:text="${listTitle ?: '合同会签'}"></title>
+    <th:block layout:fragment="css-links">
+        <!-- 导航栏样式现在统一由 layout.html 管理 -->
+    </th:block>
+    <style layout:fragment="inline-css">
+        body { font-family: sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
+        .navbar { background-color: #333; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar .brand { font-size: 1.5em; }
+        .navbar .user-info { font-size: 0.9em; }
+        .navbar a { color: white; text-decoration: none; margin-left: 15px; }
+        .container { padding: 25px; max-width: 900px; margin: 20px auto; background-color: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        .detail-item { margin-bottom: 12px; font-size: 1.05rem; }
+        .detail-item strong { display: inline-block; width: 120px; color: #555; }
+        .contract-content { border: 1px solid #ddd; padding: 15px; background-color: #f9f9f9; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; max-height: 300px; overflow-y: auto; margin-top: 15px; }
+        .attachment-section { margin-top: 20px; }
+        .attachment-section h3 { font-size: 1.2rem; margin-bottom: 10px; }
+        .countersign-form { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-height: 100px; box-sizing: border-box; }
+        .form-actions { text-align: right; }
+        .form-actions button { padding: 10px 20px; margin-left: 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; }
+        .btn-approve { background-color: #28a745; color: white; }
+        .btn-approve:hover { background-color: #218838; }
+        .btn-reject { background-color: #dc3545; color: white; }
+        .btn-reject:hover { background-color: #c82333; }
+        .btn-back { background-color: #6c757d; color: white; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px; display: inline-block; }
+        .btn-back:hover { background-color: #5a6268; }
+        .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+        .comments-section { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        .comments-section h2 { margin-bottom: 15px; }
+        .comment-item { background-color: #f8f9fa; border-left: 5px solid #0d6efd; padding: 15px; margin-bottom: 10px; border-radius: 4px; }
+        .comment-item strong { color: #0056b3; }
+        .comment-item span.status { font-weight: bold; float: right; }
+        .comment-item span.status.approved { color: #198754; }
+        .comment-item span.status.rejected { color: #dc3545; }
+        .comment-item span.status.pending { color: #ffc107; }
+        .comment-item p { margin: 5px 0; font-size: 0.95em; }
+        .comment-item .meta { font-size: 0.8em; color: #6c757d; margin-top: 5px; }
+        /* Attachment List Styles */
+        .file-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; border: 1px solid #dee2e6; border-radius: 0.25rem; background-color: #f8f9fa; }
+        .file-info { flex-grow: 1; margin-right: 1rem; overflow: hidden; }
+        .file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .file-status { font-size: 0.8em; color: #6c757d; }
+        .file-actions button { margin-left: 0.5rem; }
+    </style>
+</head>
+<body>
+
+<section layout:fragment="content">
+<div class="container">
+
+    <div th:if="${errorMessage}" class="alert-error">
+        <p th:text="${errorMessage}"></p>
+    </div>
+    <div th:if="${successMessage}" class="alert-success">
+        <p th:text="${successMessage}"></p>
+    </div>
+
+    <div th:if="${contract}">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-info-circle-fill me-2"></i>合同基本信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同编号</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractNumber ?: '-'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">合同名称</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.contractName ?: '-'}"></div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">开始日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.startDate != null ? #temporals.format(contract.startDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">结束日期</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.endDate != null ? #temporals.format(contract.endDate, 'yyyy-MM-dd') : '-'}"></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">合同状态</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.status?.description ?: '-'}"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">起草人</label>
+                        <div class="form-control form-control-sm bg-light" th:text="${contract.drafter?.username ?: '-'}"></div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">起草日期</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.createdAt != null ? #temporals.format(contract.createdAt, 'yyyy-MM-dd HH:mm') : '-'}"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-person-badge-fill me-2"></i>客户信息
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">签约客户</label>
+                    <div class="form-control form-control-sm bg-light" th:text="${contract.customer?.customerName ?: '-'}"></div>
+                </div>
+                <div class="card mt-2" th:if="${contract.customer != null}">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1 small"><strong th:text="${contract.customer?.customerName ?: '-'}"></strong></h6>
+                        <p class="card-text mb-0 small">
+                            <strong>编号:</strong> <span th:text="${contract.customer?.customerNumber ?: '-'}"></span> <br>
+                            <strong>电话:</strong> <span th:text="${contract.customer?.phoneNumber ?: '-'}"></span> <br>
+                            <strong>邮箱:</strong> <span th:text="${contract.customer?.email ?: '-'}"></span> <br>
+                            <strong>地址:</strong> <span th:text="${contract.customer?.address ?: '-'}"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light">
+                <i class="bi bi-file-text-fill me-2"></i>合同条款与附件
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">合同主要内容</label>
+                    <div class="form-control form-control-sm bg-light" style="min-height: 150px; white-space: pre-wrap;" th:text="${contract.content ?: '暂无内容'}"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">上传合同附件</label>
+                    <div id="attachmentListContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div th:unless="${contract}">
+        <p class="no-records">合同信息加载失败。</p>
+    </div>
+
+    <div th:if="${currentProcess != null and currentProcess.state == T(com.example.contractmanagementsystem.entity.ContractProcessState).PENDING}" class="countersign-form">
+        <h2>我的会签操作</h2>
+        <form th:action="@{/contract-manager/countersign-form}" method="post">
+            <input type="hidden" name="contractProcessId" th:value="${currentProcess.id}" />
+
+            <div class="form-group">
+                <label for="comments">会签意见:</label>
+                <textarea id="comments" name="comments" placeholder="请输入会签意见..."></textarea>
+            </div>
+
+            <div class="form-actions">
+                <a th:href="@{/contract-manager/pending-countersign}" class="btn-back">返回列表</a>
+                <button type="submit" name="decision" value="REJECTED" class="btn btn-reject">拒绝</button>
+                <button type="submit" name="decision" value="APPROVED" class="btn btn-approve">批准</button>
+            </div>
+        </form>
+    </div>
+    <div th:if="${currentProcess == null or currentProcess.state != T(com.example.contractmanagementsystem.entity.ContractProcessState).PENDING}">
+        <p>您已完成对此合同的会签或该合同已不处于待会签状态。</p>
+        <a th:href="@{/contract-manager/pending-countersign}" class="btn-back">返回列表</a>
+    </div>
+
+    <div class="comments-section">
+        <h2>所有会签意见</h2>
+        <div th:if="${allCountersignProcesses.isEmpty()}">
+            <p>目前没有会签意见。</p>
+        </div>
+        <div th:unless="${allCountersignProcesses.isEmpty()}">
+            <div th:each="cp : ${allCountersignProcesses}" class="comment-item">
+                <strong>会签人:</strong> <span th:text="${cp.operator.username}"></span>
+                <span th:classappend="${cp.state == T(com.example.contractmanagementsystem.entity.ContractProcessState).APPROVED} ? 'approved' : (${cp.state == T(com.example.contractmanagementsystem.entity.ContractProcessState).REJECTED} ? 'rejected' : 'pending')"
+                      th:text="${cp.state.description}" class="status"></span>
+                <p><strong>意见:</strong> <span th:text="${cp.comments != null and !cp.comments.isEmpty() ? cp.comments : '无'}"></span></p>
+                <div class="meta">
+                    <span th:if="${cp.processedAt != null}">处理时间: <span th:text="${#temporals.format(cp.processedAt, 'yyyy-MM-dd HH:mm')}"></span></span>
+                    <span th:unless="${cp.processedAt != null}">创建时间: <span th:text="${#temporals.format(cp.createdAt, 'yyyy-MM-dd HH:mm')}"></span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</section>
+
+<th:block layout:fragment="scripts">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        const attachmentContainer = document.getElementById('attachmentListContainer');
+        const attachmentsJson = /*[[${contract?.attachmentPath}]]*/ null;
+
+        function addExistingFileToUI(serverFileName) {
+            if (!attachmentContainer) return;
+            const safeId = `existing-${serverFileName.replace(/[^a-zA-Z0-9]/g, "_")}`;
+            const fileItemHTML = `
+                <div class="file-list-item" id="${safeId}">
+                    <div class="file-info">
+                        <span class="file-name" title="${serverFileName}">${serverFileName}</span>
+                    </div>
+                    <div class="file-actions">
+                        <button type="button" class="btn btn-sm btn-outline-info preview-btn" title="在新标签页中预览/下载">
+                            <i class="bi bi-eye"></i> 预览
+                        </button>
+                    </div>
+                </div>`;
+            attachmentContainer.insertAdjacentHTML('beforeend', fileItemHTML);
+
+            const newElement = document.getElementById(safeId);
+            if (newElement) {
+                const previewBtn = newElement.querySelector('.preview-btn');
+                previewBtn.addEventListener('click', () => handlePreviewFile(serverFileName));
+            }
+        }
+
+        // --- ENHANCED handlePreviewFile FUNCTION ---
+        function handlePreviewFile(serverFileName) {
+            if (!serverFileName) return;
+            const isPreviewable = /\.(pdf|jpe?g|png|gif|bmp|txt)$/i.test(serverFileName);
+            const downloadUrl = `/api/attachments/download/${encodeURIComponent(serverFileName)}`;
+
+            if (isPreviewable) {
+                window.open(downloadUrl, '_blank');
+            } else {
+                const userAgreedToDownload = confirm(
+                    `文件 "${serverFileName}" 可能不支持在浏览器中直接预览。\n\n点击“确定”将尝试下载该文件。`
+                );
+
+                if (userAgreedToDownload) {
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.setAttribute('download', serverFileName);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+        }
+
+        try {
+            if (attachmentsJson && attachmentsJson !== '[]') {
+                const attachmentFiles = JSON.parse(attachmentsJson);
+                if (Array.isArray(attachmentFiles) && attachmentFiles.length > 0) {
+                    attachmentContainer.innerHTML = ''; // Clear previous content
+                    attachmentFiles.forEach(fileName => addExistingFileToUI(fileName));
+                } else {
+                    attachmentContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+                }
+            } else {
+                attachmentContainer.innerHTML = '<p class="text-muted small">无附件。</p>';
+            }
+        } catch (e) {
+            console.error('解析附件JSON失败:', e, "JSON string was:", attachmentsJson);
+            attachmentContainer.innerHTML = '<p class="text-danger small">加载附件列表失败。</p>';
+        }
+    });
+</script>
+</th:block>
+</body>
+</html>
