@@ -10,13 +10,15 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
 
 @Configuration
 @EnableWebSecurity
@@ -28,6 +30,11 @@ public class SecurityConfig {
 
     @Autowired
     private AuthenticationFailureHandler customAuthenticationFailureHandler;
+
+    @Bean
+    public SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -42,7 +49,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager, SessionRegistry sessionRegistry) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
@@ -74,9 +81,10 @@ public class SecurityConfig {
                 )
                 .sessionManagement(session -> session
                         .invalidSessionUrl("/login?invalid")
-                        .maximumSessions(1)
+                        .maximumSessions(1000)
                         .expiredUrl("/login?expired")
                         .maxSessionsPreventsLogin(true)
+                        .sessionRegistry(sessionRegistry)
                 )
                 .rememberMe(remember -> remember
                         .key("uniqueAndSecret")
@@ -97,12 +105,12 @@ public class SecurityConfig {
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring()
                 .requestMatchers(
-                        new AntPathRequestMatcher("/css/**"),
-                        new AntPathRequestMatcher("/js/**"),
-                        new AntPathRequestMatcher("/images/**"),
-                        new AntPathRequestMatcher("/favicon.ico"),
-                        new AntPathRequestMatcher("/error/**"),
-                        new AntPathRequestMatcher("/actuator/**")
+                        "/css/**",
+                        "/js/**",
+                        "/images/**",
+                        "/favicon.ico",
+                        "/error/**",
+                        "/actuator/**"
                 );
     }
 }
