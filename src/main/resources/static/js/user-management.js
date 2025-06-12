@@ -446,6 +446,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 } catch (error) {
                     console.error("[UserMgmt] Error deleting user:", error);
+                    alert(error.message || "删除用户失败，请检查该用户是否还有未处理的合同业务。");
                 } finally {
                     toggleLoading(false, targetButton);
                 }
