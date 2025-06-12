@@ -12,7 +12,7 @@
         input[type="text"], input[type="password"], input[type="email"], select {
             width: calc(100% - 22px);
             padding: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 15px; /* 调整间距 */
             border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
@@ -28,17 +28,52 @@
         .alert-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
         .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        /* 密码强度提示样式 */
-        .password-strength {
+        /* 新增的密码强度条样式 */
+        .password-strength-indicator {
+            display: flex; /* 使用 Flexbox 布局 */
+            align-items: center; /* 垂直居中 */
             margin-top: -10px; /* 调整位置使其更接近输入框 */
-            margin-bottom: 10px;
-            text-align: left;
-            font-size: 0.8em;
-            font-weight: bold;
+            margin-bottom: 15px; /* 确保下方有足够空间 */
+            height: 20px; /* 整体高度 */
         }
-        .strength-weak { color: #dc3545; } /* 红色 */
-        .strength-medium { color: #ffc107; } /* 黄色 */
-        .strength-strong { color: #28a745; } /* 绿色 */
+
+        .strength-label {
+            font-size: 0.85em;
+            color: #666;
+            min-width: 60px; /* 确保文字有足够空间 */
+            text-align: left;
+            margin-right: 10px;
+        }
+
+        .strength-bars {
+            flex-grow: 1; /* 占据剩余空间 */
+            display: flex;
+            gap: 2px; /* 柱子之间的间距 */
+            height: 10px; /* 柱子高度 */
+            border-radius: 2px; /* 柱子圆角 */
+            overflow: hidden; /* 防止溢出 */
+        }
+
+        .strength-bar {
+            flex-grow: 1; /* 每个柱子均匀分布 */
+            background-color: #e0e0e0; /* 默认灰色 */
+            transition: background-color 0.3s ease; /* 过渡效果 */
+            border-radius: 2px;
+        }
+
+        /* 强度颜色 */
+        .strength-bar.active-weak:nth-child(1) { background-color: #dc3545; } /* 弱 - 红色 */
+        .strength-bar.active-medium:nth-child(-n+2) { background-color: #ffc107; } /* 中 - 黄色 */
+        .strength-bar.active-strong:nth-child(-n+3) { background-color: #28a745; } /* 强 - 绿色 */
+
+        /* 确保中和强在各自活跃时覆盖弱的颜色 */
+        .strength-bar.active-medium:nth-child(1),
+        .strength-bar.active-medium:nth-child(2) { background-color: #ffc107; }
+
+        .strength-bar.active-strong:nth-child(1),
+        .strength-bar.active-strong:nth-child(2),
+        .strength-bar.active-strong:nth-child(3) { background-color: #28a745; }
+
     </style>
 </head>
 <body>
@@ -57,7 +92,15 @@
         <div>
             <label for="password">密码:</label>
             <input type="password" id="password" name="password" required />
-            <div id="passwordStrength" class="password-strength"></div> </div>
+            <div class="password-strength-indicator">
+                <span id="strengthLabel" class="strength-label">强度:</span>
+                <div class="strength-bars" id="strengthBars">
+                    <div class="strength-bar"></div>
+                    <div class="strength-bar"></div>
+                    <div class="strength-bar"></div>
+                </div>
+            </div>
+        </div>
         <div>
             <label for="confirmPassword">确认密码:</label>
             <input type="password" id="confirmPassword" name="confirmPassword" required />
@@ -88,9 +131,13 @@
     const registrationForm = document.getElementById('registrationForm');
     const messageArea = document.getElementById('messageArea');
     const messageText = document.getElementById('messageText');
-    const passwordInput = document.getElementById('password'); // 获取密码输入框
-    const confirmPasswordInput = document.getElementById('confirmPassword'); // 获取确认密码输入框
-    const passwordStrength = document.getElementById('passwordStrength'); // 获取密码强度提示区域
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+
+    // 获取新的强度显示元素
+    const strengthLabel = document.getElementById('strengthLabel');
+    const strengthBars = document.getElementById('strengthBars');
+    const individualBars = strengthBars.querySelectorAll('.strength-bar'); // 获取所有小方块
 
     function showMessage(text, isSuccess) {
         messageText.textContent = text;
@@ -98,73 +145,77 @@
         messageArea.style.display = 'block';
     }
 
-    // ⭐ 密码强度检测函数 ⭐
+    // 密码强度检测函数 (评分逻辑不变)
     function checkPasswordStrength(password) {
-        let strength = 0;
-        const feedback = [];
+        let score = 0; // 使用 score 替代 strength，更接近实际评分
 
         // 长度要求
         if (password.length >= 8) {
-            strength += 1;
-        } else {
-            feedback.push('密码长度至少8位');
+            score += 1;
         }
-
         // 包含大小写字母
         if (/[a-z]/.test(password) && /[A-Z]/.test(password)) {
-            strength += 1;
-        } else {
-            feedback.push('包含大小写字母');
+            score += 1;
         }
-
         // 包含数字
         if (/\d/.test(password)) {
-            strength += 1;
-        } else {
-            feedback.push('包含数字');
+            score += 1;
         }
-
-        // 包含特殊字符
+        // 包含特殊字符 (为了简单显示3格，这里可以将其中两个合并，或者调整评判标准)
+        // 为了和3格对应，我们可以考虑将四个条件映射到3个级别
+        // 这里沿用之前的4个条件，但映射到3个视觉强度
         if (/[^a-zA-Z0-9]/.test(password)) {
-            strength += 1;
-        } else {
-            feedback.push('包含特殊字符');
+            score += 1;
         }
 
-        let strengthText = '';
+        let strengthText = '弱';
+        let barCount = 0; // 亮起的格子数量
         let strengthClass = '';
 
-        if (strength <= 1) {
+        if (password.length === 0) { // 密码为空时，不显示强度
+            strengthText = '';
+            barCount = 0;
+        } else if (score <= 1) { // 满足1个或0个条件
             strengthText = '弱';
-            strengthClass = 'strength-weak';
-        } else if (strength <= 3) {
+            barCount = 1;
+            strengthClass = 'active-weak';
+        } else if (score <= 3) { // 满足2-3个条件
             strengthText = '中';
-            strengthClass = 'strength-medium';
-        } else {
+            barCount = 2;
+            strengthClass = 'active-medium';
+        } else { // 满足4个条件
             strengthText = '强';
-            strengthClass = 'strength-strong';
+            barCount = 3;
+            strengthClass = 'active-strong';
         }
 
         return {
-            strength: strengthText,
-            className: strengthClass,
-            feedback: feedback
+            text: strengthText,
+            barCount: barCount,
+            className: strengthClass
         };
     }
 
-    // ⭐ 实时检测密码强度 ⭐
+    // 实时更新密码强度显示
     passwordInput.addEventListener('input', () => {
         const password = passwordInput.value;
-        if (password.length > 0) {
-            const result = checkPasswordStrength(password);
-            passwordStrength.textContent = '强度: ' + result.strength;
-            passwordStrength.className = 'password-strength ' + result.className;
-            if (result.feedback.length > 0 && result.strength !== '强') {
-                passwordStrength.textContent += ' (' + result.feedback.join(', ') + ')';
-            }
-        } else {
-            passwordStrength.textContent = '';
-            passwordStrength.className = 'password-strength';
+        const result = checkPasswordStrength(password);
+
+        strengthLabel.textContent = `强度: ${result.text}`; // 更新文字
+
+        // 重置所有格子的样式
+        individualBars.forEach(bar => {
+            bar.className = 'strength-bar'; // 移除所有颜色类
+        });
+
+        // 根据强度点亮相应的格子并赋予颜色
+        for (let i = 0; i < result.barCount; i++) {
+            individualBars[i].classList.add(result.className); // 添加对应颜色类
+        }
+
+        // 如果密码为空，隐藏标签
+        if (password.length === 0) {
+            strengthLabel.textContent = '';
         }
     });
 
@@ -178,17 +229,16 @@
             data[key] = value;
         });
 
-        // 客户端密码一致性验证
         if (passwordInput.value !== confirmPasswordInput.value) {
             showMessage('注册失败: 两次输入的密码不一致！', false);
-            return; // 阻止表单提交
+            return;
         }
 
-        // 在提交前也检查密码强度，可以根据需要阻止提交或给出警告
+        // 提交时再次检查密码强度
         const passwordStrengthResult = checkPasswordStrength(passwordInput.value);
-        if (passwordStrengthResult.strength === '弱') {
+        if (passwordStrengthResult.text === '弱') { // 如果是弱密码，阻止提交
             showMessage('注册失败: 密码强度过弱，请设置更复杂的密码！', false);
-            return; // 阻止表单提交
+            return;
         }
 
 
@@ -197,7 +247,6 @@
             return;
         }
 
-        // 移除确认密码字段，因为后端通常不需要这个字段
         delete data.confirmPassword;
 
         try {
@@ -214,9 +263,13 @@
             if (response.ok) {
                 showMessage('注册成功！用户名: ' + result.username + ', ID: ' + result.userId + ', 角色: ' + result.token, true);
                 registrationForm.reset();
-                passwordStrength.textContent = ''; // 清空密码强度提示
+                // 注册成功后清空强度显示
+                strengthLabel.textContent = '';
+                individualBars.forEach(bar => {
+                    bar.className = 'strength-bar';
+                });
             } else {
-                let errorMessage = result.message || '未知错误'; // 尝试获取总消息
+                let errorMessage = result.message || '未知错误';
 
                 if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
                     errorMessage = '校验失败: ' + result.errors.join('; ');
