@@ -41,7 +41,7 @@ public class CustomAuthenticationFailureHandler extends SimpleUrlAuthenticationF
         } else if (exception instanceof SessionAuthenticationException) { // <--- 新增判断
             // SessionAuthenticationException 是并发会话限制导致错误时可能抛出的异常的基类
             // 例如 MaximumSessionsExceededException 是它的子类
-            errorMessage = "此账户已在别处登录，或已达到最大会话数，不允许新的登录。";
+            errorMessage = "此账户已在别处登录";
         }
         // 可以根据需要添加更多类型的异常判断，例如账户过期、凭证过期等
 

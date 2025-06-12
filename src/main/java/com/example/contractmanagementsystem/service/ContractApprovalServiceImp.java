@@ -26,15 +26,18 @@ public class ContractApprovalServiceImp implements ContractApprovalService {
     private final ContractRepository contractRepository;
     private final ContractProcessRepository contractProcessRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Autowired
     public ContractApprovalServiceImp(
             ContractRepository contractRepository,
             ContractProcessRepository contractProcessRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            NotificationService notificationService) {
         this.contractRepository = contractRepository;
         this.contractProcessRepository = contractProcessRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -86,6 +89,8 @@ public class ContractApprovalServiceImp implements ContractApprovalService {
             currentUserProcess.setState(ContractProcessState.REJECTED);
             contractRepository.save(contract);
             contractProcessRepository.save(currentUserProcess);
+            // 发送状态更新通知
+            notificationService.notifyContractStatusChange(contractId, ContractStatus.REJECTED.name());
             return;
         }
 
@@ -108,6 +113,8 @@ public class ContractApprovalServiceImp implements ContractApprovalService {
         if (allApproved && allProcessed) {
             contract.setStatus(ContractStatus.PENDING_SIGNING);
             contractRepository.save(contract);
+            // 发送状态更新通知
+            notificationService.notifyContractStatusChange(contractId, ContractStatus.PENDING_SIGNING.name());
         }
     }
 
