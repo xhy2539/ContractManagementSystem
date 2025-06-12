@@ -25,7 +25,6 @@ public class NotificationServiceImpl implements NotificationService {
         notification.put("status", status);
         notification.put("timestamp", System.currentTimeMillis());
         
-        // 发送到公共频道
         messagingTemplate.convertAndSend("/topic/contract-updates", notification);
     }
 
@@ -37,9 +36,7 @@ public class NotificationServiceImpl implements NotificationService {
         notification.put("assignedTo", assignedTo);
         notification.put("timestamp", System.currentTimeMillis());
         
-        // 发送到特定用户的频道
         messagingTemplate.convertAndSend("/topic/user/" + assignedTo + "/assignments", notification);
-        // 同时发送到公共频道
         messagingTemplate.convertAndSend("/topic/contract-updates", notification);
     }
 
@@ -51,7 +48,6 @@ public class NotificationServiceImpl implements NotificationService {
         notification.put("businessType", businessType);
         notification.put("timestamp", System.currentTimeMillis());
         
-        // 发送到业务更新频道
         messagingTemplate.convertAndSend("/topic/business-updates", notification);
     }
 
@@ -62,7 +58,38 @@ public class NotificationServiceImpl implements NotificationService {
         notification.put("username", username);
         notification.put("timestamp", System.currentTimeMillis());
         
-        // 发送到特定用户的任务更新频道
         messagingTemplate.convertAndSend("/topic/user/" + username + "/tasks", notification);
+    }
+
+    @Override
+    public void notifyNewProcess(Long contractId, String processType, String assignedTo) {
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "NEW_PROCESS");
+        notification.put("contractId", contractId);
+        notification.put("processType", processType);
+        notification.put("assignedTo", assignedTo);
+        notification.put("timestamp", System.currentTimeMillis());
+        
+        // 发送给指定用户
+        messagingTemplate.convertAndSend("/topic/user/" + assignedTo + "/processes", notification);
+        // 同时发送到流程更新频道
+        messagingTemplate.convertAndSend("/topic/process-updates", notification);
+    }
+
+    @Override
+    public void notifyProcessStatusUpdate(Long contractId, Long processId, String processType, String status, String assignedTo) {
+        Map<String, Object> notification = new HashMap<>();
+        notification.put("type", "PROCESS_STATUS_UPDATE");
+        notification.put("contractId", contractId);
+        notification.put("processId", processId);
+        notification.put("processType", processType);
+        notification.put("status", status);
+        notification.put("assignedTo", assignedTo);
+        notification.put("timestamp", System.currentTimeMillis());
+        
+        // 发送给指定用户
+        messagingTemplate.convertAndSend("/topic/user/" + assignedTo + "/processes", notification);
+        // 同时发送到流程更新频道
+        messagingTemplate.convertAndSend("/topic/process-updates", notification);
     }
 } 

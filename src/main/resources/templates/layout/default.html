@@ -18,8 +18,27 @@
     <!-- 添加当前用户信息 -->
     <input type="hidden" id="current-username" th:value="${#authentication.name}">
     
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-brand">合同管理系统</div>
+        <div class="navbar-menu">
+            <a href="/dashboard" class="nav-item">
+                待办事项
+                <span id="pending-tasks-count" class="badge">0</span>
+            </a>
+            <!-- 其他导航项 -->
+        </div>
+    </nav>
+    
     <!-- 页面内容容器 -->
     <div class="container">
+        <!-- 流程列表 -->
+        <div class="section">
+            <h2>待处理流程</h2>
+            <div id="process-list" class="list-container"></div>
+        </div>
+        
+        <!-- 其他列表 -->
         <div id="task-list"></div>
         <div id="contract-list"></div>
         <div id="business-list"></div>

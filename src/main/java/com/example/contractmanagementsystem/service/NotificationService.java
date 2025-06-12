@@ -12,4 +12,10 @@ public interface NotificationService {
     
     // 任务列表更新通知
     void notifyTaskListUpdate(String username);
+
+    // 新流程通知
+    void notifyNewProcess(Long contractId, String processType, String assignedTo);
+    
+    // 流程状态更新通知
+    void notifyProcessStatusUpdate(Long contractId, Long processId, String processType, String status, String assignedTo);
 } 

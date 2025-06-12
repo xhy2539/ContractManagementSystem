@@ -18,10 +18,14 @@ function connect() {
         // 订阅业务更新
         stompClient.subscribe('/topic/business-updates', handleBusinessUpdates);
         
-        // 订阅个人任务更新
+        // 订阅流程更新
+        stompClient.subscribe('/topic/process-updates', handleProcessUpdates);
+        
+        // 订阅个人通知
         if (currentUsername) {
             stompClient.subscribe('/topic/user/' + currentUsername + '/assignments', handlePersonalAssignments);
             stompClient.subscribe('/topic/user/' + currentUsername + '/tasks', handleTaskUpdates);
+            stompClient.subscribe('/topic/user/' + currentUsername + '/processes', handlePersonalProcessUpdates);
         }
         
         // 连接后立即请求最新数据
@@ -65,6 +69,58 @@ function handleTaskUpdates(message) {
     if (data.username === currentUsername) {
         refreshTaskList();
     }
+}
+
+function handleProcessUpdates(message) {
+    const data = JSON.parse(message.body);
+    
+    switch(data.type) {
+        case 'NEW_PROCESS':
+            handleNewProcess(data);
+            break;
+        case 'PROCESS_STATUS_UPDATE':
+            handleProcessStatusUpdate(data);
+            break;
+    }
+}
+
+function handlePersonalProcessUpdates(message) {
+    const data = JSON.parse(message.body);
+    if (data.assignedTo === currentUsername) {
+        switch(data.type) {
+            case 'NEW_PROCESS':
+                handleNewProcess(data);
+                showNotification(`您有新的${getProcessTypeDescription(data.processType)}待处理`);
+                break;
+            case 'PROCESS_STATUS_UPDATE':
+                handleProcessStatusUpdate(data);
+                showNotification(`合同 #${data.contractId} 的${getProcessTypeDescription(data.processType)}状态已更新`);
+                break;
+        }
+    }
+}
+
+function handleNewProcess(data) {
+    // 刷新流程列表
+    refreshProcessList();
+    // 更新待办事项计数
+    updatePendingTasksCount();
+}
+
+function handleProcessStatusUpdate(data) {
+    // 更新流程状态显示
+    const processElement = document.querySelector(`[data-process-id="${data.processId}"]`);
+    if (processElement) {
+        const statusElement = processElement.querySelector('.process-status');
+        if (statusElement) {
+            statusElement.textContent = getProcessStatusDescription(data.status);
+            highlightElement(statusElement);
+        }
+    }
+    // 刷新流程列表
+    refreshProcessList();
+    // 更新待办事项计数
+    updatePendingTasksCount();
 }
 
 function updateContractStatus(data) {
@@ -140,6 +196,16 @@ function refreshAssignmentsList() {
     }
 }
 
+function refreshProcessList() {
+    const processList = document.getElementById('process-list');
+    if (processList) {
+        fetch('/api/processes/my-processes')
+            .then(response => response.json())
+            .then(data => updateProcessListUI(data))
+            .catch(error => console.error('Error fetching processes:', error));
+    }
+}
+
 // 更新UI的辅助函数
 function updateTaskListUI(data) {
     const taskList = document.getElementById('task-list');
@@ -197,6 +263,24 @@ function updateAssignmentsListUI(data) {
     }
 }
 
+function updateProcessListUI(data) {
+    const processList = document.getElementById('process-list');
+    if (processList) {
+        processList.innerHTML = data.map(process => `
+            <div class="process-item" data-process-id="${process.id}" data-contract-id="${process.contractId}">
+                <h3>${getProcessTypeDescription(process.type)} - 合同 #${process.contractId}</h3>
+                <p>${process.description || ''}</p>
+                <span class="process-status ${getProcessStatusClass(process.status)}">
+                    ${getProcessStatusDescription(process.status)}
+                </span>
+                <div class="process-actions">
+                    ${getProcessActions(process)}
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
 function highlightElement(element) {
     element.classList.add('highlight');
     setTimeout(() => element.classList.remove('highlight'), 3000);
@@ -212,6 +296,65 @@ function getStatusDescription(status) {
         'CANCELLED': '已取消'
     };
     return statusMap[status] || status;
+}
+
+function getProcessTypeDescription(type) {
+    const typeMap = {
+        'APPROVAL': '审批',
+        'SIGNING': '签订',
+        'REVIEW': '审核',
+        'FILING': '归档'
+    };
+    return typeMap[type] || type;
+}
+
+function getProcessStatusDescription(status) {
+    const statusMap = {
+        'PENDING': '待处理',
+        'PROCESSING': '处理中',
+        'COMPLETED': '已完成',
+        'REJECTED': '已拒绝',
+        'CANCELLED': '已取消'
+    };
+    return statusMap[status] || status;
+}
+
+function getProcessStatusClass(status) {
+    const classMap = {
+        'PENDING': 'status-pending',
+        'PROCESSING': 'status-processing',
+        'COMPLETED': 'status-completed',
+        'REJECTED': 'status-rejected',
+        'CANCELLED': 'status-cancelled'
+    };
+    return classMap[status] || '';
+}
+
+function getProcessActions(process) {
+    if (process.status === 'PENDING') {
+        return `
+            <button onclick="handleProcessAction(${process.id}, 'approve')" class="btn-approve">同意</button>
+            <button onclick="handleProcessAction(${process.id}, 'reject')" class="btn-reject">拒绝</button>
+        `;
+    }
+    return '';
+}
+
+function updatePendingTasksCount() {
+    fetch('/api/processes/pending-count')
+        .then(response => response.json())
+        .then(data => {
+            const countElement = document.getElementById('pending-tasks-count');
+            if (countElement) {
+                countElement.textContent = data.count;
+                if (data.count > 0) {
+                    countElement.classList.add('has-pending');
+                } else {
+                    countElement.classList.remove('has-pending');
+                }
+            }
+        })
+        .catch(error => console.error('Error fetching pending count:', error));
 }
 
 function showNotification(message) {
@@ -245,6 +388,8 @@ function refreshData() {
     refreshContractList();
     refreshBusinessList();
     refreshAssignmentsList();
+    refreshProcessList();
+    updatePendingTasksCount();
 }
 
 // 页面加载完成后连接WebSocket
