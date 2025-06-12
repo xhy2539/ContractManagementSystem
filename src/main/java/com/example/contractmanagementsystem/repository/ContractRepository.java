@@ -84,6 +84,12 @@ public interface ContractRepository extends JpaRepository<Contract, Long>, JpaSp
     @Query("SELECT c.status, COUNT(c) FROM Contract c GROUP BY c.status")
     List<Object[]> findContractCountByStatus();
 
+    // Add new method with user filtering
+    @Query("SELECT c.status, COUNT(c) FROM Contract c " +
+           "WHERE c.drafter = :user OR EXISTS (" +
+           "SELECT 1 FROM ContractProcess cp WHERE cp.contract = c AND cp.operator = :user) " +
+           "GROUP BY c.status")
+    List<Object[]> findContractCountByStatusForUser(@Param("user") User user);
 
     @Query("SELECT c FROM Contract c LEFT JOIN FETCH c.customer LEFT JOIN FETCH c.drafter d LEFT JOIN FETCH d.roles r LEFT JOIN FETCH r.functionalities WHERE c.id = :id")
     Optional<Contract> findByIdWithCustomerAndDrafter(@Param("id") Long id); // 方法名也更改为更具描述性的清晰度

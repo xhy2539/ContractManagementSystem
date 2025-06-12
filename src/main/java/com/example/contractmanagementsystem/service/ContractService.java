@@ -42,10 +42,13 @@ public interface ContractService {
     /**
      * 获取合同状态统计数据。
      * 统计不同状态（如草稿、待审批、已完成等）的合同数量。
+     * 如果是管理员，统计所有合同；如果是普通用户，只统计与其相关的合同。
      *
+     * @param username 当前用户的用户名
+     * @param isAdmin 是否是管理员
      * @return 一个Map，键为合同状态的字符串表示 (枚举的名称)，值为对应状态的合同数量。
      */
-    Map<String, Long> getContractStatusStatistics();
+    Map<String, Long> getContractStatusStatistics(String username, boolean isAdmin);
 
     /**
      * 根据多种条件搜索和分页查询合同。

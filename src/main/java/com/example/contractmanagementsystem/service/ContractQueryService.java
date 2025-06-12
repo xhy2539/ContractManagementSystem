@@ -7,13 +7,23 @@ import org.springframework.data.domain.Pageable;
 public interface ContractQueryService {
     
     /**
-     * 根据合同名称和编号搜索合同
+     * 复合查询合同信息
      * @param contractName 合同名称（可选）
      * @param contractNumber 合同编号（可选）
+     * @param status 合同状态（可选）
+     * @param username 当前用户名
+     * @param isAdmin 是否是管理员
      * @param pageable 分页参数
      * @return 合同分页数据
      */
-    Page<Contract> searchContracts(String contractName, String contractNumber, Pageable pageable);
+    Page<Contract> searchContracts(
+            String contractName,
+            String contractNumber,
+            String status,
+            String username,
+            boolean isAdmin,
+            Pageable pageable
+    );
 
     /**
      * 根据合同状态查询合同

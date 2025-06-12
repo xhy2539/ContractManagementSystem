@@ -191,7 +191,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     'PENDING_APPROVAL': '待审批',
                     'PENDING_SIGNING': '待签订',
                     'ACTIVE': '有效',
-                    'COMPLETED': '完成',
                     'EXPIRED': '过期',
                     'TERMINATED': '终止'
                 };

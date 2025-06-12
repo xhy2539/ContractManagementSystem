@@ -429,20 +429,29 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     @Transactional(readOnly = true)
-    public Map<String, Long> getContractStatusStatistics() {
-        List<Object[]> results = contractRepository.findContractCountByStatus(); //
-        Map<String, Long> statistics = new HashMap<>(); //
-        for (ContractStatus status : ContractStatus.values()) { //
-            statistics.put(status.name(), 0L); //
+    public Map<String, Long> getContractStatusStatistics(String username, boolean isAdmin) {
+        Map<String, Long> statistics = new HashMap<>();
+        for (ContractStatus status : ContractStatus.values()) {
+            statistics.put(status.name(), 0L);
         }
-        for (Object[] result : results) { //
-            if (result[0] instanceof ContractStatus && result[1] instanceof Long) { //
-                ContractStatus status = (ContractStatus) result[0]; //
-                Long count = (Long) result[1]; //
-                statistics.put(status.name(), count); //
+
+        List<Object[]> results;
+        if (isAdmin) {
+            results = contractRepository.findContractCountByStatus();
+        } else {
+            User currentUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new BusinessLogicException("User not found: " + username));
+            results = contractRepository.findContractCountByStatusForUser(currentUser);
+        }
+
+        for (Object[] result : results) {
+            if (result[0] instanceof ContractStatus && result[1] instanceof Long) {
+                ContractStatus status = (ContractStatus) result[0];
+                Long count = (Long) result[1];
+                statistics.put(status.name(), count);
             }
         }
-        return statistics; //
+        return statistics;
     }
 
     @Override

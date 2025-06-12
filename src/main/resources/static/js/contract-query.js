@@ -15,9 +15,9 @@ document.addEventListener('DOMContentLoaded', function() {
         'PENDING_APPROVAL': '待审批',
         'PENDING_SIGNING': '待签订',
         'ACTIVE': '有效',
-        'COMPLETED': '完成',
         'EXPIRED': '过期',
-        'REJECTED': '已拒绝' // 添加已拒绝状态
+        'REJECTED': '已拒绝',
+        'TERMINATED': '终止'
     };
 
     // 初始加载
@@ -43,46 +43,42 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData(searchForm);
         const searchParams = new URLSearchParams();
 
-        // 添加查询参数
+        // 添加所有查询参数
         formData.forEach((value, key) => {
-            if (value) searchParams.append(key, value);
+            if (value && value.trim() !== '') {
+                searchParams.append(key, value.trim());
+            }
         });
 
         // 添加分页参数
         searchParams.append('page', currentPage);
         searchParams.append('size', pageSize);
 
-        // --- 修改点：统一调用 /reports/api/contracts/search 接口 ---
-        // 该接口已在 ContractReportController 中实现，并支持根据用户权限过滤
-        const endpoint = `/reports/api/contracts/search?${searchParams.toString()}`;
-
         // 发起请求
-        fetch(endpoint, {
+        fetch(`/api/contracts/query/search?${searchParams.toString()}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
             }
         })
-            .then(response => {
-                if (!response.ok) {
-                    // 尝试解析错误信息体 (如果后端返回JSON错误信息)
-                    return response.json().then(errData => {
-                        throw new Error(`HTTP错误! 状态: ${response.status}, 信息: ${errData.message || response.statusText}`);
-                    }).catch(() => {
-                        // 如果错误信息体不是JSON或解析失败
-                        throw new Error(`HTTP错误! 状态: ${response.status}, 信息: ${response.statusText}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                renderContracts(data.content);
-                renderPagination(data);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showError(`加载数据失败: ${error.message}`);
-            });
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errData => {
+                    throw new Error(`查询失败: ${errData.message || response.statusText}`);
+                }).catch(() => {
+                    throw new Error(`查询失败: ${response.statusText}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            renderContracts(data.content);
+            renderPagination(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError(`加载数据失败: ${error.message}`);
+        });
     }
 
     // 渲染合同数据
@@ -185,8 +181,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 显示错误信息
     function showError(message) {
-        // 这里可以实现一个toast或者其他提示组件
-        alert(message);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger alert-dismissible fade show';
+        errorDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        document.querySelector('.container').insertBefore(errorDiv, searchForm);
+        
+        // 5秒后自动消失
+        setTimeout(() => {
+            errorDiv.remove();
+        }, 5000);
     }
 });
 

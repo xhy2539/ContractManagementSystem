@@ -9,11 +9,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/contracts/query")
-@PreAuthorize("hasRole('ROLE_ADMIN')")
 public class ContractQueryController {
 
     private final ContractQueryService contractQueryService;
@@ -26,10 +26,23 @@ public class ContractQueryController {
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('QUERY_CONTRACT_INFO')")
     public ResponseEntity<Page<Contract>> searchContracts(
+            Authentication authentication,
             @RequestParam(required = false) String contractName,
             @RequestParam(required = false) String contractNumber,
+            @RequestParam(required = false) String status,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(contractQueryService.searchContracts(contractName, contractNumber, pageable));
+        
+        String username = authentication.getName();
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        return ResponseEntity.ok(contractQueryService.searchContracts(
+                contractName, 
+                contractNumber, 
+                status,
+                username,
+                isAdmin,
+                pageable));
     }
 
     @GetMapping("/by-status")
