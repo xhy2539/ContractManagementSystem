@@ -146,18 +146,32 @@
     </div>
 
     <div class="card" th:if="${allApprovalProcesses != null and not #lists.isEmpty(allApprovalProcesses)}">
-        <div class="card-header"><i class="bi bi-clipboard-check"></i>审批意见汇总</div>
+        <div class="card-header">
+            <i class="bi bi-clipboard-check"></i>审批进度
+            <span class="badge bg-primary" th:with="totalApprovers=${#lists.size(allApprovalProcesses)},
+                                                  approvedCount=${#lists.size(allApprovalProcesses.?[state.name() == 'APPROVED'])},
+                                                  rejectedCount=${#lists.size(allApprovalProcesses.?[state.name() == 'REJECTED'])}">
+                已审批: [[${approvedCount + rejectedCount}]]/[[${totalApprovers}]]
+            </span>
+            <span th:if="${rejectedCount > 0}" class="badge bg-danger ms-2">已驳回</span>
+            <span th:if="${approvedCount == totalApprovers}" class="badge bg-success ms-2">全部通过</span>
+        </div>
         <div class="card-body">
+            <div class="alert alert-info" role="alert">
+                <i class="bi bi-info-circle"></i> 审批规则：需要所有审批人同意才能进入下一流程，任何人拒绝则流程终止。
+            </div>
             <ul class="list-group list-group-flush">
                 <li class="list-group-item" th:each="opinion : ${allApprovalProcesses}">
                     <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1" th:text="${opinion.operatorUsername ?: '匿名用户'}"></h6>
+                        <h6 class="mb-1">
+                            <span th:text="${opinion.operatorUsername ?: '匿名用户'}"></span>
+                            <span th:if="${opinion.state?.name() == 'PENDING'}" class="badge bg-warning">待审批</span>
+                            <span th:if="${opinion.state?.name() == 'APPROVED'}" class="badge bg-success">已通过</span>
+                            <span th:if="${opinion.state?.name() == 'REJECTED'}" class="badge bg-danger">已拒绝</span>
+                        </h6>
                         <small class="text-muted" th:text="${opinion.processedAt != null ? #temporals.format(opinion.processedAt, 'yyyy-MM-dd HH:mm') : '未处理'}"></small>
                     </div>
                     <p class="mb-1" th:text="${opinion.comments != null and !opinion.comments.isEmpty() ? opinion.comments : '(无具体意见)'}"></p>
-                    <small th:text="${opinion.state?.description ?: '未知状态'}"
-                           th:classappend="${(opinion.state?.name() == 'APPROVED' or opinion.state?.name() == 'COMPLETED') ? 'text-success fw-bold' : (opinion.state?.name() == 'REJECTED' ? 'text-danger fw-bold' : 'text-muted')}">
-                    </small>
                 </li>
             </ul>
         </div>

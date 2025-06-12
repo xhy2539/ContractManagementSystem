@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -48,46 +49,66 @@ public class ContractApprovalServiceImp implements ContractApprovalService {
             throws ResourceNotFoundException, BusinessLogicException, AccessDeniedException {
 
         // 在事务内重新获取合同，确保关联数据加载
-        // ⭐ 推荐这里也使用新的急切加载方法，以确保事务内的对象是完整的，避免潜在的N+1问题 ⭐
         Contract contract = contractRepository.findByIdWithCustomerAndDrafter(contractId)
                 .orElseThrow(() -> new ResourceNotFoundException("合同未找到，ID: " + contractId));
 
-        // 2. 获取审批人
+        // 获取审批人
         User approver = userRepository.findByUsernameWithRolesAndFunctionalities(username)
                 .orElseThrow(() -> new ResourceNotFoundException("审批人用户未找到，用户名: " + username));
 
-
-        // 3. 业务逻辑验证：确保合同处于待审批状态
+        // 业务逻辑验证：确保合同处于待审批状态
         if (contract.getStatus() != ContractStatus.PENDING_APPROVAL) {
             throw new BusinessLogicException("合同状态不是待审批 (" + contract.getStatus().getDescription() + ")，无法进行审批。");
         }
 
         LocalDateTime now = LocalDateTime.now();
 
-        // 4. 创建并保存 ContractProcess 记录
-        ContractProcess contractProcess = new ContractProcess();
-        contractProcess.setContract(contract);
-        contractProcess.setContractNumber(contract.getContractNumber());
-        contractProcess.setType(ContractProcessType.APPROVAL);
+        // 获取所有待审批的流程记录
+        List<ContractProcess> allPendingApprovals = contractProcessRepository.findByContractAndTypeAndState(
+                contract, ContractProcessType.APPROVAL, ContractProcessState.PENDING);
 
-        contractProcess.setOperator(approver);
-        contractProcess.setOperatorUsername(approver.getUsername());
-        contractProcess.setComments(comments);
-        contractProcess.setProcessedAt(now);
-        contractProcess.setCompletedAt(now);
+        // 获取当前用户的审批流程
+        ContractProcess currentUserProcess = allPendingApprovals.stream()
+                .filter(process -> process.getOperatorUsername().equals(username))
+                .findFirst()
+                .orElseThrow(() -> new BusinessLogicException("未找到您的审批任务"));
 
-        // 5. 根据审批决定更新合同状态和 ContractProcessState
-        if (isApproved) {
-            contract.setStatus(ContractStatus.PENDING_SIGNING);
-            contractProcess.setState(ContractProcessState.APPROVED);
-        } else {
+        // 创建并保存当前用户的 ContractProcess 记录
+        currentUserProcess.setProcessedAt(now);
+        currentUserProcess.setCompletedAt(now);
+        currentUserProcess.setOperator(approver);
+        currentUserProcess.setOperatorUsername(approver.getUsername());
+        currentUserProcess.setComments(comments);
+
+        // 如果是拒绝，直接设置合同状态为拒绝
+        if (!isApproved) {
             contract.setStatus(ContractStatus.REJECTED);
-            contractProcess.setState(ContractProcessState.REJECTED);
+            currentUserProcess.setState(ContractProcessState.REJECTED);
+            contractRepository.save(contract);
+            contractProcessRepository.save(currentUserProcess);
+            return;
         }
 
-        // 6. 保存更新后的合同状态和新的流程记录
-        contractRepository.save(contract);
-        contractProcessRepository.save(contractProcess);
+        // 如果是通过，更新当前审批人的状态
+        currentUserProcess.setState(ContractProcessState.APPROVED);
+        contractProcessRepository.save(currentUserProcess);
+
+        // 检查是否所有审批人都已审批通过
+        List<ContractProcess> allApprovalProcesses = contractProcessRepository.findByContractAndType(
+                contract, ContractProcessType.APPROVAL);
+        
+        boolean allApproved = allApprovalProcesses.stream()
+                .filter(process -> process.getState() != ContractProcessState.PENDING)
+                .allMatch(process -> process.getState() == ContractProcessState.APPROVED);
+        
+        boolean allProcessed = allApprovalProcesses.stream()
+                .noneMatch(process -> process.getState() == ContractProcessState.PENDING);
+
+        // 只有当所有人都审批通过时，才更新合同状态为待签订
+        if (allApproved && allProcessed) {
+            contract.setStatus(ContractStatus.PENDING_SIGNING);
+            contractRepository.save(contract);
+        }
     }
 
     @Override
