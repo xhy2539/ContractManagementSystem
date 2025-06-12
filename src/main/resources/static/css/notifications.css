@@ -9,6 +9,11 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     z-index: 1000;
     animation: slideIn 0.5s ease-out;
+    transition: opacity 0.5s ease-out;
+}
+
+.custom-notification.fade-out {
+    opacity: 0;
 }
 
 @keyframes slideIn {
@@ -22,7 +27,7 @@
     }
 }
 
-.status-updated {
+.highlight {
     animation: highlight 3s ease-out;
 }
 
@@ -33,4 +38,48 @@
     100% {
         background-color: transparent;
     }
+}
+
+/* 任务项样式 */
+.task-item, .contract-item, .business-item, .assignment-item {
+    padding: 15px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.task-item:hover, .contract-item:hover, .business-item:hover, .assignment-item:hover {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* 状态标签样式 */
+.task-status, .contract-status, .business-status, .assignment-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 8px;
+}
+
+/* 不同状态的颜色 */
+.status-pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-approved {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-rejected {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.status-completed {
+    background-color: #cce5ff;
+    color: #004085;
 } 

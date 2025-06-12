@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <!-- ... existing head content ... -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>合同管理系统</title>
     
     <!-- WebSocket相关依赖 -->
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
@@ -9,9 +11,21 @@
     <script th:src="@{/js/websocket.js}"></script>
     <link rel="stylesheet" th:href="@{/css/notifications.css}">
     
-    <!-- ... other resources ... -->
+    <!-- 其他资源 -->
+    <th:block th:include=":: head"/>
 </head>
 <body>
-    <!-- ... existing body content ... -->
+    <!-- 添加当前用户信息 -->
+    <input type="hidden" id="current-username" th:value="${#authentication.name}">
+    
+    <!-- 页面内容容器 -->
+    <div class="container">
+        <div id="task-list"></div>
+        <div id="contract-list"></div>
+        <div id="business-list"></div>
+        <div id="assignments-list"></div>
+    </div>
+    
+    <th:block th:include=":: body"/>
 </body>
 </html> 
