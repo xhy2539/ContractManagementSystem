@@ -27,6 +27,18 @@
         .alert { padding: 10px; margin-bottom: 15px; border-radius: 4px; font-size: 0.9em; }
         .alert-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
         .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* 密码强度提示样式 */
+        .password-strength {
+            margin-top: -10px; /* 调整位置使其更接近输入框 */
+            margin-bottom: 10px;
+            text-align: left;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .strength-weak { color: #dc3545; } /* 红色 */
+        .strength-medium { color: #ffc107; } /* 黄色 */
+        .strength-strong { color: #28a745; } /* 绿色 */
     </style>
 </head>
 <body>
@@ -45,7 +57,7 @@
         <div>
             <label for="password">密码:</label>
             <input type="password" id="password" name="password" required />
-        </div>
+            <div id="passwordStrength" class="password-strength"></div> </div>
         <div>
             <label for="confirmPassword">确认密码:</label>
             <input type="password" id="confirmPassword" name="confirmPassword" required />
@@ -78,12 +90,84 @@
     const messageText = document.getElementById('messageText');
     const passwordInput = document.getElementById('password'); // 获取密码输入框
     const confirmPasswordInput = document.getElementById('confirmPassword'); // 获取确认密码输入框
+    const passwordStrength = document.getElementById('passwordStrength'); // 获取密码强度提示区域
 
     function showMessage(text, isSuccess) {
         messageText.textContent = text;
         messageArea.className = 'alert ' + (isSuccess ? 'alert-info' : 'alert-danger');
         messageArea.style.display = 'block';
     }
+
+    // ⭐ 密码强度检测函数 ⭐
+    function checkPasswordStrength(password) {
+        let strength = 0;
+        const feedback = [];
+
+        // 长度要求
+        if (password.length >= 8) {
+            strength += 1;
+        } else {
+            feedback.push('密码长度至少8位');
+        }
+
+        // 包含大小写字母
+        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) {
+            strength += 1;
+        } else {
+            feedback.push('包含大小写字母');
+        }
+
+        // 包含数字
+        if (/\d/.test(password)) {
+            strength += 1;
+        } else {
+            feedback.push('包含数字');
+        }
+
+        // 包含特殊字符
+        if (/[^a-zA-Z0-9]/.test(password)) {
+            strength += 1;
+        } else {
+            feedback.push('包含特殊字符');
+        }
+
+        let strengthText = '';
+        let strengthClass = '';
+
+        if (strength <= 1) {
+            strengthText = '弱';
+            strengthClass = 'strength-weak';
+        } else if (strength <= 3) {
+            strengthText = '中';
+            strengthClass = 'strength-medium';
+        } else {
+            strengthText = '强';
+            strengthClass = 'strength-strong';
+        }
+
+        return {
+            strength: strengthText,
+            className: strengthClass,
+            feedback: feedback
+        };
+    }
+
+    // ⭐ 实时检测密码强度 ⭐
+    passwordInput.addEventListener('input', () => {
+        const password = passwordInput.value;
+        if (password.length > 0) {
+            const result = checkPasswordStrength(password);
+            passwordStrength.textContent = '强度: ' + result.strength;
+            passwordStrength.className = 'password-strength ' + result.className;
+            if (result.feedback.length > 0 && result.strength !== '强') {
+                passwordStrength.textContent += ' (' + result.feedback.join(', ') + ')';
+            }
+        } else {
+            passwordStrength.textContent = '';
+            passwordStrength.className = 'password-strength';
+        }
+    });
+
 
     registrationForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -94,18 +178,26 @@
             data[key] = value;
         });
 
-        // ⭐ 客户端密码一致性验证 ⭐
+        // 客户端密码一致性验证
         if (passwordInput.value !== confirmPasswordInput.value) {
             showMessage('注册失败: 两次输入的密码不一致！', false);
             return; // 阻止表单提交
         }
+
+        // 在提交前也检查密码强度，可以根据需要阻止提交或给出警告
+        const passwordStrengthResult = checkPasswordStrength(passwordInput.value);
+        if (passwordStrengthResult.strength === '弱') {
+            showMessage('注册失败: 密码强度过弱，请设置更复杂的密码！', false);
+            return; // 阻止表单提交
+        }
+
 
         if (!data.roleType) {
             showMessage('请选择您的角色！', false);
             return;
         }
 
-        // ⭐ 移除确认密码字段，因为后端通常不需要这个字段 ⭐
+        // 移除确认密码字段，因为后端通常不需要这个字段
         delete data.confirmPassword;
 
         try {
@@ -122,6 +214,7 @@
             if (response.ok) {
                 showMessage('注册成功！用户名: ' + result.username + ', ID: ' + result.userId + ', 角色: ' + result.token, true);
                 registrationForm.reset();
+                passwordStrength.textContent = ''; // 清空密码强度提示
             } else {
                 let errorMessage = result.message || '未知错误'; // 尝试获取总消息
 
