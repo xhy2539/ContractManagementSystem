@@ -7,6 +7,7 @@ import com.example.contractmanagementsystem.exception.ResourceNotFoundException;
 import com.example.contractmanagementsystem.repository.*;
 import com.example.contractmanagementsystem.service.AuditLogService;
 import com.example.contractmanagementsystem.service.EmailService;
+import com.example.contractmanagementsystem.service.NotificationService;
 import com.example.contractmanagementsystem.service.SystemManagementService;
 import jakarta.persistence.criteria.Fetch; // 新增导入
 import jakarta.persistence.criteria.JoinType;
@@ -25,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -40,6 +43,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
     private final EmailService emailService;
+    private final NotificationService notificationService;
 
     @Autowired
     public SystemManagementServiceImpl(UserRepository userRepository,
@@ -49,7 +53,8 @@ public class SystemManagementServiceImpl implements SystemManagementService {
                                        ContractProcessRepository contractProcessRepository,
                                        PasswordEncoder passwordEncoder,
                                        AuditLogService auditLogService,
-                                       EmailService emailService) {
+                                       EmailService emailService,
+                                       NotificationService notificationService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.functionalityRepository = functionalityRepository;
@@ -58,6 +63,7 @@ public class SystemManagementServiceImpl implements SystemManagementService {
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
         this.emailService = emailService;
+        this.notificationService = notificationService;
     }
 
     private String getCurrentUsername() {
@@ -603,27 +609,41 @@ public class SystemManagementServiceImpl implements SystemManagementService {
     }
 
     private void createAndNotify(Contract contract, User operator, ContractProcessType type) {
-        ContractProcess process = createContractProcess(contract, operator, type, ContractProcessState.PENDING);
+        ContractProcess process = new ContractProcess();
+        process.setContract(contract);
+        process.setOperator(operator);
+        process.setOperatorUsername(operator.getUsername());
+        process.setType(type);
+        process.setState(ContractProcessState.PENDING);
+        process.setCreatedAt(LocalDateTime.now());
         contractProcessRepository.save(process);
-        sendTaskNotificationEmail(operator, type.getDescription(), contract);
-    }
 
-    private void sendTaskNotificationEmail(User operator, String taskType, Contract contract) {
-        if (operator != null && StringUtils.hasText(operator.getEmail())) {
-            Map<String, Object> context = new HashMap<>();
-            context.put("recipientName", operator.getRealName() != null ? operator.getRealName() : operator.getUsername());
-            context.put("taskType", taskType);
-            context.put("contractName", contract.getContractName());
+        // 发送WebSocket通知
+        notificationService.notifyContractAssignment(contract.getId(), operator.getUsername());
+        notificationService.notifyNewProcess(contract.getId(), type.name(), operator.getUsername());
 
-            String actionUrl = "http://localhost:8080/dashboard";
-            context.put("actionUrl", actionUrl);
-
-            emailService.sendHtmlMessage(
-                    operator.getEmail(),
-                    "【合同管理系统】您有新的待处理任务：" + taskType,
-                    "email/task-notification-email",
-                    context
-            );
-        }
+        // 发送邮件通知
+        String taskType = type.getDescription();
+        String subject = String.format("新的合同%s任务通知", taskType);
+        String content = String.format("""
+            您好，%s：
+                
+            您有一个新的合同%s任务需要处理：
+            合同名称：%s
+            合同编号：%s
+            创建时间：%s
+                
+            请及时登录系统处理。
+                
+            此邮件为系统自动发送，请勿回复。
+            """, 
+            operator.getUsername(),
+            taskType,
+            contract.getContractName(),
+            contract.getContractNumber(),
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        );
+        
+        emailService.sendSimpleMessage(operator.getEmail(), subject, content);
     }
 }

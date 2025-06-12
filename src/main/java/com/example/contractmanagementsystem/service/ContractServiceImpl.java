@@ -355,6 +355,31 @@ public class ContractServiceImpl implements ContractService {
             logDetails += " Contract rejected due to countersign, status changed to Rejected.";
             auditLogService.logAction(username, logActionType, logDetails);
             contractRepository.save(contract);
+            
+            // 发送会签拒绝通知给合同起草人
+            String subject = "合同会签被拒绝通知";
+            String content = String.format("""
+                您好，%s：
+                    
+                您起草的合同已被拒绝会签：
+                合同名称：%s
+                合同编号：%s
+                会签人：%s
+                会签意见：%s
+                处理时间：%s
+                    
+                请登录系统查看详细信息。
+                    
+                此邮件为系统自动发送，请勿回复。
+                """,
+                contract.getDrafter().getUsername(),
+                contract.getContractName(),
+                contract.getContractNumber(),
+                username,
+                comments,
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+            emailService.sendSimpleMessage(contract.getDrafter().getEmail(), subject, content);
             return;
         }
 
@@ -379,17 +404,57 @@ public class ContractServiceImpl implements ContractService {
             logDetails += " All countersigns completed and approved, contract enters pending finalization status.";
             auditLogService.logAction(username, "CONTRACT_ALL_COUNTERSIGNED_TO_FINALIZE", logDetails);
 
-            // ========== FIX: Pass the 'contract' object instead of 'contract.getId()' ==========
+            // 获取所有待定稿的流程
             List<ContractProcess> finalizationProcesses = contractProcessRepository
                     .findByContractAndTypeAndState(contract, ContractProcessType.FINALIZE, ContractProcessState.PENDING);
 
             logger.info("会签完成，找到 {} 个待处理的定稿任务，准备发送邮件通知。", finalizationProcesses.size());
 
+            // 发送会签完成通知给合同起草人
+            String drafterSubject = "合同会签完成通知";
+            String drafterContent = String.format("""
+                您好，%s：
+                    
+                您起草的合同已完成会签流程：
+                合同名称：%s
+                合同编号：%s
+                当前状态：待定稿
+                完成时间：%s
+                    
+                请登录系统查看详细信息。
+                    
+                此邮件为系统自动发送，请勿回复。
+                """,
+                contract.getDrafter().getUsername(),
+                contract.getContractName(),
+                contract.getContractNumber(),
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            );
+            emailService.sendSimpleMessage(contract.getDrafter().getEmail(), drafterSubject, drafterContent);
+
+            // 发送定稿任务通知给所有定稿人
             for (ContractProcess finalizationProcess : finalizationProcesses) {
                 User finalizer = finalizationProcess.getOperator();
-                sendTaskNotificationEmail(finalizer, "合同定稿", contract);
+                String subject = "新的合同定稿任务通知";
+                String content = String.format("""
+                    您好，%s：
+                        
+                    您有一个新的合同定稿任务需要处理：
+                    合同名称：%s
+                    合同编号：%s
+                    创建时间：%s
+                        
+                    请及时登录系统处理。
+                        
+                    此邮件为系统自动发送，请勿回复。
+                    """,
+                    finalizer.getUsername(),
+                    contract.getContractName(),
+                    contract.getContractNumber(),
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                );
+                emailService.sendSimpleMessage(finalizer.getEmail(), subject, content);
             }
-
         } else {
             logDetails += " Current countersign approved, but other countersign processes are still pending. Contract status remains pending countersign.";
             auditLogService.logAction(username, logActionType, logDetails);

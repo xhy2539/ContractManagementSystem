@@ -445,6 +445,7 @@
     </style>
     <th:block layout:fragment="css-links"></th:block>
     <style layout:fragment="inline-css"></style>
+    <script src="https://cdn.tiny.cloud/1/kwi0ry8k8gcf5ddntrikbcgm8islrb1cke2cxv7epxkhmfe/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
 </head>
 <body>
 <nav class="navbar navbar-expand-md navbar-dark fixed-top">
@@ -651,6 +652,58 @@
             navbar.style.transform = 'translateY(0)';
         }
         lastScrollTop = scrollTop;
+    });
+</script>
+
+<script th:inline="javascript">
+    window.addEventListener('beforeunload', function(e) {
+        // 发送同步请求来清理会话
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon('/perform_logout');
+        } else {
+            // 如果浏览器不支持 sendBeacon，使用同步 XMLHttpRequest
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/perform_logout', false);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.send();
+        }
+    });
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        tinymce.init({
+            selector: 'textarea.tinymce',
+            height: 500,
+            language: 'zh_CN',
+            plugins: [
+                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                'insertdatetime', 'media', 'table', 'help', 'wordcount', 'autosave',
+                'emoticons', 'quickbars', 'codesample'
+            ],
+            toolbar: 'undo redo | blocks | ' +
+                'bold italic forecolor backcolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | table image media codesample emoticons | help',
+            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+            branding: false,
+            promotion: false,
+            autosave_interval: '30s',
+            autosave_prefix: 'tinymce-autosave-{path}-{id}-',
+            image_advtab: true,
+            link_context_toolbar: true,
+            contextmenu: 'link image table',
+            quickbars_selection_toolbar: 'bold italic | quicklink h2 h3 blockquote',
+            toolbar_mode: 'sliding',
+            skin: 'oxide',
+            content_css: 'default',
+            setup: function(editor) {
+                editor.on('change', function() {
+                    editor.save();
+                });
+            }
+        });
     });
 </script>
 </body>
