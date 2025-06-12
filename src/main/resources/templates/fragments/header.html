@@ -1,0 +1,5 @@
+<!-- 在用户菜单中添加注销表单 -->
+<form id="logoutForm" th:action="@{/perform_logout}" method="post" style="display: none;"></form>
+<a class="dropdown-item" href="#" onclick="document.getElementById('logoutForm').submit(); return false;">
+    <i class="fas fa-sign-out-alt"></i> 注销
+</a> 

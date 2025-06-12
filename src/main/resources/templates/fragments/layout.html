@@ -657,15 +657,34 @@
 
 <script th:inline="javascript">
     window.addEventListener('beforeunload', function(e) {
-        // 发送同步请求来清理会话
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon('/perform_logout');
-        } else {
-            // 如果浏览器不支持 sendBeacon，使用同步 XMLHttpRequest
-            var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/perform_logout', false);
-            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-            xhr.send();
+        // 不执行任何操作，让会话管理机制处理
+    });
+
+    // 注销按钮点击处理
+    document.addEventListener('DOMContentLoaded', function() {
+        const logoutForm = document.getElementById('logoutForm');
+        if (logoutForm) {
+            logoutForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                // 发送注销请求
+                fetch('/perform_logout', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                }).then(function() {
+                    // 清除本地存储
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    // 删除所有cookie
+                    document.cookie.split(";").forEach(function(c) {
+                        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                    });
+                    // 重定向到登录页
+                    window.location.href = '/login?logout';
+                });
+            });
         }
     });
 </script>
